@@ -132,6 +132,22 @@ agentarmor.init(record=True)
 
 ---
 
+## Integrations
+
+AgentArmor works out-of-the-box with **every major AI framework** on the market. 
+
+Because AgentArmor monkey-patches the underlying `openai` and `anthropic` clients directly at the network level, you do not need framework-specific callbacks or middleware. Just initialize `agentarmor.init()` at the top of your script and it will automatically protect:
+
+- **LangChain / LangGraph**
+- **LlamaIndex**
+- **CrewAI**
+- **Agno / Phidata**
+- **Autogen**
+- **SmolAgents**
+- Custom raw SDK scripts
+
+---
+
 ## Supported Models
 
 Built-in automated tracking for standard models across the major providers. 
