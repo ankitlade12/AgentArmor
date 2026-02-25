@@ -1,0 +1,34 @@
+import os
+import json
+import uuid
+import tempfile
+from agentarmor.modules.recorder import RecorderModule
+
+def test_recorder_logging():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        module = RecorderModule(path=temp_dir)
+        
+        module.log(
+            provider="openai",
+            model="gpt-4o",
+            input_messages=[{"role": "user", "content": "Hi"}],
+            output="Hello there!",
+            latency_ms=150.5
+        )
+        
+        filepath = os.path.join(temp_dir, f"session_{module.session_id}.jsonl")
+        assert os.path.exists(filepath)
+        
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+            assert len(lines) == 1
+            
+            data = json.loads(lines[0])
+            assert data["provider"] == "openai"
+            assert data["model"] == "gpt-4o"
+            assert data["output"] == "Hello there!"
+            assert data["latency_ms"] == 150.5
+            
+        report = module.report()
+        assert report["events"] == 1
+        assert report["session_id"] == module.session_id
