@@ -6,7 +6,6 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/agentarmor.svg)](https://pypi.org/project/agentarmor/)
 [![Downloads](https://static.pepy.tech/badge/agentarmor)](https://pepy.tech/project/agentarmor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Python License](https://img.shields.io/badge/License-Python-blue.svg)](https://docs.python.org/3/license.html)
 
 **One install. Four shields. Zero infrastructure to manage.**
 
