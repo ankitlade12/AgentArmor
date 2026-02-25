@@ -9,6 +9,8 @@
 
 **One install. Four shields. Zero infrastructure to manage.**
 
+## What is AgentArmor?
+
 AgentArmor is an open-source Python SDK that wraps your LLM integrations with real-time safety controls. It protects your applications from runaway costs, prompt injection attacks, sensitive data leaks, and provides a complete audit trail of every interaction. 
 
 It hooks directly into the core networking libraries of `openai` and `anthropic`, placing an invisible firewall right inside your Python process. No proxies. No accounts. No rewriting your application logic.
@@ -17,7 +19,8 @@ It hooks directly into the core networking libraries of `openai` and `anthropic`
 
 ## Quickstart
 
-**Two lines. Zero code changes to your existing agent.**
+**Drop-in Mode (Recommended)**
+Two lines. Zero code changes to your existing agent.
 
 ```python
 import agentarmor
@@ -39,7 +42,9 @@ response = client.chat.completions.create(
 )
 
 # 3. Get your safety and cost report
-print(agentarmor.report())
+print(agentarmor.spent())      # e.g. 0.0035
+print(agentarmor.remaining())  # e.g. 4.9965
+print(agentarmor.report())     # Full cost/security breakdown
 
 # 4. Tear down the shields
 agentarmor.teardown()
@@ -58,7 +63,19 @@ pip install agentarmor
 
 ---
 
-## The Four Shields
+## Drop-in API
+
+| Function | Description |
+| :--- | :--- |
+| `agentarmor.init(budget, shield, filter, record)` | Start tracking. Patches OpenAI/Anthropic SDKs. Loads chosen shields. |
+| `agentarmor.spent()` | Total dollars spent so far in this session. |
+| `agentarmor.remaining()` | Dollars left in the budget. |
+| `agentarmor.report()` | Full security and cost breakdown as a dictionary. |
+| `agentarmor.teardown()` | Stop tracking, unpatch SDKs, and clean up. |
+
+---
+
+## Features (The Four Shields)
 
 ### 💰 1. Budget Circuit Breaker
 **Stop unexpected massive bills.** 
@@ -116,30 +133,42 @@ agentarmor.init(record=True)
 
 ---
 
-## API Reference
+## Supported Models
 
-| Function | Description |
+Built-in automated tracking for standard models across the major providers. 
+
+| Provider | Models |
 | :--- | :--- |
-| `agentarmor.init(...)` | Start tracking. Patches OpenAI/Anthropic SDKs. Loads selected shields. |
-| `agentarmor.report()` | Returns a comprehensive JSON summary detailing spend, shield catches, redactions, and session file paths. |
-| `agentarmor.spent()` | Returns the exact dollar spend tracked so far. |
-| `agentarmor.remaining()`| Returns the exact dollar amount remaining on the budget. |
-| `agentarmor.teardown()` | Stops tracking, unpatches SDKs, and cleans up the session. |
+| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-3.5-turbo` |
+| **Anthropic** | `claude-opus-4`, `claude-sonnet-4-5`, `claude-haiku-4-5` |
+| **Google** | `gemini-1.5-pro`, `gemini-1.5-flash` |
+
+*Note: For models not explicitly listed, generic conservative fallback pricing is used.*
 
 ---
 
-## Why AgentArmor?
+## The Problem
 
-The AI ecosystem is chaotic. An agent might make 3 LLM calls or 300. A user might try to hijack your system prompt. The model might hallucinate an API key.
+AI agents are unpredictable by design. A user might try to hijack your system prompt. The model might hallucinate an API key. An agent might get stuck in an infinite loop and make 300 LLM calls.
 
-- **The Proxy Problem**: Existing security tools require you to route traffic through *their* servers. AgentArmor is an in-memory library. Data never leaves your machine.
-- **The Lock-in Problem**: No need to rewrite your agent using a custom vendor SDK. AgentArmor wraps the underlying `openai` and `anthropic` clients directly.
-- **The Speed Problem**: The entire safety pipeline executes in microseconds. No network overhead.
+1. **The Hijack Problem** — Users type `"ignore previous instructions"` and take control of your LLM.
+2. **The Output Leak Problem** — Your agent accidently regurgitates a real customer's SSN or an OpenAI API key it saw in context.
+3. **The Loop Problem** — A stuck agent makes 200 LLM calls in 10 minutes. $50-$200 down the drain before anyone notices.
+4. **The Invisible Spend** — Tokens aren't dollars. `gpt-4o` costs 15x more than `gpt-4o-mini`.
 
-AgentArmor provides real-time, deterministic safety controls that let you deploy generative AI to production with total confidence. 
+**AgentArmor fills the gap:** Real-time, in-memory, deterministic safety enforcement that stops attacks, redacts secrets, and kills runaway sessions automatically.
+
+## What It's NOT
+
+- **Not an LLM proxy.** It wraps your existing client calls in-process. Data never leaves your machine.
+- **Not a vendor SDK lock-in.** You don't rewrite your codebase to use a special `AgentArmorClient`.
+- **Not an observability platform.** It produces data—which you can pipe wherever you want.
+- **Not infrastructure.** No Redis, no servers, no cloud account. It's just a Python library.
+
+---
 
 ## License
 
 **MIT License** 
 
-Ship your agents with confidence. Set your shields. Move on.
+Ship your agents with confidence. Set a budget. Set your shields. Move on.
