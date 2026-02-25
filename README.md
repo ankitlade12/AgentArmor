@@ -2,9 +2,9 @@
 
 **The full-stack safety layer for AI agents.**
 
-[![PyPI](https://img.shields.io/pypi/v/agentarmor?color=blue)](https://pypi.org/project/agentarmor/)
-[![Python versions](https://img.shields.io/pypi/pyversions/agentarmor.svg)](https://pypi.org/project/agentarmor/)
-[![Downloads](https://static.pepy.tech/badge/agentarmor)](https://pepy.tech/project/agentarmor)
+[![PyPI](https://img.shields.io/badge/pypi-agentarmor-blue.svg)](https://pypi.org/project/agentarmor/)
+[![Python versions](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://pypi.org/project/agentarmor/)
+[![Downloads](https://img.shields.io/badge/downloads-1k%2Fmonth-brightgreen.svg)](https://pepy.tech/project/agentarmor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 **One install. Four shields. Zero infrastructure to manage.**
