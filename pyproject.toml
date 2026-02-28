@@ -27,5 +27,5 @@ docs = ["sphinx>=7.0", "furo", "sphinx-copybutton"]
 
 [project.urls]
 Homepage = "https://agentarmor.dev"
-Repository = "https://github.com/yourusername/agentarmor"
+Repository = "https://github.com/ankitlade12/AgentArmor"
 Documentation = "https://agentarmor.dev/docs"
