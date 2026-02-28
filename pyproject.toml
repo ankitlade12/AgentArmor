@@ -7,7 +7,7 @@ name = "agentarmor"
 version = "0.2.0"
 description = "The extensible safety layer for AI agents. Budget limits, prompt injection shields, PII filtering, and hooks in 2 lines of code."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["ai", "agents", "llm", "safety", "security", "openai", "anthropic", "middleware"]
 classifiers = [

@@ -3,7 +3,7 @@
 **The full-stack safety layer for AI agents.**
 
 [![PyPI](https://img.shields.io/badge/pypi-agentarmor-blue.svg)](https://pypi.org/project/agentarmor/)
-[![Python versions](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://pypi.org/project/agentarmor/)
+[![Python versions](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/agentarmor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 **One install. Four shields. Zero infrastructure to manage.**
@@ -58,7 +58,7 @@ agentarmor.teardown()
 ```bash
 pip install agentarmor
 ```
-*Requires Python 3.8+. No external infrastructure dependencies.*
+*Requires Python 3.10+. No external infrastructure dependencies.*
 
 ---
 
