@@ -203,12 +203,12 @@ AI agents are unpredictable by design. A user might try to hijack your system pr
 
 **AgentArmor fills the gap:** Real-time, in-memory, deterministic safety enforcement that stops attacks, redacts secrets, and kills runaway sessions automatically.
 
-## What It's NOT
+## Design Philosophy
 
-- **Not an LLM proxy.** It wraps your existing client calls in-process. Data never leaves your machine.
-- **Not a vendor SDK lock-in.** You don't rewrite your codebase to use a special `AgentArmorClient`.
-- **Not an observability platform.** It produces data—which you can pipe wherever you want.
-- **Not infrastructure.** No Redis, no servers, no cloud account. It's just a Python library.
+- **Zero infrastructure.** No Redis, no servers, no cloud accounts. AgentArmor is a pure Python library that runs entirely in your process.
+- **Zero code changes.** You don't rewrite your codebase to use a special client. Just call `agentarmor.init()` and your existing code is protected.
+- **Data stays local.** Everything runs in-memory and on-disk. Your prompts and responses never leave your machine.
+- **Framework agnostic.** Works with any framework that uses the `openai` or `anthropic` SDKs under the hood — no vendor lock-in.
 
 ---
 
