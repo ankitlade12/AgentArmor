@@ -1,31 +1,70 @@
+import contextvars
+from typing import Optional
+from typing import Any
+
 from .core import ArmorCore
+from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 
-_instance = None
+# Thread-safe and async-safe context variable for the active Engine/Core instance
+_active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
 
-def init(budget=None, shield=False, filter=None, record=False, **kwargs):
-    global _instance
-    _instance = ArmorCore(
+def init(budget=None, shield=False, filter=None, record=False, **kwargs) -> ArmorCore:
+    """
+    Initializes AgentArmor for the current execution context.
+    Returns the active ArmorCore instance.
+    """
+    core = ArmorCore(
         budget=budget,
         shield=shield,
         filter=filter or [],
         record=record,
         **kwargs
     )
-    _instance.patch()
-    return _instance
+    core.patch()
+    _active_core.set(core)
+    return core
 
-def report():
-    if _instance:
-        return _instance.report()
+def get_core() -> Optional[ArmorCore]:
+    """Returns the currently active ArmorCore instance in this context."""
+    return _active_core.get()
 
-def spent():
-    if _instance:
-        return _instance.modules["budget"].spent if "budget" in _instance.modules else 0.0
+def report() -> Optional[dict[str, Any]]:
+    """Returns the comprehensive report from all active modules."""
+    core = get_core()
+    return core.report() if core else None
 
-def remaining():
-    if _instance:
-        return _instance.modules["budget"].remaining if "budget" in _instance.modules else None
+def spent() -> float:
+    """Returns the amount of money spent in the current context."""
+    core = get_core()
+    if core and "budget" in core.modules:
+        return core.modules["budget"].spent
+    return 0.0
 
-def teardown():
-    if _instance:
-        _instance.unpatch()
+def remaining() -> Optional[float]:
+    """Returns the available budget remaining in the current context."""
+    core = get_core()
+    if core and "budget" in core.modules:
+        return core.modules["budget"].remaining
+    return None
+
+def teardown() -> None:
+    """Unpatches SDKs and clears the current context's AgentArmor instance."""
+    core = get_core()
+    if core:
+        core.unpatch()
+        _active_core.set(None)
+
+__all__ = [
+    "init",
+    "report",
+    "spent",
+    "remaining",
+    "teardown",
+    "get_core",
+    "before_request",
+    "after_response",
+    "on_stream_chunk",
+    "RequestContext",
+    "ResponseContext",
+    "ArmorCore",
+]

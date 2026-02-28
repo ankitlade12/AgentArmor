@@ -9,3 +9,11 @@ class InjectionDetected(Exception):
 class FilterViolation(Exception):
     """Raised when output contains banned content (block mode)."""
     pass
+
+class HookError(Exception):
+    """Raised when a user-defined hook raises an unhandled exception."""
+    pass
+
+class PatchError(Exception):
+    """Raised when SDK patching fails (e.g., incompatible SDK version)."""
+    pass

@@ -148,15 +148,45 @@ Because AgentArmor monkey-patches the underlying `openai` and `anthropic` client
 
 ---
 
+## Hooks & Middleware (New in V1.0)
+
+AgentArmor is highly extensible. You can write custom logic that runs exactly before a request leaves or exactly after a response arrives. Because AgentArmor handles the patching, your hooks work uniformly and safely for both OpenAI and Anthropic.
+
+```python
+import agentarmor
+from agentarmor import RequestContext, ResponseContext
+
+@agentarmor.before_request
+def inject_timestamp(ctx: RequestContext) -> RequestContext:
+    # Invisibly append context to the system prompt
+    ctx.messages[0]["content"] += f"\nToday is Friday."
+    return ctx
+
+@agentarmor.after_response
+def custom_analytics(ctx: ResponseContext) -> ResponseContext:
+    # Send cost and latency data to your custom dashboard
+    print(f"Model {ctx.model} cost {ctx.cost}")
+    return ctx
+
+@agentarmor.on_stream_chunk
+def censor_profanity(text: str) -> str:
+    # Mutate streaming chunks in real-time
+    return text.replace("badword", "*******")
+    
+agentarmor.init()
+```
+
+---
+
 ## Supported Models
 
 Built-in automated tracking for standard models across the major providers. 
 
 | Provider | Models |
 | :--- | :--- |
-| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-3.5-turbo` |
-| **Anthropic** | `claude-opus-4`, `claude-sonnet-4-5`, `claude-haiku-4-5` |
-| **Google** | `gemini-1.5-pro`, `gemini-1.5-flash` |
+| **OpenAI** | `gpt-4.5`, `o3-mini`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-3.5-turbo` |
+| **Anthropic** | `claude-4`, `claude-opus-4`, `claude-sonnet-4-5`, `claude-haiku-4-5` |
+| **Google** | `gemini-2.0-pro`, `gemini-2.0-flash`, `gemini-1.5-pro`, `gemini-1.5-flash` |
 
 *Note: For models not explicitly listed, generic conservative fallback pricing is used.*
 

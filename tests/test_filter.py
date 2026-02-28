@@ -6,29 +6,28 @@ def test_filter_pii():
     
     # Test email
     text = "Contact me at testuser@example.com for info."
-    cleaned = module.scan(text)
+    cleaned = module.stream_filter(text)
     assert cleaned == "Contact me at [REDACTED:EMAIL] for info."
     
     # Test SSN
     text = "My SSN is 123-45-6789."
-    cleaned = module.scan(text)
+    cleaned = module.stream_filter(text)
     assert cleaned == "My SSN is [REDACTED:SSN]."
 
 def test_filter_secrets():
     module = FilterModule(rules=["secrets"])
     
     text = "Here is the key: API_KEY=sk-12345678901234567890abcd"
-    cleaned = module.scan(text)
+    cleaned = module.stream_filter(text)
     
-    # sk- patterns are caught by 'api_key', but 'secrets' may catch 'API_KEY=[REDACTED:API_KEY]'
-    assert "[REDACTED:SECRETS]" in cleaned or "[REDACTED:API_KEY]" in cleaned
+    assert "[REDACTED:SECRETS]" in cleaned or "[REDACTED:API_KEY]" in cleaned or "[REDACTED:GENERIC_SECRETS]" in cleaned
     assert "sk-123456" not in cleaned
 
 def test_filter_combination():
     module = FilterModule(rules=["email", "phone"])
     
     text = "Call 555-555-5555 or email foo@bar.com"
-    cleaned = module.scan(text)
+    cleaned = module.stream_filter(text)
     
     assert "[REDACTED:PHONE]" in cleaned
     assert "[REDACTED:EMAIL]" in cleaned
@@ -38,6 +37,6 @@ def test_filter_combination():
 def test_safe_text():
     module = FilterModule(rules=["pii", "secrets"])
     text = "This is a completely safe text with no PII or secrets."
-    cleaned = module.scan(text)
+    cleaned = module.stream_filter(text)
     assert cleaned == text
     assert module.redactions == 0

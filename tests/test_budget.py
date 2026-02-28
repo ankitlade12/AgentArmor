@@ -1,6 +1,7 @@
 import pytest
 from agentarmor.modules.budget import BudgetModule
 from agentarmor.exceptions import BudgetExhausted
+from agentarmor.hooks import RequestContext, ResponseContext
 
 def test_budget_initialization():
     module = BudgetModule(limit="$5.00")
@@ -11,9 +12,9 @@ def test_budget_estimation():
     module = BudgetModule(limit="$0.01")
     messages = [{"role": "user", "content": "hello world! " * 1000}]  # Lots of text
     
-    # Pre check should fail because it requires many tokens and limits is very small
+    ctx = RequestContext(messages=messages, model="gpt-4o")
     with pytest.raises(BudgetExhausted):
-        module.pre_check("gpt-4o", messages)
+        module.pre_check(ctx)
 
 def test_budget_recording():
     class MockUsage:
@@ -24,7 +25,10 @@ def test_budget_recording():
         usage = MockUsage()
 
     module = BudgetModule(limit="$5.00")
-    module.post_record("gpt-4o", MockResponse())
+    
+    req = RequestContext(messages=[], model="gpt-4o")
+    res = ResponseContext(text="test", model="gpt-4o", provider="openai", request=req, raw_response=MockResponse())
+    module.post_record(res)
     
     assert module.spent > 0.0
     assert len(module.calls) == 1

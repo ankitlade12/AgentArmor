@@ -3,18 +3,16 @@ import json
 import uuid
 import tempfile
 from agentarmor.modules.recorder import RecorderModule
+from agentarmor.hooks import RequestContext, ResponseContext
 
 def test_recorder_logging():
     with tempfile.TemporaryDirectory() as temp_dir:
         module = RecorderModule(path=temp_dir)
         
-        module.log(
-            provider="openai",
-            model="gpt-4o",
-            input_messages=[{"role": "user", "content": "Hi"}],
-            output="Hello there!",
-            latency_ms=150.5
-        )
+        req = RequestContext(messages=[{"role": "user", "content": "Hi"}], model="gpt-4o")
+        res = ResponseContext(text="Hello there!", model="gpt-4o", provider="openai", request=req, latency_ms=150.5)
+        
+        module.post_record(res)
         
         filepath = os.path.join(temp_dir, f"session_{module.session_id}.jsonl")
         assert os.path.exists(filepath)

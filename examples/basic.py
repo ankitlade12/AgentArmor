@@ -1,13 +1,16 @@
 # examples/basic.py
 import os
-import sys
 
-# Add parent directory to path to allow importing from local source
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import agentarmor
 import openai
 from agentarmor.exceptions import InjectionDetected, BudgetExhausted
+
+@agentarmor.before_request
+def my_custom_hook(ctx: agentarmor.RequestContext) -> agentarmor.RequestContext:
+    # This hook will run before every LLM call
+    print(f"[Hook] Outbound request to {ctx.model} with {len(ctx.messages)} messages.")
+    return ctx
 
 def main():
     agentarmor.init(
