@@ -28,7 +28,12 @@ To keep the repository clean and manageable, please follow these branch naming c
 2. If you've added code that should be tested, add tests.
 3. Ensure the test suite passes (`pytest tests/`).
 4. Update the `README.md` if your changes affect the API or user instructions.
-5. Create a Pull Request using the provided template.
+5. **If your changes affect the public API, add new modules, or change existing behavior, please update the Sphinx documentation in `docs/`.** This includes updating the relevant `.rst` guide pages and ensuring your docstrings are complete so `autodoc` picks them up. You can build the docs locally with:
+   ```bash
+   pip install -e ".[docs]"
+   cd docs && make html
+   ```
+6. Create a Pull Request using the provided template.
 
 ## Local Development Setup
 

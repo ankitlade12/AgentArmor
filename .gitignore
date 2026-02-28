@@ -46,6 +46,9 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
+# Documentation build
+docs/_build/
+
 # IDEs
 .idea/
 .vscode/
