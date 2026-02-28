@@ -57,7 +57,8 @@ def test_hook_returns_wrong_type():
 def test_hook_raises_exception():
     registry = HookRegistry()
     
-    class CustomError(Exception): pass
+    class CustomError(Exception):
+        pass
     
     @registry.register_after_response
     def crash_hook(ctx: ResponseContext):

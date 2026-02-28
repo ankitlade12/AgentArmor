@@ -1,4 +1,3 @@
-import os
 
 
 import agentarmor
@@ -9,8 +8,8 @@ agentarmor.init(
     record=True              
 )
 
-from crewai import Agent, Task, Crew, Process
-from langchain_openai import ChatOpenAI
+from crewai import Agent, Task, Crew, Process  # noqa: E402
+from langchain_openai import ChatOpenAI  # noqa: E402
 
 def main():
     print("AgentArmor + CrewAI Integration Example\n")

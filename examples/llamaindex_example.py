@@ -1,4 +1,3 @@
-import os
 
 
 import agentarmor
@@ -11,8 +10,7 @@ agentarmor.init(
     record=True              
 )
 
-from llama_index.llms.openai import OpenAI
-from agentarmor.exceptions import InjectionDetected
+from llama_index.llms.openai import OpenAI  # noqa: E402
 
 def main():
     print("AgentArmor + LlamaIndex Integration Example\n")

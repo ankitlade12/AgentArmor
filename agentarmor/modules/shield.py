@@ -59,10 +59,10 @@ class ShieldModule:
                 self.detections.append(text[:100])
                 if self.on_detect == "block":
                     raise InjectionDetected(
-                        f"Prompt injection detected. Call blocked."
+                        "Prompt injection detected. Call blocked."
                     )
                 else:
-                    print(f"[AgentArmor] WARNING: Possible injection detected.")
+                    print("[AgentArmor] WARNING: Possible injection detected.")
                 return
 
     def report(self) -> dict:

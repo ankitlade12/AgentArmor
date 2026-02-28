@@ -1,6 +1,5 @@
 import pytest
 import asyncio
-import contextvars
 import agentarmor
 
 @pytest.mark.asyncio

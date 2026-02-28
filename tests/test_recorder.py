@@ -1,6 +1,5 @@
 import os
 import json
-import uuid
 import tempfile
 from agentarmor.modules.recorder import RecorderModule
 from agentarmor.hooks import RequestContext, ResponseContext

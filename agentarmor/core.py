@@ -1,5 +1,4 @@
 import time
-import inspect
 from typing import Any, Callable, Dict
 
 from .hooks import RequestContext, ResponseContext, global_registry
@@ -91,8 +90,10 @@ class ArmorCore:
     def _apply_request_context_to_kwargs(self, ctx: RequestContext, kwargs: dict) -> None:
         kwargs["messages"] = ctx.messages
         kwargs["model"] = ctx.model
-        if ctx.temperature is not None: kwargs["temperature"] = ctx.temperature
-        if ctx.max_tokens is not None: kwargs["max_tokens"] = ctx.max_tokens
+        if ctx.temperature is not None:
+            kwargs["temperature"] = ctx.temperature
+        if ctx.max_tokens is not None:
+            kwargs["max_tokens"] = ctx.max_tokens
         kwargs["stream"] = ctx.stream
         kwargs.update(ctx.extra_kwargs)
 

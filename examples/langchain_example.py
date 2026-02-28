@@ -1,4 +1,3 @@
-import os
 
 
 import agentarmor
@@ -11,9 +10,9 @@ agentarmor.init(
     record=True              # Logs everything
 )
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-from agentarmor.exceptions import InjectionDetected, BudgetExhausted
+from langchain_openai import ChatOpenAI  # noqa: E402
+from langchain_core.messages import HumanMessage  # noqa: E402
+from agentarmor.exceptions import InjectionDetected  # noqa: E402
 
 def main():
     print("AgentArmor + LangChain Integration Example\n")

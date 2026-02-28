@@ -1,4 +1,3 @@
-import pytest
 from agentarmor.modules.filter import FilterModule
 
 def test_filter_pii():

@@ -11,8 +11,8 @@ agentarmor.init(
     record=True              
 )
 
-import autogen
-from agentarmor.exceptions import InjectionDetected, BudgetExhausted
+import autogen  # noqa: E402
+from agentarmor.exceptions import InjectionDetected, BudgetExhausted  # noqa: E402
 
 def main():
     print("AgentArmor + AutoGen Integration Example\n")

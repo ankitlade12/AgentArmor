@@ -1,9 +1,8 @@
 import pytest
 from unittest.mock import MagicMock
-import asyncio
 
 import agentarmor
-from agentarmor.hooks import RequestContext, ResponseContext
+from agentarmor.hooks import ResponseContext
 
 openai = pytest.importorskip("openai")
 

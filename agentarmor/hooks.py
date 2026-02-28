@@ -66,7 +66,6 @@ class HookRegistry:
         return ctx
 
     def execute_after_response(self, ctx: ResponseContext) -> ResponseContext:
-        from .exceptions import HookError
         for hook in self._after_response:
             try:
                 ctx = hook(ctx)

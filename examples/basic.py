@@ -1,10 +1,9 @@
 # examples/basic.py
-import os
 
 
 import agentarmor
 import openai
-from agentarmor.exceptions import InjectionDetected, BudgetExhausted
+from agentarmor.exceptions import InjectionDetected
 
 @agentarmor.before_request
 def my_custom_hook(ctx: agentarmor.RequestContext) -> agentarmor.RequestContext:
