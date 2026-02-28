@@ -24,8 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest hatchling
-        pip install -e .
+        pip install hatchling
+        pip install -e ".[all,test]"
         
     - name: Run tests
       run: |
