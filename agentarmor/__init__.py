@@ -8,7 +8,7 @@ from .hooks import before_request, after_response, on_stream_chunk, RequestConte
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
 
-def init(budget=None, shield=False, filter=None, record=False, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -18,6 +18,7 @@ def init(budget=None, shield=False, filter=None, record=False, **kwargs) -> Armo
         shield=shield,
         filter=filter or [],
         record=record,
+        rate_limit=rate_limit,
         **kwargs
     )
     core.patch()

@@ -2,6 +2,10 @@ class BudgetExhausted(Exception):
     """Raised when the dollar budget is exceeded."""
     pass
 
+class RateLimitExceeded(Exception):
+    """Raised when the call rate exceeds the configured limit."""
+    pass
+
 class InjectionDetected(Exception):
     """Raised when a prompt injection attack is detected."""
     pass
