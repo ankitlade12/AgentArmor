@@ -7,9 +7,10 @@ from .modules.shield import ShieldModule
 from .modules.filter import FilterModule
 from .modules.recorder import RecorderModule
 from .modules.rate_limiter import RateLimiterModule
+from .modules.context_guard import ContextGuardModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -33,6 +34,10 @@ class ArmorCore:
             limit, window = self._parse_rate_limit(rate_limit)
             self.modules["rate_limiter"] = RateLimiterModule(limit=limit, window_seconds=window)
             self.registry.register_before_request(self.modules["rate_limiter"].pre_check)
+        if context_guard:
+            margin = context_guard if isinstance(context_guard, float) else 0.95
+            self.modules["context_guard"] = ContextGuardModule(safety_margin=margin)
+            self.registry.register_before_request(self.modules["context_guard"].pre_check)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""

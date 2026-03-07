@@ -21,3 +21,7 @@ class HookError(Exception):
 class PatchError(Exception):
     """Raised when SDK patching fails (e.g., incompatible SDK version)."""
     pass
+
+class ContextOverflow(Exception):
+    """Raised when the message payload is likely to exceed the model's context window."""
+    pass
