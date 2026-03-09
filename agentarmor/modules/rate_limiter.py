@@ -1,4 +1,3 @@
-import asyncio
 import threading
 import time
 from collections import deque
