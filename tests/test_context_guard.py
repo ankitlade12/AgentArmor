@@ -1,5 +1,5 @@
 import pytest
-from agentarmor.modules.context_guard import ContextGuardModule, CONTEXT_LIMITS, DEFAULT_CONTEXT_LIMIT
+from agentarmor.modules.context_guard import ContextGuardModule
 from agentarmor.exceptions import ContextOverflow
 from agentarmor.hooks import RequestContext
 
