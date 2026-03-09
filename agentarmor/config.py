@@ -5,7 +5,6 @@ Supports YAML (.yml / .yaml) and JSON (.json) config files.
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
