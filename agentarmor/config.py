@@ -52,20 +52,42 @@ def _find_config_file(start_dir: Optional[str] = None) -> Optional[Path]:
 
 def _parse_yaml(text: str) -> Dict[str, Any]:
     """
-    Minimal YAML parser for flat key-value configs.
-    Handles strings, booleans, numbers, and inline lists.
-    No external dependencies required.
+    Minimal YAML parser for flat AgentArmor config files.
+
+    Handles:
+    - Scalars: strings, booleans, numbers
+    - Inline lists: ``filter: [pii, secrets]``
+    - Dash lists::
+
+          filter:
+            - pii
+            - secrets
+
+    Does **not** handle nested mappings or multi-document YAML.
+    For complex configs, use a JSON file or install PyYAML separately.
     """
     result: Dict[str, Any] = {}
+    current_key: Optional[str] = None
+
     for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
+        stripped = line.strip()
+
+        # Skip blanks and comments
+        if not stripped or stripped.startswith("#"):
             continue
 
-        if ":" not in line:
+        # Dash-list item: must follow a key whose value was empty/None
+        if stripped.startswith("- ") and current_key is not None:
+            item = _coerce_scalar(stripped[2:].strip().strip("\"'"))
+            if not isinstance(result.get(current_key), list):
+                result[current_key] = []
+            result[current_key].append(item)
             continue
 
-        key, _, raw_value = line.partition(":")
+        if ":" not in stripped:
+            continue
+
+        key, _, raw_value = stripped.partition(":")
         key = key.strip()
         raw_value = raw_value.strip()
 
@@ -73,6 +95,7 @@ def _parse_yaml(text: str) -> Dict[str, Any]:
         if " #" in raw_value:
             raw_value = raw_value[: raw_value.index(" #")].strip()
 
+        current_key = key
         result[key] = _coerce_value(raw_value)
 
     return result

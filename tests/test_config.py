@@ -30,6 +30,29 @@ shield: true
     assert config["shield"] is True
 
 
+def test_parse_yaml_with_dash_list():
+    """Dash-style lists are standard YAML and must parse correctly."""
+    text = '''
+filter:
+  - pii
+  - secrets
+shield: true
+'''
+    config = _parse_yaml(text)
+    assert config["filter"] == ["pii", "secrets"]
+    assert config["shield"] is True
+
+
+def test_parse_yaml_dash_list_with_quotes():
+    text = '''
+filter:
+  - "pii"
+  - 'secrets'
+'''
+    config = _parse_yaml(text)
+    assert config["filter"] == ["pii", "secrets"]
+
+
 def test_parse_yaml_with_comments():
     text = '''
 # Main config
