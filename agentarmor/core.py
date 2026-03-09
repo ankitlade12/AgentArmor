@@ -34,8 +34,16 @@ class ArmorCore:
             limit, window = self._parse_rate_limit(rate_limit)
             self.modules["rate_limiter"] = RateLimiterModule(limit=limit, window_seconds=window)
             self.registry.register_before_request(self.modules["rate_limiter"].pre_check)
-        if context_guard:
-            margin = context_guard if isinstance(context_guard, float) else 0.95
+        if context_guard is not False and context_guard is not None:
+            if isinstance(context_guard, float):
+                margin = context_guard
+            elif isinstance(context_guard, bool):
+                margin = 0.95  # default safety margin
+            else:
+                raise ValueError(
+                    f"context_guard must be True/False or a float safety margin (0 < x <= 1.0), "
+                    f"got {type(context_guard).__name__!r}."
+                )
             self.modules["context_guard"] = ContextGuardModule(safety_margin=margin)
             self.registry.register_before_request(self.modules["context_guard"].pre_check)
 

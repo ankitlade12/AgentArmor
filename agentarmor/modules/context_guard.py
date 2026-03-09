@@ -5,6 +5,7 @@ message payload is likely to exceed the model's context window limit.
 
 from ..exceptions import ContextOverflow
 from ..hooks import RequestContext
+from ..utils import estimate_tokens
 
 
 # Maximum context window sizes (in tokens) per model
@@ -68,18 +69,8 @@ class ContextGuardModule:
         return ctx
 
     def _estimate_tokens(self, messages: list) -> int:
-        """Estimates token count from messages using chars/4 heuristic."""
-        total_chars = 0
-        for msg in messages:
-            content = msg.get("content", "")
-            if isinstance(content, str):
-                total_chars += len(content)
-            elif isinstance(content, list):
-                for part in content:
-                    if isinstance(part, dict) and "text" in part:
-                        total_chars += len(part["text"])
-        # ~4 characters per token is a widely-used approximation
-        return max(1, total_chars // 4)
+        """Delegates to shared token estimation utility."""
+        return estimate_tokens(messages)
 
     def _get_limit(self, model: str) -> int:
         """Looks up the context window limit for a model."""

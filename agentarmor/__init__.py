@@ -5,6 +5,7 @@ from typing import Any
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 from .config import load_config
+from .exceptions import ContextOverflow
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
@@ -84,4 +85,5 @@ __all__ = [
     "ResponseContext",
     "ArmorCore",
     "load_config",
+    "ContextOverflow",
 ]
