@@ -1,6 +1,7 @@
 from ..pricing import get_cost
 from ..exceptions import BudgetExhausted
 from ..hooks import RequestContext, ResponseContext
+from ..utils import estimate_tokens
 
 class BudgetModule:
     def __init__(self, limit: str):
@@ -35,8 +36,7 @@ class BudgetModule:
         return ctx
 
     def _estimate_input_cost(self, model: str, messages: list) -> float:
-        total_chars = sum(len(m.get("content", "")) for m in messages if isinstance(m.get("content", ""), str))
-        input_tokens = total_chars // 4
+        input_tokens = estimate_tokens(messages)
         prices = get_cost(model)
         return (input_tokens / 1000) * prices["input"]
 
@@ -56,8 +56,7 @@ class BudgetModule:
                 if input_tokens > 0 or output_tokens > 0:
                     return ((input_tokens / 1000) * prices["input"]) + ((output_tokens / 1000) * prices["output"])
                     
-            total_in_chars = sum(len(m.get("content", "")) for m in ctx.request.messages if isinstance(m.get("content", ""), str))
-            in_tokens = max(1, total_in_chars // 4)
+            in_tokens = estimate_tokens(ctx.request.messages)
             out_tokens = max(1, len(ctx.text) // 4)
             return ((in_tokens / 1000) * prices["input"]) + ((out_tokens / 1000) * prices["output"])
             
