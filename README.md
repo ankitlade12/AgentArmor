@@ -198,7 +198,7 @@ Because AgentArmor monkey-patches the underlying `openai` and `anthropic` client
 
 ---
 
-## Hooks & Middleware (New in V1.0)
+## Hooks & Middleware
 
 AgentArmor is highly extensible. You can write custom logic that runs exactly before a request leaves or exactly after a response arrives. Because AgentArmor handles the patching, your hooks work uniformly and safely for both OpenAI and Anthropic.
 
