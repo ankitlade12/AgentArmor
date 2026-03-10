@@ -6,9 +6,10 @@ from .modules.budget import BudgetModule
 from .modules.shield import ShieldModule
 from .modules.filter import FilterModule
 from .modules.recorder import RecorderModule
+from .modules.rate_limiter import RateLimiterModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -28,6 +29,10 @@ class ArmorCore:
         if record:
             self.modules["recorder"] = RecorderModule()
             self.registry.register_after_response(self.modules["recorder"].post_record)
+        if rate_limit:
+            limit, window = self._parse_rate_limit(rate_limit)
+            self.modules["rate_limiter"] = RateLimiterModule(limit=limit, window_seconds=window)
+            self.registry.register_before_request(self.modules["rate_limiter"].pre_check)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""
@@ -305,3 +310,28 @@ class ArmorCore:
             if hasattr(module, "report"):
                 r[name] = module.report()
         return r
+
+    @staticmethod
+    def _parse_rate_limit(rate_limit: str) -> tuple:
+        """
+        Parses a rate limit string like '10/min' or '5/sec' into (limit, window_seconds).
+        
+        Supported suffixes: sec, s, min, m, hour, h
+        """
+        parts = rate_limit.strip().split("/")
+        if len(parts) != 2:
+            raise ValueError(f"Invalid rate_limit format: '{rate_limit}'. Use 'N/unit' (e.g. '10/min').")
+        
+        limit = int(parts[0])
+        unit = parts[1].strip().lower()
+        
+        unit_map = {
+            "sec": 1, "s": 1, "second": 1,
+            "min": 60, "m": 60, "minute": 60,
+            "hour": 3600, "h": 3600, "hr": 3600,
+        }
+        
+        if unit not in unit_map:
+            raise ValueError(f"Unknown time unit: '{unit}'. Supported: sec, min, hour.")
+        
+        return limit, unit_map[unit]
