@@ -4,6 +4,7 @@ from typing import Any
 
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
+from .config import load_config
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
@@ -55,8 +56,21 @@ def teardown() -> None:
         core.unpatch()
         _active_core.set(None)
 
+def init_from_config(path=None, **overrides) -> ArmorCore:
+    """
+    Initializes AgentArmor from a config file (.agentarmor.yml / .json).
+    
+    Args:
+        path: Explicit path to config file. Auto-discovers if None.
+        **overrides: Override any config values programmatically.
+    """
+    config = load_config(path)
+    config.update(overrides)
+    return init(**config)
+
 __all__ = [
     "init",
+    "init_from_config",
     "report",
     "spent",
     "remaining",
@@ -68,4 +82,5 @@ __all__ = [
     "RequestContext",
     "ResponseContext",
     "ArmorCore",
+    "load_config",
 ]
