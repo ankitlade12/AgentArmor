@@ -30,7 +30,9 @@ agentarmor.init(
     budget="$5.00",            # Circuit breaker — kills runaway spend
     shield=True,               # Prompt injection detection
     filter=["pii", "secrets"], # Output firewall — blocks leaks
-    record=True                # Flight recorder — replay any session
+    record=True,               # Flight recorder — replay any session
+    rate_limit="10/min",       # Rate limiter — Sliding-window throttling
+    context_guard=0.95         # Context guard — Pre-flight token limit
 )
 
 # 2. Your existing code — no changes needed!
@@ -66,7 +68,8 @@ pip install agentarmor
 
 | Function | Description |
 | :--- | :--- |
-| `agentarmor.init(budget, shield, filter, record)` | Start tracking. Patches OpenAI/Anthropic SDKs. Loads chosen shields. |
+| `agentarmor.init(...)` | Start tracking. Patches OpenAI/Anthropic SDKs. Loads chosen shields. |
+| `agentarmor.init_from_config(path)` | Initialize AgentArmor from a YAML/JSON configuration file. |
 | `agentarmor.spent()` | Total dollars spent so far in this session. |
 | `agentarmor.remaining()` | Dollars left in the budget. |
 | `agentarmor.report()` | Full security and cost breakdown as a dictionary. |
@@ -128,6 +131,53 @@ Silently records the exact inputs, outputs, models, timestamps, and latency of e
 ```python
 agentarmor.init(record=True)
 # Sessions are automatically streamed to `.agentarmor/sessions/session_xyz.jsonl`
+```
+
+### 🚦 5. Rate Limiter
+**Prevent API spam and abuse.**
+Sliding-window throttling ensures your agents don't exceed your designated request thresholds (e.g., `10/min`, `5/sec`).
+
+```python
+agentarmor.init(rate_limit="10/min")
+```
+
+### 🧠 6. Context Window Guard
+**Pre-flight token checks.**
+Automatically estimates tokens before sending the prompt to the API. If the prompt plus `max_tokens` exceeds the model's safe context limit (e.g., 95% of total allowed), the request is immediately blocked with a `ContextOverflow` exception, saving you from failed requests and truncated contexts.
+
+```python
+from agentarmor.exceptions import ContextOverflow
+agentarmor.init(context_guard=0.95)
+
+try:
+    # Big prompt that exceeds limits
+    client.chat.completions.create(...)
+except ContextOverflow:
+    print("Prompt too large for the model's context window!")
+```
+
+---
+
+## 📄 Policy-as-Code Configuration
+
+Store your agent's safety parameters in a declarative YAML or JSON file instead of hard-coding them. AgentArmor automatically detects `.agentarmor.yml` in your working directory.
+
+**`.agentarmor.yml`**
+```yaml
+budget: 5.00
+shield: true
+filter:
+  - pii
+  - secrets
+record: true
+rate_limit: "10/min"
+context_guard: 0.95
+```
+
+```python
+import agentarmor
+# Loads .agentarmor.yml and initializes all shields
+agentarmor.init_from_config()
 ```
 
 ---
