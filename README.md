@@ -285,6 +285,27 @@ print(agentarmor.report()["cost_tags"])
 # }
 ```
 
+### 🔁 12. Semantic Dedup (Replay Shield)
+**Stop paying twice for the same prompt.**
+Content-aware duplicate detection that hashes every prompt+model combination and blocks (or warns on) repeated identical calls. Prevents stuck agent loops from burning through your budget with the same request over and over. Thread-safe with LRU eviction and optional TTL expiry.
+
+```python
+import agentarmor
+from agentarmor.exceptions import DuplicateRequest
+
+agentarmor.init(dedup=True)  # Block exact duplicate prompts
+
+# Or configure with options
+agentarmor.init(dedup={"max_cache": 512, "on_duplicate": "warn", "ttl_calls": 50})
+
+try:
+    # Second identical call gets blocked
+    client.chat.completions.create(model="gpt-4o", messages=[...])
+    client.chat.completions.create(model="gpt-4o", messages=[...])  # Blocked!
+except DuplicateRequest:
+    print("Duplicate prompt detected — saved an API call!")
+```
+
 ---
 
 ## 📄 Policy-as-Code Configuration
