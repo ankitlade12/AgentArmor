@@ -11,9 +11,10 @@ from .modules.context_guard import ContextGuardModule
 from .modules.latency_breaker import LatencyBreakerModule
 from .modules.canary import CanaryModule
 from .modules.tool_firewall import ToolFirewallModule
+from .modules.cost_tags import CostTagsModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -72,6 +73,13 @@ class ArmorCore:
             elif isinstance(tool_firewall, list):
                 self.modules["tool_firewall"] = ToolFirewallModule(allow=tool_firewall)
             self.registry.register_after_response(self.modules["tool_firewall"].post_filter)
+        if cost_tags is not False and cost_tags is not None:
+            if isinstance(cost_tags, dict):
+                self.modules["cost_tags"] = CostTagsModule(**cost_tags)
+            elif isinstance(cost_tags, bool) and cost_tags:
+                self.modules["cost_tags"] = CostTagsModule()
+            if "cost_tags" in self.modules:
+                self.registry.register_after_response(self.modules["cost_tags"].post_record)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""
