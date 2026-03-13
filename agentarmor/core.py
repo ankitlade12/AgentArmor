@@ -10,9 +10,10 @@ from .modules.rate_limiter import RateLimiterModule
 from .modules.context_guard import ContextGuardModule
 from .modules.latency_breaker import LatencyBreakerModule
 from .modules.canary import CanaryModule
+from .modules.tool_firewall import ToolFirewallModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -65,6 +66,12 @@ class ArmorCore:
             if "canary" in self.modules:
                 self.registry.register_before_request(self.modules["canary"].pre_check)
                 self.registry.register_after_response(self.modules["canary"].post_filter)
+        if tool_firewall:
+            if isinstance(tool_firewall, dict):
+                self.modules["tool_firewall"] = ToolFirewallModule(**tool_firewall)
+            elif isinstance(tool_firewall, list):
+                self.modules["tool_firewall"] = ToolFirewallModule(allow=tool_firewall)
+            self.registry.register_after_response(self.modules["tool_firewall"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""

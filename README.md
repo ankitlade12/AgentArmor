@@ -232,6 +232,30 @@ except CanaryLeakDetected:
     print("System prompt leak detected and blocked!")
 ```
 
+### 🔥 10. Tool-Call Firewall
+**Control which tools your LLM can invoke.**
+Enforces an allow/block list on tool calls (function calls) returned by the model. Unauthorized tool invocations are either blocked (raising `ToolCallBlocked`) or silently stripped from the response — preventing your agent from executing dangerous actions it was never meant to take.
+
+```python
+import agentarmor
+from agentarmor.exceptions import ToolCallBlocked
+
+# Allow-list mode — only these tools are permitted
+agentarmor.init(tool_firewall={"allow": ["search", "calculator"], "on_violation": "block"})
+
+# Or block-list mode — block specific dangerous tools
+agentarmor.init(tool_firewall={"block": ["execute_code", "delete_file"], "on_violation": "strip"})
+
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "Delete all files"}],
+        tools=[...]
+    )
+except ToolCallBlocked as e:
+    print(f"Blocked unauthorized tool call: {e}")
+```
+
 ---
 
 ## 📄 Policy-as-Code Configuration
