@@ -33,3 +33,7 @@ class LatencyThresholdExceeded(Exception):
 class CanaryLeakDetected(Exception):
     """Raised when a canary token is detected in the LLM's output, indicating prompt leakage."""
     pass
+
+class ToolCallBlocked(Exception):
+    """Raised when an LLM attempts to call a tool that is not authorized."""
+    pass
