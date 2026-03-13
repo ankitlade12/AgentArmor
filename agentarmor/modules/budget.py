@@ -32,7 +32,13 @@ class BudgetModule:
         cost = self._actual_cost(ctx)
         self.spent += cost
         ctx.cost = cost
-        self.calls.append({"model": ctx.model, "cost": cost})
+        # Track per-call metadata so reports can aggregate by provider.
+        self.calls.append({
+            "model": ctx.model,
+            "provider": getattr(ctx, "provider", "unknown"),
+            "cost": cost,
+            "usage": ctx.usage or {},
+        })
         return ctx
 
     def _estimate_input_cost(self, model: str, messages: list) -> float:
@@ -64,9 +70,26 @@ class BudgetModule:
             return 0.0
 
     def report(self):
+        by_provider = {}
+        for call in self.calls:
+            provider = call.get("provider") or "unknown"
+            entry = by_provider.setdefault(provider, {"calls": 0, "spent": 0.0})
+            entry["calls"] += 1
+            entry["spent"] += float(call.get("cost", 0.0))
+
+        # Format provider summaries as simple, human-readable values.
+        by_provider_formatted = {
+            provider: {
+                "calls": data["calls"],
+                "spent": f"${data['spent']:.4f}",
+            }
+            for provider, data in by_provider.items()
+        }
+
         return {
             "spent": f"${self.spent:.4f}",
             "limit": f"${self.limit:.2f}",
             "remaining": f"${self.remaining:.4f}",
-            "calls": len(self.calls)
+            "calls": len(self.calls),
+            "by_provider": by_provider_formatted,
         }

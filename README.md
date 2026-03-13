@@ -183,6 +183,27 @@ print(agentarmor.report()["latency_breaker"])
 # {"avg_latency_ms": 2450.3, "p95_latency_ms": 4200.0, "total_trips": 1, ...}
 ```
 
+### 📊 8. Provider-Aware Cost Analytics
+**See where your budget actually goes.**
+AgentArmor tracks every protected call and aggregates spend **by provider** (OpenAI, Anthropic, Google/Gemini, etc.) so you can see how much each backend is costing you from a single `agentarmor.report()` call.
+
+```python
+import agentarmor
+
+agentarmor.init(budget="$5.00", record=True)
+
+# ... run your agents across OpenAI, Anthropic, and Gemini ...
+
+print(agentarmor.report()["budget"])
+# {
+#   "spent": "$0.0123",
+#   "by_provider": {
+#       "openai":    {"calls": 3, "spent": "$0.0080"},
+#       "anthropic": {"calls": 1, "spent": "$0.0043"},
+#   }
+# }
+```
+
 ---
 
 ## 📄 Policy-as-Code Configuration
