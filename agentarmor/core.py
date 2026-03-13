@@ -8,9 +8,10 @@ from .modules.filter import FilterModule
 from .modules.recorder import RecorderModule
 from .modules.rate_limiter import RateLimiterModule
 from .modules.context_guard import ContextGuardModule
+from .modules.latency_breaker import LatencyBreakerModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -46,6 +47,13 @@ class ArmorCore:
                 )
             self.modules["context_guard"] = ContextGuardModule(safety_margin=margin)
             self.registry.register_before_request(self.modules["context_guard"].pre_check)
+        if latency_breaker is not False and latency_breaker is not None:
+            if isinstance(latency_breaker, dict):
+                self.modules["latency_breaker"] = LatencyBreakerModule(**latency_breaker)
+            elif isinstance(latency_breaker, bool) and latency_breaker:
+                self.modules["latency_breaker"] = LatencyBreakerModule()
+            if "latency_breaker" in self.modules:
+                self.registry.register_after_response(self.modules["latency_breaker"].post_check)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""
