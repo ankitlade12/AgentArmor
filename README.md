@@ -256,6 +256,35 @@ except ToolCallBlocked as e:
     print(f"Blocked unauthorized tool call: {e}")
 ```
 
+### 🏷️ 11. Cost Attribution Tags
+**Know exactly where your money goes.**
+Tag API calls with custom labels — `"summarization"`, `"code-gen"`, `"customer-support"` — and get per-tag cost breakdowns in your report. Essential for multi-tenant apps, A/B testing different prompts, or tracking spend across features.
+
+```python
+import agentarmor
+
+agentarmor.init(budget="$10.00", cost_tags=True)
+
+# Tag calls by feature
+agentarmor.set_tag("summarization")
+client.chat.completions.create(model="gpt-4o", messages=[...])
+client.chat.completions.create(model="gpt-4o", messages=[...])
+
+agentarmor.set_tag("code-gen")
+client.chat.completions.create(model="gpt-4o", messages=[...])
+
+agentarmor.clear_tag()
+
+print(agentarmor.report()["cost_tags"])
+# {
+#   "total_tagged": 3,
+#   "by_tag": {
+#       "summarization": {"calls": 2, "spent": "$0.0300", "models": ["gpt-4o"]},
+#       "code-gen":      {"calls": 1, "spent": "$0.0150", "models": ["gpt-4o"]},
+#   }
+# }
+```
+
 ---
 
 ## 📄 Policy-as-Code Configuration
