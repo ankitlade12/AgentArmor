@@ -11,7 +11,7 @@ from .modules.cost_tags import set_tag, clear_tag, get_tag
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -28,6 +28,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         tool_firewall=tool_firewall,
         cost_tags=cost_tags,
         dedup=dedup,
+        cascade=cascade,
         **kwargs
     )
     core.patch()
