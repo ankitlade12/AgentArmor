@@ -9,9 +9,10 @@ from .modules.recorder import RecorderModule
 from .modules.rate_limiter import RateLimiterModule
 from .modules.context_guard import ContextGuardModule
 from .modules.latency_breaker import LatencyBreakerModule
+from .modules.canary import CanaryModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -54,6 +55,16 @@ class ArmorCore:
                 self.modules["latency_breaker"] = LatencyBreakerModule()
             if "latency_breaker" in self.modules:
                 self.registry.register_after_response(self.modules["latency_breaker"].post_check)
+        if canary is not False and canary is not None:
+            if isinstance(canary, dict):
+                self.modules["canary"] = CanaryModule(**canary)
+            elif isinstance(canary, str):
+                self.modules["canary"] = CanaryModule(canary_word=canary)
+            elif isinstance(canary, bool) and canary:
+                self.modules["canary"] = CanaryModule()
+            if "canary" in self.modules:
+                self.registry.register_before_request(self.modules["canary"].pre_check)
+                self.registry.register_after_response(self.modules["canary"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""
