@@ -5,12 +5,12 @@ from typing import Any
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 from .config import load_config
-from .exceptions import ContextOverflow
+from .exceptions import ContextOverflow, LatencyThresholdExceeded
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -22,6 +22,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         record=record,
         rate_limit=rate_limit,
         context_guard=context_guard,
+        latency_breaker=latency_breaker,
         **kwargs
     )
     core.patch()
@@ -86,4 +87,5 @@ __all__ = [
     "ArmorCore",
     "load_config",
     "ContextOverflow",
+    "LatencyThresholdExceeded",
 ]

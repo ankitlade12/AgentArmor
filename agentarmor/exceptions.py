@@ -25,3 +25,7 @@ class PatchError(Exception):
 class ContextOverflow(Exception):
     """Raised when the message payload is likely to exceed the model's context window."""
     pass
+
+class LatencyThresholdExceeded(Exception):
+    """Raised when the latency circuit breaker trips due to consecutive slow responses."""
+    pass

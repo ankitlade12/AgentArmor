@@ -156,6 +156,33 @@ except ContextOverflow:
     print("Prompt too large for the model's context window!")
 ```
 
+### ⏱️ 7. Latency Circuit Breaker
+**Kill slow calls before they kill your UX.**
+Monitors API response times and trips a circuit breaker when latency consistently exceeds a threshold. After N consecutive slow responses, AgentArmor raises `LatencyThresholdExceeded` or warns — preventing cascading timeouts in production. Includes avg and p95 latency tracking.
+
+```python
+import agentarmor
+from agentarmor.exceptions import LatencyThresholdExceeded
+
+agentarmor.init(latency_breaker={
+    "threshold_ms": 3000,       # 3 second threshold
+    "consecutive_limit": 3,     # Trip after 3 consecutive slow calls
+    "on_breach": "block",       # Raise exception when tripped
+})
+
+try:
+    for task in tasks:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": task}]
+        )
+except LatencyThresholdExceeded:
+    print("API too slow — circuit breaker tripped!")
+
+print(agentarmor.report()["latency_breaker"])
+# {"avg_latency_ms": 2450.3, "p95_latency_ms": 4200.0, "total_trips": 1, ...}
+```
+
 ---
 
 ## 📄 Policy-as-Code Configuration
