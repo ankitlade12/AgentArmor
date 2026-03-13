@@ -25,9 +25,15 @@ def test_budget_recording():
         usage = MockUsage()
 
     module = BudgetModule(limit="$5.00")
-    
+
     req = RequestContext(messages=[], model="gpt-4o")
-    res = ResponseContext(text="test", model="gpt-4o", provider="openai", request=req, raw_response=MockResponse())
+    res = ResponseContext(
+        text="test",
+        model="gpt-4o",
+        provider="openai",
+        request=req,
+        raw_response=MockResponse(),
+    )
     module.post_record(res)
     
     assert module.spent > 0.0
