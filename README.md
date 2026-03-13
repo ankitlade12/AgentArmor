@@ -306,6 +306,31 @@ except DuplicateRequest:
     print("Duplicate prompt detected — saved an API call!")
 ```
 
+### 📉 13. Model Downgrade Cascade
+**Stretch your budget automatically.**
+Define a tiered model strategy that automatically switches to cheaper models as your budget depletes. Start with GPT-4o for critical early calls, then gracefully cascade to GPT-4o-mini and GPT-3.5-turbo as spend increases — all transparently, with zero code changes.
+
+```python
+import agentarmor
+
+agentarmor.init(
+    budget="$10.00",
+    cascade=[
+        {"model": "gpt-4o", "until_percent": 50},       # Premium for first 50%
+        {"model": "gpt-4o-mini", "until_percent": 90},   # Mid-tier 50-90%
+        {"model": "gpt-3.5-turbo", "until_percent": 100}, # Economy for last 10%
+    ]
+)
+
+# Early calls use gpt-4o, later calls auto-downgrade as budget depletes
+client = openai.OpenAI()
+for task in tasks:
+    response = client.chat.completions.create(
+        model="gpt-4o",  # Requested model — AgentArmor may override
+        messages=[{"role": "user", "content": task}]
+    )
+```
+
 ---
 
 ## 📄 Policy-as-Code Configuration

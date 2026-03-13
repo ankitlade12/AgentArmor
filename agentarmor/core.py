@@ -13,9 +13,10 @@ from .modules.canary import CanaryModule
 from .modules.tool_firewall import ToolFirewallModule
 from .modules.cost_tags import CostTagsModule
 from .modules.dedup import DedupModule
+from .modules.cascade import CascadeModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -88,6 +89,10 @@ class ArmorCore:
                 self.modules["dedup"] = DedupModule()
             if "dedup" in self.modules:
                 self.registry.register_before_request(self.modules["dedup"].pre_check)
+        if cascade:
+            budget_ref = self.modules.get("budget")
+            self.modules["cascade"] = CascadeModule(tiers=cascade, budget_ref=budget_ref)
+            self.registry._before_request.insert(0, self.modules["cascade"].pre_check)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""
