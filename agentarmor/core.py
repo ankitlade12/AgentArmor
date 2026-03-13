@@ -12,9 +12,10 @@ from .modules.latency_breaker import LatencyBreakerModule
 from .modules.canary import CanaryModule
 from .modules.tool_firewall import ToolFirewallModule
 from .modules.cost_tags import CostTagsModule
+from .modules.dedup import DedupModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -80,6 +81,13 @@ class ArmorCore:
                 self.modules["cost_tags"] = CostTagsModule()
             if "cost_tags" in self.modules:
                 self.registry.register_after_response(self.modules["cost_tags"].post_record)
+        if dedup is not False and dedup is not None:
+            if isinstance(dedup, dict):
+                self.modules["dedup"] = DedupModule(**dedup)
+            elif isinstance(dedup, bool) and dedup:
+                self.modules["dedup"] = DedupModule()
+            if "dedup" in self.modules:
+                self.registry.register_before_request(self.modules["dedup"].pre_check)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI and Anthropic SDKs."""

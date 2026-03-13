@@ -37,3 +37,7 @@ class CanaryLeakDetected(Exception):
 class ToolCallBlocked(Exception):
     """Raised when an LLM attempts to call a tool that is not authorized."""
     pass
+
+class DuplicateRequest(Exception):
+    """Raised when a duplicate prompt is detected and blocked to save API spend."""
+    pass
