@@ -29,3 +29,7 @@ class ContextOverflow(Exception):
 class LatencyThresholdExceeded(Exception):
     """Raised when the latency circuit breaker trips due to consecutive slow responses."""
     pass
+
+class CanaryLeakDetected(Exception):
+    """Raised when a canary token is detected in the LLM's output, indicating prompt leakage."""
+    pass
