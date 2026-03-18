@@ -9,6 +9,7 @@ from .exceptions import (
     ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected,
     ToolCallBlocked, DuplicateRequest, MLInjectionDetected,
     AgentDepthExceeded, AgentLimitExceeded, AgentBudgetExhausted,
+    MCPViolation,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 
@@ -20,7 +21,7 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "_agentarmor_agent", default=None
 )
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -40,6 +41,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         cascade=cascade,
         ml_shield=ml_shield,
         agent_graph=agent_graph,
+        mcp_firewall=mcp_firewall,
         **kwargs
     )
     core.patch()
@@ -100,6 +102,20 @@ def teardown() -> None:
         core.unpatch()
         _active_core.set(None)
 
+def validate_mcp_server(server_name: str, server_uri=None) -> bool:
+    """Convenience function to validate an MCP server against the active firewall."""
+    core = get_core()
+    if core and "mcp_firewall" in core.modules:
+        return core.modules["mcp_firewall"].validate_server(server_name, server_uri)
+    return True
+
+def validate_mcp_tool(tool_name: str, arguments: dict, server_name=None) -> bool:
+    """Convenience function to validate an MCP tool call against the active firewall."""
+    core = get_core()
+    if core and "mcp_firewall" in core.modules:
+        return core.modules["mcp_firewall"].validate_tool_call(tool_name, arguments, server_name)
+    return True
+
 def init_from_config(path=None, **overrides) -> ArmorCore:
     """
     Initializes AgentArmor from a config file (.agentarmor.yml / .json).
@@ -141,4 +157,7 @@ __all__ = [
     "AgentDepthExceeded",
     "AgentLimitExceeded",
     "AgentBudgetExhausted",
+    "MCPViolation",
+    "validate_mcp_server",
+    "validate_mcp_tool",
 ]
