@@ -17,9 +17,10 @@ from .modules.cascade import CascadeModule
 from .modules.ml_shield import MLShieldModule
 from .modules.agent_graph import AgentGraphModule
 from .modules.mcp_firewall import MCPFirewallModule
+from .modules.code_shield import CodeShieldModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -122,6 +123,14 @@ class ArmorCore:
                 self.modules["mcp_firewall"] = MCPFirewallModule()
             if "mcp_firewall" in self.modules:
                 self.registry.register_after_response(self.modules["mcp_firewall"].post_filter)
+        if code_shield is not False and code_shield is not None:
+            if isinstance(code_shield, dict):
+                self.modules["code_shield"] = CodeShieldModule(**code_shield)
+            elif isinstance(code_shield, bool) and code_shield:
+                self.modules["code_shield"] = CodeShieldModule()
+            if "code_shield" in self.modules:
+                self.registry.register_after_response(self.modules["code_shield"].post_filter)
+                self.registry.register_on_stream_chunk(self.modules["code_shield"].stream_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""

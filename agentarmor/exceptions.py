@@ -61,3 +61,7 @@ class AgentBudgetExhausted(Exception):
 class MCPViolation(Exception):
     """Raised when an MCP tool call violates security policies."""
     pass
+
+class InsecureCodeDetected(Exception):
+    """Raised when LLM output contains potentially dangerous code patterns."""
+    pass
