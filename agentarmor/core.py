@@ -18,9 +18,10 @@ from .modules.ml_shield import MLShieldModule
 from .modules.agent_graph import AgentGraphModule
 from .modules.mcp_firewall import MCPFirewallModule
 from .modules.code_shield import CodeShieldModule
+from .modules.grounding import GroundingGuardModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -97,6 +98,7 @@ class ArmorCore:
             budget_ref = self.modules.get("budget")
             self.modules["cascade"] = CascadeModule(tiers=cascade, budget_ref=budget_ref)
             self.registry._before_request.insert(0, self.modules["cascade"].pre_check)
+<<<<<<< HEAD
         if ml_shield is not False and ml_shield is not None:
             if isinstance(ml_shield, dict):
                 self.modules["ml_shield"] = MLShieldModule(**ml_shield)
@@ -131,6 +133,14 @@ class ArmorCore:
             if "code_shield" in self.modules:
                 self.registry.register_after_response(self.modules["code_shield"].post_filter)
                 self.registry.register_on_stream_chunk(self.modules["code_shield"].stream_filter)
+        if grounding is not False and grounding is not None:
+            if isinstance(grounding, dict):
+                self.modules["grounding"] = GroundingGuardModule(**grounding)
+            elif isinstance(grounding, bool) and grounding:
+                self.modules["grounding"] = GroundingGuardModule()
+            if "grounding" in self.modules:
+                self.registry.register_before_request(self.modules["grounding"].pre_check)
+                self.registry.register_after_response(self.modules["grounding"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""

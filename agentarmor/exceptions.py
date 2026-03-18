@@ -42,6 +42,7 @@ class DuplicateRequest(Exception):
     """Raised when a duplicate prompt is detected and blocked to save API spend."""
     pass
 
+<<<<<<< HEAD
 class MLInjectionDetected(Exception):
     """Raised when the ML classifier detects a likely prompt injection."""
     pass
@@ -64,4 +65,8 @@ class MCPViolation(Exception):
 
 class InsecureCodeDetected(Exception):
     """Raised when LLM output contains potentially dangerous code patterns."""
+    pass
+
+class HallucinationDetected(Exception):
+    """Raised when response grounding score falls below threshold."""
     pass
