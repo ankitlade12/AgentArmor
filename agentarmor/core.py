@@ -19,9 +19,10 @@ from .modules.agent_graph import AgentGraphModule
 from .modules.mcp_firewall import MCPFirewallModule
 from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
+from .modules.cot_auditor import CoTAuditorModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -140,6 +141,13 @@ class ArmorCore:
             if "grounding" in self.modules:
                 self.registry.register_before_request(self.modules["grounding"].pre_check)
                 self.registry.register_after_response(self.modules["grounding"].post_filter)
+        if cot_auditor is not False and cot_auditor is not None:
+            if isinstance(cot_auditor, dict):
+                self.modules["cot_auditor"] = CoTAuditorModule(**cot_auditor)
+            elif isinstance(cot_auditor, bool) and cot_auditor:
+                self.modules["cot_auditor"] = CoTAuditorModule()
+            if "cot_auditor" in self.modules:
+                self.registry.register_after_response(self.modules["cot_auditor"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
