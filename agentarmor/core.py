@@ -15,9 +15,10 @@ from .modules.cost_tags import CostTagsModule
 from .modules.dedup import DedupModule
 from .modules.cascade import CascadeModule
 from .modules.ml_shield import MLShieldModule
+from .modules.agent_graph import AgentGraphModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -101,6 +102,18 @@ class ArmorCore:
                 self.modules["ml_shield"] = MLShieldModule()
             if "ml_shield" in self.modules:
                 self.registry.register_before_request(self.modules["ml_shield"].pre_check)
+        if agent_graph is not False and agent_graph is not None:
+            if isinstance(agent_graph, dict):
+                self.modules["agent_graph"] = AgentGraphModule(**agent_graph)
+            elif isinstance(agent_graph, bool) and agent_graph:
+                self.modules["agent_graph"] = AgentGraphModule()
+            if "agent_graph" in self.modules:
+                self.registry.register_before_request(
+                    self.modules["agent_graph"].pre_check
+                )
+                self.registry.register_after_response(
+                    self.modules["agent_graph"].post_record
+                )
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
