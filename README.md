@@ -486,6 +486,7 @@ except ToxicContentDetected as e:
 ```
 
 *ML mode requires: `pip install agentarmor[toxicity]`*
+
 ### 🎯 17. Hallucination / Grounding Guard
 **Catch hallucinations before they reach your users.**
 Compares agent output against provided source documents using lightweight text similarity heuristics — n-gram overlap, number verification, proper noun checking, and claim-level grounding. Works entirely locally with zero dependencies and zero API calls. Auto-extracts source context from system messages and RAG-style document blocks.
