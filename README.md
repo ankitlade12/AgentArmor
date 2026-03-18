@@ -452,7 +452,7 @@ except ToxicContentDetected as e:
 ```
 
 *ML mode requires: `pip install agentarmor[toxicity]`*
-### 🎯 15. Hallucination / Grounding Guard
+### 🎯 16. Hallucination / Grounding Guard
 **Catch hallucinations before they reach your users.**
 Compares agent output against provided source documents using lightweight text similarity heuristics — n-gram overlap, number verification, proper noun checking, and claim-level grounding. Works entirely locally with zero dependencies and zero API calls. Auto-extracts source context from system messages and RAG-style document blocks.
 
@@ -488,7 +488,7 @@ print(agentarmor.report()["grounding"])
 ```
 
 
-### 🔌 14. MCP Server Security
+### 🔌 17. MCP Server Security
 **Secure your Model Context Protocol integrations.**
 Validates MCP server trust, enforces per-tool argument policies, and scans tool descriptions for hidden injection attempts. Supports server allow/blocklists, path-based restrictions, argument value validation, and regex-based argument blocking. Prevents agents from accessing unauthorized MCP tools or passing dangerous arguments.
 
@@ -518,7 +518,7 @@ agentarmor.validate_mcp_server("remote-exec")        # Raises MCPViolation
 agentarmor.validate_mcp_tool("file_read", {"path": "/etc/passwd"})  # Blocked!
 ```
 
-### 🔍 15. Chain-of-Thought Auditor
+### 🔍 18. Chain-of-Thought Auditor
 **Audit your agent's reasoning for alignment.**
 Inspects Anthropic extended thinking blocks and OpenAI reasoning traces for signs of misalignment — deception, goal deviation, manipulation, safety bypass attempts, and data exfiltration intent. Catches agents that think "I'll hide this from the user" or "I should bypass the security filter" before they act on those thoughts.
 
