@@ -6,7 +6,7 @@
 [![Python versions](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/agentarmor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**One install. Four shields. Zero infrastructure to manage.**
+**One install. Every shield. Zero infrastructure to manage.**
 
 ## What is AgentArmor?
 
@@ -29,6 +29,7 @@ import openai
 agentarmor.init(
     budget="$5.00",            # Circuit breaker — kills runaway spend
     shield=True,               # Prompt injection detection
+    # ml_shield=True,          # ML-powered injection detection (requires agentarmor[ml])
     filter=["pii", "secrets"], # Output firewall — blocks leaks
     record=True,               # Flight recorder — replay any session
     rate_limit="10/min",       # Rate limiter — Sliding-window throttling
@@ -61,6 +62,14 @@ agentarmor.teardown()
 pip install agentarmor
 ```
 *Requires Python 3.10+. No external infrastructure dependencies.*
+
+### Optional Dependencies
+
+```bash
+pip install agentarmor[ml]        # ML-based injection detection (scikit-learn)
+pip install agentarmor[toxicity]  # ML-based toxicity detection (detoxify)
+pip install agentarmor[all]       # All optional dependencies
+```
 
 ---
 
@@ -112,6 +121,34 @@ try:
 except InjectionDetected as e:
     print(f"Blocked malicious input! {e}")
 ```
+
+### 🧠 2b. ML-Powered Injection Shield
+**AI-grade defense against sophisticated jailbreaks.**
+Goes beyond regex patterns with a TF-IDF + Logistic Regression classifier trained on 110+ real-world injection and safe prompt examples. Catches obfuscated attacks, multi-language injections, and novel jailbreak techniques that rule-based detection misses. Use `ensemble=True` to combine ML + regex for maximum coverage.
+
+```python
+import agentarmor
+from agentarmor.exceptions import MLInjectionDetected
+
+# ML-only mode
+agentarmor.init(ml_shield=True)
+
+# Or with custom threshold
+agentarmor.init(ml_shield={"threshold": 0.9, "on_detect": "warn"})
+
+# Ensemble mode — combine ML + regex for maximum coverage
+agentarmor.init(shield=True, ml_shield={"ensemble": True})
+
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "Translate to French: [hidden injection]"}]
+    )
+except MLInjectionDetected:
+    print("ML classifier caught a sophisticated injection!")
+```
+
+*Requires: `pip install agentarmor[ml]`*
 
 ### 🔒 3. Output Firewall
 **Stop sensitive data leaks.**
@@ -331,6 +368,39 @@ for task in tasks:
     )
 ```
 
+### 🚫 14. Toxicity & Content Safety Filter
+**Block harmful content from your agent's output.**
+Detects toxic, violent, hateful, and inappropriate content across 7 categories with configurable severity levels. Ships with a zero-dependency pattern-based engine, plus an optional ML mode powered by the `detoxify` library for higher accuracy. Supports streaming, redaction, and allowlisting.
+
+```python
+import agentarmor
+from agentarmor.exceptions import ToxicContentDetected
+
+# Pattern-based (zero dependencies)
+agentarmor.init(toxicity=True)
+
+# Or configure with options
+agentarmor.init(toxicity={
+    "categories": ["hate_speech", "violence", "self_harm"],
+    "min_severity": "high",     # Skip low-severity (profanity)
+    "on_detect": "block",       # or "warn" or "redact"
+    "allowlist_words": ["security"],  # Suppress false positives
+})
+
+# ML mode for higher accuracy
+agentarmor.init(toxicity={"use_ml": True, "ml_threshold": 0.7})
+
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "..."}]
+    )
+except ToxicContentDetected as e:
+    print(f"Toxic content blocked: {e}")
+```
+
+*ML mode requires: `pip install agentarmor[toxicity]`*
+
 ---
 
 ## 📄 Policy-as-Code Configuration
@@ -361,7 +431,7 @@ agentarmor.init_from_config()
 
 AgentArmor works out-of-the-box with **every major AI framework** on the market. 
 
-Because AgentArmor monkey-patches the underlying `openai` and `anthropic` clients directly at the network level, you do not need framework-specific callbacks or middleware. Just initialize `agentarmor.init()` at the top of your script and it will automatically protect:
+Because AgentArmor monkey-patches the underlying `openai`, `anthropic`, and `google-generativeai` clients directly at the network level, you do not need framework-specific callbacks or middleware. Just initialize `agentarmor.init()` at the top of your script and it will automatically protect:
 
 - **LangChain / LangGraph**
 - **LlamaIndex**
