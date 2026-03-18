@@ -5,13 +5,13 @@ from typing import Any
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 from .config import load_config
-from .exceptions import ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected, ToolCallBlocked, DuplicateRequest
+from .exceptions import ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected, ToolCallBlocked, DuplicateRequest, MLInjectionDetected
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -29,6 +29,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         cost_tags=cost_tags,
         dedup=dedup,
         cascade=cascade,
+        ml_shield=ml_shield,
         **kwargs
     )
     core.patch()
@@ -100,4 +101,5 @@ __all__ = [
     "clear_tag",
     "get_tag",
     "DuplicateRequest",
+    "MLInjectionDetected",
 ]
