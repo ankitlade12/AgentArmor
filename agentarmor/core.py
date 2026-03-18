@@ -103,24 +103,34 @@ class ArmorCore:
                 self.registry.register_before_request(self.modules["ml_shield"].pre_check)
 
     def patch(self) -> None:
-        """Monkey-patches the OpenAI and Anthropic SDKs."""
+        """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
         try:
             from openai.resources.chat.completions import Completions, AsyncCompletions
             self._originals["openai_sync"] = Completions.create
             Completions.create = self._wrap_sync(self._originals["openai_sync"], provider="openai")
-            
+
             self._originals["openai_async"] = AsyncCompletions.create
             AsyncCompletions.create = self._wrap_async(self._originals["openai_async"], provider="openai")
         except ImportError:
             pass
-            
+
         try:
             from anthropic.resources.messages import Messages, AsyncMessages
             self._originals["anthropic_sync"] = Messages.create
             Messages.create = self._wrap_sync(self._originals["anthropic_sync"], provider="anthropic")
-            
+
             self._originals["anthropic_async"] = AsyncMessages.create
             AsyncMessages.create = self._wrap_async(self._originals["anthropic_async"], provider="anthropic")
+        except ImportError:
+            pass
+
+        try:
+            import google.generativeai as genai
+            from google.generativeai import GenerativeModel
+            self._originals["gemini_sync"] = GenerativeModel.generate_content
+            GenerativeModel.generate_content = self._wrap_gemini_sync(self._originals["gemini_sync"])
+            self._originals["gemini_async"] = GenerativeModel.generate_content_async
+            GenerativeModel.generate_content_async = self._wrap_gemini_async(self._originals["gemini_async"])
         except ImportError:
             pass
 
@@ -141,6 +151,15 @@ class ArmorCore:
                 Messages.create = self._originals["anthropic_sync"]
             if "anthropic_async" in self._originals:
                 AsyncMessages.create = self._originals["anthropic_async"]
+        except ImportError:
+            pass
+
+        try:
+            from google.generativeai import GenerativeModel
+            if "gemini_sync" in self._originals:
+                GenerativeModel.generate_content = self._originals["gemini_sync"]
+            if "gemini_async" in self._originals:
+                GenerativeModel.generate_content_async = self._originals["gemini_async"]
         except ImportError:
             pass
 
@@ -204,9 +223,105 @@ class ArmorCore:
 
         return wrapped
 
+    @staticmethod
+    def _gemini_contents_to_messages(contents: Any) -> list:
+        """Convert Gemini 'contents' format to a normalized messages list."""
+        if contents is None:
+            return []
+        # Simple string prompt
+        if isinstance(contents, str):
+            return [{"role": "user", "parts": [{"text": contents}]}]
+        # Already a list of dicts
+        if isinstance(contents, list):
+            messages = []
+            for item in contents:
+                if isinstance(item, str):
+                    messages.append({"role": "user", "parts": [{"text": item}]})
+                elif isinstance(item, dict):
+                    messages.append(item)
+                else:
+                    # Could be a Content proto object
+                    messages.append({"role": getattr(item, "role", "user"), "parts": [{"text": str(item)}]})
+            return messages
+        # Single dict
+        if isinstance(contents, dict):
+            return [contents]
+        return [{"role": "user", "parts": [{"text": str(contents)}]}]
+
+    def _gemini_get_model_name(self, model_instance: Any) -> str:
+        """Extract model name from a GenerativeModel instance."""
+        for attr in ("model_name", "_model_name"):
+            name = getattr(model_instance, attr, None)
+            if name:
+                # Strip 'models/' prefix if present
+                return name.replace("models/", "") if name.startswith("models/") else name
+        return "unknown"
+
+    def _wrap_gemini_sync(self, original_fn: Callable):
+        def wrapped(*args, **kwargs):
+            # args[0] is the GenerativeModel instance (self)
+            model_instance = args[0] if args else None
+            model_name = self._gemini_get_model_name(model_instance) if model_instance else "unknown"
+
+            # contents is the first positional arg after self, or a kwarg
+            contents = args[1] if len(args) > 1 else kwargs.get("contents", None)
+            messages = self._gemini_contents_to_messages(contents)
+            stream = kwargs.get("stream", False)
+
+            ctx = RequestContext(
+                messages=messages,
+                model=model_name,
+                temperature=kwargs.get("generation_config", {}).get("temperature") if isinstance(kwargs.get("generation_config"), dict) else None,
+                max_tokens=kwargs.get("generation_config", {}).get("max_output_tokens") if isinstance(kwargs.get("generation_config"), dict) else None,
+                stream=stream,
+                extra_kwargs=kwargs,
+            )
+            ctx = self.registry.execute_before_request(ctx)
+
+            t0 = time.perf_counter()
+            response = original_fn(*args, **kwargs)
+            latency_ms = (time.perf_counter() - t0) * 1000
+
+            if ctx.stream:
+                return self._handle_stream_sync(response, "gemini", ctx, latency_ms)
+
+            return self._handle_non_stream(response, "gemini", ctx, latency_ms)
+
+        return wrapped
+
+    def _wrap_gemini_async(self, original_fn: Callable):
+        async def wrapped(*args, **kwargs):
+            model_instance = args[0] if args else None
+            model_name = self._gemini_get_model_name(model_instance) if model_instance else "unknown"
+
+            contents = args[1] if len(args) > 1 else kwargs.get("contents", None)
+            messages = self._gemini_contents_to_messages(contents)
+            stream = kwargs.get("stream", False)
+
+            ctx = RequestContext(
+                messages=messages,
+                model=model_name,
+                temperature=kwargs.get("generation_config", {}).get("temperature") if isinstance(kwargs.get("generation_config"), dict) else None,
+                max_tokens=kwargs.get("generation_config", {}).get("max_output_tokens") if isinstance(kwargs.get("generation_config"), dict) else None,
+                stream=stream,
+                extra_kwargs=kwargs,
+            )
+            ctx = self.registry.execute_before_request(ctx)
+
+            t0 = time.perf_counter()
+            response = await original_fn(*args, **kwargs)
+            latency_ms = (time.perf_counter() - t0) * 1000
+
+            if ctx.stream:
+                return self._handle_stream_async(response, "gemini", ctx, latency_ms)
+
+            return self._handle_non_stream(response, "gemini", ctx, latency_ms)
+
+        return wrapped
+
     def _handle_non_stream(self, response: Any, provider: str, req_ctx: RequestContext, latency_ms: float):
         output_text = self._extract_output(response, provider)
-        usage = self._extract_non_stream_usage(response)
+        usage = self._extract_non_stream_usage(response, provider)
 
         res_ctx = ResponseContext(
             text=output_text,
@@ -300,6 +415,8 @@ class ArmorCore:
                 return response.choices[0].message.content or ""
             elif provider == "anthropic":
                 return response.content[0].text or ""
+            elif provider == "gemini":
+                return response.text or ""
         except Exception:
             pass
         return ""
@@ -310,6 +427,8 @@ class ArmorCore:
                 response.choices[0].message.content = output_text
             elif provider == "anthropic":
                 response.content[0].text = output_text
+            elif provider == "gemini":
+                response.candidates[0].content.parts[0].text = output_text
         except Exception:
             pass
 
@@ -322,6 +441,8 @@ class ArmorCore:
                 if getattr(chunk, "type", "") == "content_block_delta":
                     delta_obj = getattr(chunk, "delta", None)
                     return getattr(delta_obj, "text", "") or ""
+            elif provider == "gemini":
+                return getattr(chunk, "text", "") or ""
         except Exception:
             pass
         return ""
@@ -336,12 +457,21 @@ class ArmorCore:
                     delta_obj = getattr(chunk, "delta", None)
                     if delta_obj and hasattr(delta_obj, "text"):
                         delta_obj.text = new_delta
+            elif provider == "gemini":
+                if hasattr(chunk, "candidates") and chunk.candidates:
+                    chunk.candidates[0].content.parts[0].text = new_delta
         except Exception:
             pass
 
-    def _extract_non_stream_usage(self, response: Any) -> Dict[str, int]:
+    def _extract_non_stream_usage(self, response: Any, provider: str = None) -> Dict[str, int]:
         usage = None
-        if hasattr(response, "usage") and response.usage:
+        if provider == "gemini":
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+                if input_tokens > 0 or output_tokens > 0:
+                    usage = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+        elif hasattr(response, "usage") and response.usage:
             input_tokens = getattr(response.usage, "prompt_tokens", getattr(response.usage, "input_tokens", 0))
             output_tokens = getattr(response.usage, "completion_tokens", getattr(response.usage, "output_tokens", 0))
             if input_tokens > 0 or output_tokens > 0:
@@ -364,6 +494,14 @@ class ArmorCore:
                     usg = getattr(chunk, "usage", None)
                     if usg:
                         usage["output_tokens"] += getattr(usg, "output_tokens", 0)
+            elif provider == "gemini":
+                if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                    prompt_count = getattr(chunk.usage_metadata, "prompt_token_count", 0)
+                    candidates_count = getattr(chunk.usage_metadata, "candidates_token_count", 0)
+                    if prompt_count > 0:
+                        usage["input_tokens"] = prompt_count
+                    if candidates_count > 0:
+                        usage["output_tokens"] = candidates_count
         except Exception:
             pass
         
