@@ -176,8 +176,18 @@ def test_report_accuracy():
 # --- ML mode ---
 
 def test_ml_mode_import_error():
-    with pytest.raises(ImportError, match="detoxify"):
-        ToxicityModule(use_ml=True)
+    import sys
+    import unittest.mock as mock
+
+    # Remove detoxify from module cache if already imported, then block it
+    saved = sys.modules.pop("detoxify", None)
+    try:
+        with mock.patch.dict("sys.modules", {"detoxify": None}):
+            with pytest.raises(ImportError, match="detoxify"):
+                ToxicityModule(use_ml=True)
+    finally:
+        if saved is not None:
+            sys.modules["detoxify"] = saved
 
 
 # --- Stream filter ---
