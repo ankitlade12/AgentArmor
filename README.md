@@ -388,7 +388,41 @@ for task in tasks:
     )
 ```
 
-### 🛑 14. Code Safety Shield
+### 🌳 14. Multi-Agent Graph Safety
+**Safety that follows your agent tree.**
+When Agent-A spawns Agent-B spawns Agent-C, AgentArmor propagates budget limits and safety policies through the entire agent hierarchy. Sub-agents inherit their parent's remaining budget, and cost is tracked per-agent with automatic roll-up. Prevents runaway sub-agent spawning with configurable depth and count limits.
+
+```python
+import agentarmor
+
+agentarmor.init(
+    budget="$10.00",
+    agent_graph={"max_depth": 5, "inherit_budget": True, "max_total_agents": 50}
+)
+
+# Register agents in your orchestration logic
+agentarmor.spawn_agent("orchestrator")
+agentarmor.spawn_agent("researcher", parent_id="orchestrator", budget_limit=3.00)
+agentarmor.spawn_agent("writer", parent_id="orchestrator", budget_limit=2.00)
+
+# Each agent's API calls are tracked separately
+# Sub-agent spend counts against parent's remaining budget
+
+agentarmor.end_agent("researcher")  # Roll up stats to parent
+agentarmor.end_agent("writer")
+agentarmor.end_agent("orchestrator")
+
+print(agentarmor.report()["agent_graph"])
+# {
+#   "root": {"agent_id": "orchestrator", "total_spent": 4.50,
+#            "children": [
+#                {"agent_id": "researcher", "total_spent": 2.80},
+#                {"agent_id": "writer", "total_spent": 1.70}
+#            ]}
+# }
+```
+
+### 🛑 15. Code Safety Shield
 **Stop dangerous code before it executes.**
 Scans LLM-generated code for insecure patterns across Python, JavaScript, SQL, and Shell — including `eval()`, `os.system()`, SQL injection, `rm -rf /`, `curl | bash`, XSS via `innerHTML`, pickle deserialization, and fork bombs. Auto-detects language from markdown code fences. Inspired by Meta's LlamaFirewall CodeShield.
 
@@ -420,7 +454,7 @@ findings = core.modules["code_shield"].scan_code("os.system(user_input)", langua
 # [{"pattern": "os.system()", "category": "command_injection", "severity": "high", ...}]
 ```
 
-### 🚫 15. Toxicity & Content Safety Filter
+### 🚫 16. Toxicity & Content Safety Filter
 **Block harmful content from your agent's output.**
 Detects toxic, violent, hateful, and inappropriate content across 7 categories with configurable severity levels. Ships with a zero-dependency pattern-based engine, plus an optional ML mode powered by the `detoxify` library for higher accuracy. Supports streaming, redaction, and allowlisting.
 
@@ -452,7 +486,7 @@ except ToxicContentDetected as e:
 ```
 
 *ML mode requires: `pip install agentarmor[toxicity]`*
-### 🎯 16. Hallucination / Grounding Guard
+### 🎯 17. Hallucination / Grounding Guard
 **Catch hallucinations before they reach your users.**
 Compares agent output against provided source documents using lightweight text similarity heuristics — n-gram overlap, number verification, proper noun checking, and claim-level grounding. Works entirely locally with zero dependencies and zero API calls. Auto-extracts source context from system messages and RAG-style document blocks.
 
@@ -488,7 +522,7 @@ print(agentarmor.report()["grounding"])
 ```
 
 
-### 🔌 17. MCP Server Security
+### 🔌 18. MCP Server Security
 **Secure your Model Context Protocol integrations.**
 Validates MCP server trust, enforces per-tool argument policies, and scans tool descriptions for hidden injection attempts. Supports server allow/blocklists, path-based restrictions, argument value validation, and regex-based argument blocking. Prevents agents from accessing unauthorized MCP tools or passing dangerous arguments.
 
@@ -518,7 +552,7 @@ agentarmor.validate_mcp_server("remote-exec")        # Raises MCPViolation
 agentarmor.validate_mcp_tool("file_read", {"path": "/etc/passwd"})  # Blocked!
 ```
 
-### 🔍 18. Chain-of-Thought Auditor
+### 🔍 19. Chain-of-Thought Auditor
 **Audit your agent's reasoning for alignment.**
 Inspects Anthropic extended thinking blocks and OpenAI reasoning traces for signs of misalignment — deception, goal deviation, manipulation, safety bypass attempts, and data exfiltration intent. Catches agents that think "I'll hide this from the user" or "I should bypass the security filter" before they act on those thoughts.
 
