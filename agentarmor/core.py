@@ -16,9 +16,10 @@ from .modules.dedup import DedupModule
 from .modules.cascade import CascadeModule
 from .modules.ml_shield import MLShieldModule
 from .modules.agent_graph import AgentGraphModule
+from .modules.mcp_firewall import MCPFirewallModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -114,6 +115,13 @@ class ArmorCore:
                 self.registry.register_after_response(
                     self.modules["agent_graph"].post_record
                 )
+        if mcp_firewall is not False and mcp_firewall is not None:
+            if isinstance(mcp_firewall, dict):
+                self.modules["mcp_firewall"] = MCPFirewallModule(**mcp_firewall)
+            elif isinstance(mcp_firewall, bool) and mcp_firewall:
+                self.modules["mcp_firewall"] = MCPFirewallModule()
+            if "mcp_firewall" in self.modules:
+                self.registry.register_after_response(self.modules["mcp_firewall"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""

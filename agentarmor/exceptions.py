@@ -57,3 +57,7 @@ class AgentLimitExceeded(Exception):
 class AgentBudgetExhausted(Exception):
     """Raised when a sub-agent's allocated budget is exhausted."""
     pass
+
+class MCPViolation(Exception):
+    """Raised when an MCP tool call violates security policies."""
+    pass
