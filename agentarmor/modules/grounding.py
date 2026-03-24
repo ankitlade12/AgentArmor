@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 from collections import Counter
 from ..hooks import RequestContext, ResponseContext
 from ..exceptions import HallucinationDetected
