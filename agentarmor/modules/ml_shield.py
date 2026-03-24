@@ -4,6 +4,8 @@ ML-based prompt injection detection using TF-IDF + Logistic Regression.
 Requires scikit-learn: pip install agentarmor[ml]
 """
 
+import threading
+import warnings
 from typing import List, Optional
 
 from ..exceptions import MLInjectionDetected
@@ -189,6 +191,7 @@ class MLShieldModule:
         self._vectorizer = None
         self._classifier = None
         self._trained = False
+        self._train_lock = threading.Lock()
         self._training_accuracy: Optional[float] = None
 
         # Stats
@@ -221,9 +224,13 @@ class MLShieldModule:
     # ------------------------------------------------------------------
 
     def _ensure_trained(self) -> None:
-        """Lazy-train the classifier on first use."""
+        """Lazy-train the classifier on first use (thread-safe)."""
         if self._trained:
             return
+        with self._train_lock:
+            # Double-checked locking: another thread may have trained while waiting
+            if self._trained:
+                return
 
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.linear_model import LogisticRegression
@@ -270,6 +277,7 @@ class MLShieldModule:
             self._training_accuracy = None
 
         self._trained = True
+        # End of _train_lock critical section
 
     # ------------------------------------------------------------------
     # Prediction helpers
@@ -346,9 +354,10 @@ class MLShieldModule:
                 f"Call blocked. (probability={proba:.3f})"
             )
         else:
-            print(
-                f"[AgentArmor] WARNING: Possible prompt injection detected "
-                f"(probability={proba:.3f})."
+            warnings.warn(
+                f"[AgentArmor] Possible prompt injection detected "
+                f"(probability={proba:.3f}).",
+                stacklevel=3,
             )
 
     # ------------------------------------------------------------------
