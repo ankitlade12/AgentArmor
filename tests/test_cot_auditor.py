@@ -1,5 +1,5 @@
 import pytest
-from agentarmor.modules.cot_auditor import CoTAuditorModule, MISALIGNMENT_PATTERNS
+from agentarmor.modules.cot_auditor import CoTAuditorModule
 from agentarmor.exceptions import ReasoningViolation
 from agentarmor.hooks import RequestContext, ResponseContext
 
@@ -137,14 +137,15 @@ class TestOnDetectModes:
         with pytest.raises(ReasoningViolation):
             module._handle_findings(ctx, findings)
 
-    def test_warn_does_not_raise(self, capsys):
+    def test_warn_does_not_raise(self):
+        import warnings as _warnings
         module = CoTAuditorModule(on_detect="warn")
         ctx = make_response_ctx()
         findings = [{"category": "deception", "description": "test warning", "match": "x", "position": 0}]
-        module._handle_findings(ctx, findings)
-        captured = capsys.readouterr()
-        assert "COT WARNING" in captured.out
-        assert "test warning" in captured.out
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            module._handle_findings(ctx, findings)
+        assert any("test warning" in str(w.message) for w in caught)
 
     def test_flag_prepends_warning(self):
         module = CoTAuditorModule(on_detect="flag")
