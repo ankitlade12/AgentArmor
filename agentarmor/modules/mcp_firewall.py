@@ -116,7 +116,12 @@ class MCPFirewallModule:
     # ------------------------------------------------------------------
 
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:
-        """After-response hook that inspects tool_use blocks and validates them."""
+        """After-response hook that inspects tool_use blocks and validates them.
+
+        Note: server-level validation does not happen here because the MCP server
+        identity is not available in the response body. Use :meth:`validate_server`
+        at tool-registration time for server-level checks.
+        """
         tool_calls = self._extract_tool_calls(ctx)
         if not tool_calls:
             return ctx
@@ -128,13 +133,10 @@ class MCPFirewallModule:
                 f"(max {self.max_tool_calls_per_request})"
             )
 
-        # Validate each tool call against policies
+        # Delegate to validate_tool_call so scanned_tools & policies are
+        # applied consistently and do not double-count with direct API calls.
         for name, arguments in tool_calls:
-            self.scanned_tools += 1
-            if not self._check_tool_policy(name, arguments):
-                self._handle_violation(
-                    f"Tool policy violation: {name} with args {arguments}"
-                )
+            self.validate_tool_call(name, arguments)
 
         return ctx
 
