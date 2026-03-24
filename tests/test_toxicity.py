@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+
 from agentarmor.modules.toxicity import ToxicityModule
 from agentarmor.exceptions import ToxicContentDetected
 from agentarmor.hooks import RequestContext, ResponseContext
@@ -100,13 +100,15 @@ def test_block_mode_raises():
         mod.post_filter(ctx)
 
 
-def test_warn_mode_does_not_raise(capsys):
+def test_warn_mode_does_not_raise():
+    import warnings as _warnings
     mod = ToxicityModule(on_detect="warn")
     ctx = _make_response_ctx("all immigrants should die")
-    result = mod.post_filter(ctx)
+    with _warnings.catch_warnings(record=True) as caught:
+        _warnings.simplefilter("always")
+        result = mod.post_filter(ctx)
     assert result is ctx
-    captured = capsys.readouterr()
-    assert "[AgentArmor] TOXICITY" in captured.out
+    assert any("agentarmor" in str(w.message).lower() for w in caught)
 
 
 def test_redact_mode_replaces_content():

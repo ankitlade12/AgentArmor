@@ -1,6 +1,8 @@
 import re
+import warnings
 from typing import Dict, List, Optional
 from ..hooks import ResponseContext
+from ..exceptions import ToxicContentDetected
 
 # Toxicity categories with keyword patterns
 TOXICITY_PATTERNS = {
@@ -192,8 +194,6 @@ class ToxicityModule:
         return self._scan(text)
 
     def _handle_detection(self, ctx, findings):
-        from ..exceptions import ToxicContentDetected
-
         self.blocked_count += 1
         if self.on_detect == "block":
             categories = list(set(f["category"] for f in findings))
@@ -202,7 +202,11 @@ class ToxicityModule:
             )
         elif self.on_detect == "warn":
             for f in findings:
-                print(f"[AgentArmor] TOXICITY [{f['severity']}] {f['category']}: {f.get('match', '')[:50]}")
+                warnings.warn(
+                    f"[AgentArmor] Toxic content detected [{f['severity']}] "
+                    f"{f['category']}: {f.get('match', '')[:50]}",
+                    stacklevel=4,
+                )
         elif self.on_detect == "redact":
             for f in findings:
                 if "match" in f:
