@@ -65,3 +65,7 @@ class MCPViolation(Exception):
 class InsecureCodeDetected(Exception):
     """Raised when LLM output contains potentially dangerous code patterns."""
     pass
+
+class HallucinationDetected(Exception):
+    """Raised when response grounding score falls below threshold."""
+    pass

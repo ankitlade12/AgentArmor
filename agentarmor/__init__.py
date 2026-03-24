@@ -9,7 +9,7 @@ from .exceptions import (
     ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected,
     ToolCallBlocked, DuplicateRequest, MLInjectionDetected,
     AgentDepthExceeded, AgentLimitExceeded, AgentBudgetExhausted,
-    MCPViolation, InsecureCodeDetected,
+    MCPViolation, InsecureCodeDetected, HallucinationDetected,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 
@@ -21,7 +21,7 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "_agentarmor_agent", default=None
 )
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -43,6 +43,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         agent_graph=agent_graph,
         mcp_firewall=mcp_firewall,
         code_shield=code_shield,
+        grounding=grounding,
         **kwargs
     )
     core.patch()
@@ -162,4 +163,5 @@ __all__ = [
     "validate_mcp_server",
     "validate_mcp_tool",
     "InsecureCodeDetected",
+    "HallucinationDetected",
 ]
