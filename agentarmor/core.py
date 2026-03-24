@@ -98,7 +98,6 @@ class ArmorCore:
             budget_ref = self.modules.get("budget")
             self.modules["cascade"] = CascadeModule(tiers=cascade, budget_ref=budget_ref)
             self.registry._before_request.insert(0, self.modules["cascade"].pre_check)
-<<<<<<< HEAD
         if ml_shield is not False and ml_shield is not None:
             if isinstance(ml_shield, dict):
                 self.modules["ml_shield"] = MLShieldModule(**ml_shield)

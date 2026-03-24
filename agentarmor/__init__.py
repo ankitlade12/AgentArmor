@@ -39,7 +39,6 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         cost_tags=cost_tags,
         dedup=dedup,
         cascade=cascade,
-<<<<<<< HEAD
         ml_shield=ml_shield,
         agent_graph=agent_graph,
         mcp_firewall=mcp_firewall,
@@ -156,7 +155,6 @@ __all__ = [
     "clear_tag",
     "get_tag",
     "DuplicateRequest",
-<<<<<<< HEAD
     "MLInjectionDetected",
     "AgentDepthExceeded",
     "AgentLimitExceeded",
