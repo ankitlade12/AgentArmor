@@ -125,7 +125,6 @@ class ArmorCore:
             pass
 
         try:
-            import google.generativeai as genai
             from google.generativeai import GenerativeModel
             self._originals["gemini_sync"] = GenerativeModel.generate_content
             GenerativeModel.generate_content = self._wrap_gemini_sync(self._originals["gemini_sync"])
@@ -416,6 +415,10 @@ class ArmorCore:
             elif provider == "anthropic":
                 return response.content[0].text or ""
             elif provider == "gemini":
+                # response.candidates is empty when Gemini blocks the
+                # response (e.g. safety filter, quota). Fall through to "".
+                if not getattr(response, "candidates", None):
+                    return ""
                 return response.text or ""
         except Exception:
             pass
@@ -428,6 +431,9 @@ class ArmorCore:
             elif provider == "anthropic":
                 response.content[0].text = output_text
             elif provider == "gemini":
+                # Guard: no candidates means response was blocked; nothing to inject.
+                if not getattr(response, "candidates", None):
+                    return
                 response.candidates[0].content.parts[0].text = output_text
         except Exception:
             pass

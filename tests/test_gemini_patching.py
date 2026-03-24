@@ -1,7 +1,7 @@
 import sys
 import types
 import pytest
-from unittest.mock import MagicMock, patch
+
 
 import agentarmor
 from agentarmor.core import ArmorCore
@@ -89,7 +89,7 @@ class TestGeminiPatchUnpatch:
         original_sync = self.GenerativeModel.generate_content
         original_async = self.GenerativeModel.generate_content_async
 
-        core = agentarmor.init()
+        agentarmor.init()  # sets up the patch
 
         assert self.GenerativeModel.generate_content is not original_sync
         assert self.GenerativeModel.generate_content_async is not original_async
@@ -210,6 +210,21 @@ class TestGeminiOutputExtraction:
         response = self.FakeResponse("original")
         core._inject_output(response, "gemini", "modified")
         assert response.candidates[0].content.parts[0].text == "modified"
+
+    def test_extract_output_empty_candidates_returns_empty_string(self):
+        """When Gemini blocks a response (safety filter), candidates is empty.
+        _extract_output must return '' instead of raising."""
+        core = ArmorCore()
+        response = self.FakeResponse("blocked")
+        response.candidates = []  # simulate safety blockage
+        assert core._extract_output(response, "gemini") == ""
+
+    def test_inject_output_empty_candidates_is_noop(self):
+        """When candidates is empty, _inject_output must not raise."""
+        core = ArmorCore()
+        response = self.FakeResponse("blocked")
+        response.candidates = []
+        core._inject_output(response, "gemini", "should not appear")  # must not raise
 
 
 class TestGeminiUsageExtraction:
