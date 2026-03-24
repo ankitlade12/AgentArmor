@@ -20,9 +20,10 @@ from .modules.mcp_firewall import MCPFirewallModule
 from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
 from .modules.cot_auditor import CoTAuditorModule
+from .modules.toxicity import ToxicityModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -148,6 +149,14 @@ class ArmorCore:
                 self.modules["cot_auditor"] = CoTAuditorModule()
             if "cot_auditor" in self.modules:
                 self.registry.register_after_response(self.modules["cot_auditor"].post_filter)
+        if toxicity is not False and toxicity is not None:
+            if isinstance(toxicity, dict):
+                self.modules["toxicity"] = ToxicityModule(**toxicity)
+            elif isinstance(toxicity, bool) and toxicity:
+                self.modules["toxicity"] = ToxicityModule()
+            if "toxicity" in self.modules:
+                self.registry.register_after_response(self.modules["toxicity"].post_filter)
+                self.registry.register_on_stream_chunk(self.modules["toxicity"].stream_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""

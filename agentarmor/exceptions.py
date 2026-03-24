@@ -73,3 +73,7 @@ class HallucinationDetected(Exception):
 class ReasoningViolation(Exception):
     """Raised when chain-of-thought auditing detects misaligned reasoning."""
     pass
+
+class ToxicContentDetected(Exception):
+    """Raised when toxic or harmful content is detected in LLM output."""
+    pass
