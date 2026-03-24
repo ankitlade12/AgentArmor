@@ -41,3 +41,7 @@ class ToolCallBlocked(Exception):
 class DuplicateRequest(Exception):
     """Raised when a duplicate prompt is detected and blocked to save API spend."""
     pass
+
+class MLInjectionDetected(Exception):
+    """Raised when the ML classifier detects a likely prompt injection."""
+    pass
