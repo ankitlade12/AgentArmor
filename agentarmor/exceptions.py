@@ -69,3 +69,7 @@ class InsecureCodeDetected(Exception):
 class HallucinationDetected(Exception):
     """Raised when response grounding score falls below threshold."""
     pass
+
+class ReasoningViolation(Exception):
+    """Raised when chain-of-thought auditing detects misaligned reasoning."""
+    pass
