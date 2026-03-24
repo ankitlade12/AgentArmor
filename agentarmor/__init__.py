@@ -5,13 +5,22 @@ from typing import Any
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 from .config import load_config
-from .exceptions import ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected, ToolCallBlocked, DuplicateRequest, MLInjectionDetected
+from .exceptions import (
+    ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected,
+    ToolCallBlocked, DuplicateRequest, MLInjectionDetected,
+    AgentDepthExceeded, AgentLimitExceeded, AgentBudgetExhausted,
+)
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
-_active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar("_agentarmor_core", default=None)
+_active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar(
+    "_agentarmor_core", default=None
+)
+_active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "_agentarmor_agent", default=None
+)
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -30,6 +39,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         dedup=dedup,
         cascade=cascade,
         ml_shield=ml_shield,
+        agent_graph=agent_graph,
         **kwargs
     )
     core.patch()
@@ -59,6 +69,30 @@ def remaining() -> Optional[float]:
         return core.modules["budget"].remaining
     return None
 
+def spawn_agent(agent_id: str, parent_id: Optional[str] = None,
+                budget_limit: Optional[float] = None):
+    """Register a sub-agent in the current ArmorCore's agent graph."""
+    core = get_core()
+    if core and "agent_graph" in core.modules:
+        node = core.modules["agent_graph"].spawn_agent(
+            agent_id, parent_id, budget_limit
+        )
+        _active_agent.set(agent_id)
+        return node
+    return None
+
+def end_agent(agent_id: str):
+    """End a sub-agent and roll up its stats."""
+    core = get_core()
+    if core and "agent_graph" in core.modules:
+        graph = core.modules["agent_graph"]
+        node = graph.get_agent(agent_id)
+        graph.end_agent(agent_id)
+        if node and node.parent:
+            _active_agent.set(node.parent.agent_id)
+        else:
+            _active_agent.set(None)
+
 def teardown() -> None:
     """Unpatches SDKs and clears the current context's AgentArmor instance."""
     core = get_core()
@@ -86,6 +120,8 @@ __all__ = [
     "remaining",
     "teardown",
     "get_core",
+    "spawn_agent",
+    "end_agent",
     "before_request",
     "after_response",
     "on_stream_chunk",
@@ -102,4 +138,7 @@ __all__ = [
     "get_tag",
     "DuplicateRequest",
     "MLInjectionDetected",
+    "AgentDepthExceeded",
+    "AgentLimitExceeded",
+    "AgentBudgetExhausted",
 ]

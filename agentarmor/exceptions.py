@@ -45,3 +45,15 @@ class DuplicateRequest(Exception):
 class MLInjectionDetected(Exception):
     """Raised when the ML classifier detects a likely prompt injection."""
     pass
+
+class AgentDepthExceeded(Exception):
+    """Raised when agent spawn depth exceeds the configured maximum."""
+    pass
+
+class AgentLimitExceeded(Exception):
+    """Raised when total number of agents exceeds the configured maximum."""
+    pass
+
+class AgentBudgetExhausted(Exception):
+    """Raised when a sub-agent's allocated budget is exhausted."""
+    pass
