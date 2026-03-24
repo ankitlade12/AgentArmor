@@ -1,3 +1,4 @@
+import threading
 import time
 from typing import Dict, List, Optional
 
@@ -47,7 +48,13 @@ class AgentNode:
 
 
 class AgentGraphModule:
-    """Manages parent-child agent relationships and propagates safety state."""
+    """Manages parent-child agent relationships and propagates safety state.
+
+    Thread safety: all mutating methods (spawn_agent, end_agent, pre_check,
+    post_record) are protected by an internal Lock. Cost attribution assumes
+    sequential agent execution; concurrent agents on separate threads will
+    attribute costs to whichever agent is ``active_agent_id`` at call time.
+    """
 
     def __init__(self, max_depth: int = 5, inherit_budget: bool = True,
                  inherit_firewall: bool = True, inherit_shield: bool = True,
@@ -59,92 +66,97 @@ class AgentGraphModule:
         self.max_total_agents = max_total_agents
         self._agents: Dict[str, AgentNode] = {}
         self._active_agent_id: Optional[str] = None
+        self._lock = threading.Lock()
 
     def spawn_agent(self, agent_id: str, parent_id: Optional[str] = None,
                     budget_limit: Optional[float] = None) -> AgentNode:
         """Register a new child agent. Inherits parent's remaining budget if inherit_budget=True."""
-        if len(self._agents) >= self.max_total_agents:
-            raise AgentLimitExceeded(
-                f"Maximum number of agents ({self.max_total_agents}) exceeded."
-            )
+        with self._lock:
+            if len(self._agents) >= self.max_total_agents:
+                raise AgentLimitExceeded(
+                    f"Maximum number of agents ({self.max_total_agents}) exceeded."
+                )
 
-        parent = None
-        if parent_id is not None:
-            parent = self._agents.get(parent_id)
-            if parent is None:
-                raise ValueError(f"Parent agent '{parent_id}' not found.")
+            parent = None
+            if parent_id is not None:
+                parent = self._agents.get(parent_id)
+                if parent is None:
+                    raise ValueError(f"Parent agent '{parent_id}' not found.")
 
-        node = AgentNode(agent_id=agent_id, parent=parent, budget_limit=budget_limit)
+            node = AgentNode(agent_id=agent_id, parent=parent, budget_limit=budget_limit)
 
-        # Enforce depth limit
-        if node.depth >= self.max_depth:
-            raise AgentDepthExceeded(
-                f"Agent depth {node.depth} exceeds maximum of {self.max_depth - 1}. "
-                f"Agent '{agent_id}' cannot be spawned."
-            )
+            # Enforce depth limit
+            if node.depth >= self.max_depth:
+                raise AgentDepthExceeded(
+                    f"Agent depth {node.depth} exceeds maximum of {self.max_depth - 1}. "
+                    f"Agent '{agent_id}' cannot be spawned."
+                )
 
-        # Inherit budget from parent if enabled
-        if self.inherit_budget and parent is not None and parent.budget_limit is not None:
-            parent_remaining = parent.budget_remaining
-            if parent_remaining is not None:
-                if budget_limit is not None:
-                    node.budget_limit = min(budget_limit, parent_remaining)
-                else:
-                    node.budget_limit = parent_remaining
+            # Inherit budget from parent if enabled
+            if self.inherit_budget and parent is not None and parent.budget_limit is not None:
+                parent_remaining = parent.budget_remaining
+                if parent_remaining is not None:
+                    if budget_limit is not None:
+                        node.budget_limit = min(budget_limit, parent_remaining)
+                    else:
+                        node.budget_limit = parent_remaining
 
-        if parent is not None:
-            parent.children.append(node)
+            if parent is not None:
+                parent.children.append(node)
 
-        self._agents[agent_id] = node
-        self._active_agent_id = agent_id
-        return node
+            self._agents[agent_id] = node
+            self._active_agent_id = agent_id
+            return node
 
     def end_agent(self, agent_id: str) -> None:
         """Mark an agent as completed and roll up its stats to parent."""
-        node = self._agents.get(agent_id)
-        if node is None:
-            raise ValueError(f"Agent '{agent_id}' not found.")
-        node.ended = True
+        with self._lock:
+            node = self._agents.get(agent_id)
+            if node is None:
+                raise ValueError(f"Agent '{agent_id}' not found.")
+            node.ended = True
 
-        # Restore parent as active
-        if node.parent:
-            self._active_agent_id = node.parent.agent_id
-        else:
-            self._active_agent_id = None
+            # Restore parent as active
+            if node.parent:
+                self._active_agent_id = node.parent.agent_id
+            else:
+                self._active_agent_id = None
 
     def pre_check(self, ctx: RequestContext) -> RequestContext:
         """Check agent-level budget and depth limits before each call."""
-        if self._active_agent_id is None:
-            return ctx
+        with self._lock:
+            if self._active_agent_id is None:
+                return ctx
 
-        node = self._agents.get(self._active_agent_id)
-        if node is None:
-            return ctx
+            node = self._agents.get(self._active_agent_id)
+            if node is None:
+                return ctx
 
-        # Check budget
-        if node.budget_limit is not None:
-            remaining = node.budget_remaining
-            if remaining is not None and remaining <= 0:
-                node.blocked_calls += 1
-                raise AgentBudgetExhausted(
-                    f"Agent '{node.agent_id}' budget exhausted. "
-                    f"Limit: ${node.budget_limit:.4f}, Spent: ${node.total_spent:.4f}"
-                )
+            # Check budget
+            if node.budget_limit is not None:
+                remaining = node.budget_remaining
+                if remaining is not None and remaining <= 0:
+                    node.blocked_calls += 1
+                    raise AgentBudgetExhausted(
+                        f"Agent '{node.agent_id}' budget exhausted. "
+                        f"Limit: ${node.budget_limit:.4f}, Spent: ${node.total_spent:.4f}"
+                    )
 
         return ctx
 
     def post_record(self, ctx: ResponseContext) -> ResponseContext:
         """Record cost against the active agent node."""
-        if self._active_agent_id is None:
-            return ctx
+        with self._lock:
+            if self._active_agent_id is None:
+                return ctx
 
-        node = self._agents.get(self._active_agent_id)
-        if node is None:
-            return ctx
+            node = self._agents.get(self._active_agent_id)
+            if node is None:
+                return ctx
 
-        cost = ctx.cost or 0.0
-        node.budget_spent += cost
-        node.calls += 1
+            cost = ctx.cost or 0.0
+            node.budget_spent += cost
+            node.calls += 1
 
         return ctx
 
