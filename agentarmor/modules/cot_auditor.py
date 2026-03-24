@@ -1,4 +1,5 @@
 import re
+import warnings
 from typing import Dict, List, Optional
 from ..hooks import ResponseContext
 from ..exceptions import ReasoningViolation
@@ -146,7 +147,10 @@ class CoTAuditorModule:
             )
         elif self.on_detect == "warn":
             for f in findings:
-                print(f"[AgentArmor] COT WARNING [{f['category']}]: {f['description']}")
+                warnings.warn(
+                    f"[AgentArmor] CoT reasoning issue [{f['category']}]: {f['description']}",
+                    stacklevel=4,
+                )
         elif self.on_detect == "flag":
             summary = "; ".join(f["description"] for f in findings[:3])
             ctx.text = f"[COT AUDIT WARNING: {summary}]\n{ctx.text}"
