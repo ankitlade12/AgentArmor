@@ -21,9 +21,10 @@ from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
 from .modules.cot_auditor import CoTAuditorModule
 from .modules.toxicity import ToxicityModule
+from .modules.unicode_shield import UnicodeShieldModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, unicode_shield=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -157,6 +158,13 @@ class ArmorCore:
             if "toxicity" in self.modules:
                 self.registry.register_after_response(self.modules["toxicity"].post_filter)
                 self.registry.register_on_stream_chunk(self.modules["toxicity"].stream_filter)
+        if unicode_shield is not False and unicode_shield is not None:
+            if isinstance(unicode_shield, dict):
+                self.modules["unicode_shield"] = UnicodeShieldModule(**unicode_shield)
+            elif isinstance(unicode_shield, bool) and unicode_shield:
+                self.modules["unicode_shield"] = UnicodeShieldModule()
+            if "unicode_shield" in self.modules:
+                self.registry.register_before_request(self.modules["unicode_shield"].pre_check)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
