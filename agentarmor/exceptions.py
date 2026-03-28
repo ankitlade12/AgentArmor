@@ -77,3 +77,7 @@ class ReasoningViolation(Exception):
 class ToxicContentDetected(Exception):
     """Raised when toxic or harmful content is detected in LLM output."""
     pass
+
+class SemanticDriftDetected(Exception):
+    """Raised when conversation semantic drift exceeds the configured threshold."""
+    pass
