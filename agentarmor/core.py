@@ -21,9 +21,10 @@ from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
 from .modules.cot_auditor import CoTAuditorModule
 from .modules.toxicity import ToxicityModule
+from .modules.compliance_reporter import ComplianceReporterModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -157,6 +158,13 @@ class ArmorCore:
             if "toxicity" in self.modules:
                 self.registry.register_after_response(self.modules["toxicity"].post_filter)
                 self.registry.register_on_stream_chunk(self.modules["toxicity"].stream_filter)
+        if compliance is not False and compliance is not None:
+            if isinstance(compliance, dict):
+                self.modules["compliance"] = ComplianceReporterModule(**compliance)
+            elif isinstance(compliance, bool) and compliance:
+                self.modules["compliance"] = ComplianceReporterModule()
+            if "compliance" in self.modules:
+                self.registry.register_after_response(self.modules["compliance"].post_record)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
