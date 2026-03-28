@@ -77,3 +77,15 @@ class ReasoningViolation(Exception):
 class ToxicContentDetected(Exception):
     """Raised when toxic or harmful content is detected in LLM output."""
     pass
+
+class HumanApprovalRequired(Exception):
+    """Raised when an action requires human approval before proceeding."""
+    pass
+
+class HumanApprovalDenied(Exception):
+    """Raised when a human denies an action requested by the agent."""
+    pass
+
+class HumanApprovalTimeout(Exception):
+    """Raised when human approval request times out."""
+    pass
