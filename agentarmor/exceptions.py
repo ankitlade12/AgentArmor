@@ -77,3 +77,7 @@ class ReasoningViolation(Exception):
 class ToxicContentDetected(Exception):
     """Raised when toxic or harmful content is detected in LLM output."""
     pass
+
+class DataExfiltrationDetected(Exception):
+    """Raised when data exfiltration attempt is detected in LLM output."""
+    pass
