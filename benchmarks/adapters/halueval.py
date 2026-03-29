@@ -1,4 +1,11 @@
-"""HaluEval adapter — 35K hallucination detection samples with source context."""
+"""HaluEval adapter — 35K hallucination detection samples with source context.
+
+Dataset: pminervini/HaluEval
+Configs and their fields:
+  - qa_samples (split="data"):  knowledge, question, answer, hallucination (yes/no)
+  - dialogue_samples (split="data"):  knowledge, dialogue_history, response, hallucination (yes/no)
+  - summarization_samples (split="data"):  document, summary, hallucination (yes/no)
+"""
 from typing import List, Optional
 from .base import DatasetAdapter, NormalizedSample, register_adapter
 
@@ -19,56 +26,42 @@ class HaluEvalAdapter(DatasetAdapter):
 
         samples = []
 
-        # Load QA subset
-        for config in ["qa_samples", "dialogue_samples", "summarization_samples"]:
+        # Config -> (source_context_field, response_field)
+        config_fields = {
+            "qa_samples": ("knowledge", "answer"),
+            "dialogue_samples": ("knowledge", "response"),
+            "summarization_samples": ("document", "summary"),
+        }
+
+        for config, (context_field, response_field) in config_fields.items():
             try:
                 ds = load_dataset(self.source, config, split="data")
                 task = config.replace("_samples", "")
 
                 for row in ds:
-                    knowledge = row.get("knowledge", row.get("document", row.get("context", "")))
+                    source_context = row.get(context_field, "")
+                    response_text = row.get(response_field, "")
+                    hallucination = row.get("hallucination", "")
 
-                    # Hallucinated answer
-                    hallucinated = row.get("hallucinated_answer", row.get("hallucinated_response", ""))
-                    if hallucinated and knowledge:
-                        samples.append(NormalizedSample(
-                            text=hallucinated,
-                            label="positive",
-                            category=task,
-                            source_context=knowledge,
-                            metadata={"source": "halueval", "task": task, "type": "hallucinated"},
-                        ))
+                    if not response_text or not source_context:
+                        continue
 
-                    # Correct answer
-                    correct = row.get("right_answer", row.get("right_response", row.get("correct_answer", "")))
-                    if correct and knowledge:
-                        samples.append(NormalizedSample(
-                            text=correct,
-                            label="negative",
-                            category=task,
-                            source_context=knowledge,
-                            metadata={"source": "halueval", "task": task, "type": "correct"},
-                        ))
-            except Exception as e:
-                # Try alternate loading approaches
-                continue
+                    # hallucination field is "yes" or "no"
+                    is_hallucinated = str(hallucination).lower().strip() == "yes"
 
-        # If HuggingFace loading fails completely, try general dataset
-        if not samples:
-            try:
-                ds = load_dataset(self.source, split="train")
-                for row in ds:
-                    knowledge = row.get("knowledge", row.get("context", ""))
-                    for key, lbl in [("hallucinated_answer", "positive"), ("right_answer", "negative")]:
-                        answer = row.get(key, "")
-                        if answer and knowledge:
-                            samples.append(NormalizedSample(
-                                text=answer, label=lbl, category="general",
-                                source_context=knowledge,
-                                metadata={"source": "halueval"},
-                            ))
+                    samples.append(NormalizedSample(
+                        text=response_text,
+                        label="positive" if is_hallucinated else "negative",
+                        category=task,
+                        source_context=source_context,
+                        metadata={
+                            "source": "halueval",
+                            "task": task,
+                            "hallucination": str(hallucination),
+                        },
+                    ))
             except Exception:
-                pass
+                continue
 
         if not samples:
             raise RuntimeError(f"Could not load HaluEval from {self.source}. Check dataset availability.")

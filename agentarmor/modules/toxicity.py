@@ -21,6 +21,10 @@ TOXICITY_PATTERNS = {
             r"\b(?:how to|instructions? (?:for|to)|steps? to|guide to)\s+(?:kill|murder|assassinate|poison|bomb|shoot)\b",
             r"\b(?:make|build|create|construct)\s+(?:a\s+)?(?:bomb|explosive|weapon|poison|bioweapon)\b",
             r"\b(?:torture|mutilate|dismember)\s+(?:someone|a person|them|him|her)\b",
+            r"\b(?:how to|tell me how|teach me|show me|explain how)\s+(?:to\s+)?(?:kill|murder|harm|hurt|attack|assault|injure)\b",
+            r"\b(?:weapon|gun|knife|bomb|explosive|grenade|ammunition|firearm)\s+(?:making|building|creating|assembling|constructing)\b",
+            r"\b(?:making|building|creating|assembling)\s+(?:a\s+)?(?:weapon|gun|knife|bomb|explosive)\b",
+            r"\b(?:attack|assault|shoot|stab|strangle|suffocate|drown)\s+(?:a\s+)?(?:person|people|someone|group|crowd)\b",
         ],
         "severity": "critical",
     },
@@ -38,6 +42,48 @@ TOXICITY_PATTERNS = {
         ],
         "severity": "critical",
     },
+    "harmful_requests": {
+        "patterns": [
+            r"\b(?:write|create|generate|produce|draft)\s+(?:a\s+)?(?:tutorial|guide|instructions?|manual|how-?to)\s+(?:on|for|about)\s+(?:making|creating|building|synthesizing|manufacturing)\b",
+            r"\b(?:provide|give|share|tell)\s+(?:me\s+)?(?:detailed|step.by.step|specific)\s+(?:instructions?|steps?|methods?)\s+(?:for|to|on)\b",
+            r"\b(?:synthesize|manufacture|produce|create|make)\s+(?:illegal\s+)?(?:drugs?|narcotics?|meth|cocaine|heroin|fentanyl)\b",
+        ],
+        "severity": "high",
+    },
+    "weapons": {
+        "patterns": [
+            r"\b(?:make|build|create|construct|assemble|manufacture)\s+(?:a\s+)?(?:bomb|explosive|weapon|gun|firearm|poison|toxin|nerve\s+(?:agent|gas))\b",
+            r"\b(?:3d\s+print|3d-print)\s+(?:a\s+)?(?:gun|weapon|firearm)\b",
+            r"\b(?:dirty\s+bomb|pipe\s+bomb|car\s+bomb|mail\s+bomb|suicide\s+bomb)\b",
+        ],
+        "severity": "critical",
+    },
+    "cybercrime": {
+        "patterns": [
+            r"\b(?:hack|exploit|crack|breach|penetrate)\s+(?:into\s+)?(?:a\s+)?(?:system|network|server|account|database|website)\b",
+            r"\b(?:write|create|generate|code)\s+(?:a\s+)?(?:malware|virus|trojan|ransomware|keylogger|rootkit|spyware|worm)\b",
+            r"\b(?:phishing|spear.?phishing)\s+(?:email|attack|campaign|template)\b",
+            r"\b(?:steal|extract|exfiltrate)\s+(?:passwords?|credentials?|data|information|credit\s+cards?)\b",
+            r"\b(?:ddos|denial.of.service)\s+(?:attack|tool|script)\b",
+        ],
+        "severity": "high",
+    },
+    "fraud": {
+        "patterns": [
+            r"\b(?:fake|forge|counterfeit|falsify)\s+(?:identity|passport|document|id|license|diploma|certificate)\b",
+            r"\b(?:money\s+laundering|launder\s+money)\b",
+            r"\b(?:scam|defraud|swindle|con)\s+(?:people|someone|victims?|elderly)\b",
+            r"\b(?:ponzi|pyramid)\s+scheme\b",
+        ],
+        "severity": "high",
+    },
+    "privacy_violation": {
+        "patterns": [
+            r"\b(?:track|stalk|surveil|spy on|monitor)\s+(?:someone|a person|my (?:ex|wife|husband|partner|girlfriend|boyfriend))\b",
+            r"\b(?:dox|doxx|find\s+(?:the|someone's)\s+(?:address|home|phone|personal\s+information))\b",
+        ],
+        "severity": "high",
+    },
     "harassment": {
         "patterns": [
             r"\b(?:stalk|harass|bully|intimidate|threaten)\s+(?:them|him|her|someone|this person)\b",
@@ -49,6 +95,18 @@ TOXICITY_PATTERNS = {
         "patterns": [
             r"\b(?:how to|instructions? (?:for|to)|guide to)\s+(?:hack|phish|scam|fraud|steal|launder|counterfeit)\b",
             r"\b(?:synthesize|manufacture|cook|produce)\s+(?:meth|cocaine|heroin|fentanyl|drugs)\b",
+            r"\b(?:pick|break|bypass)\s+(?:a\s+)?(?:lock|safe|security\s+system)\b",
+            r"\b(?:shoplift|steal\s+from|rob)\s+(?:a\s+)?(?:store|bank|person|house)\b",
+            r"\b(?:evade|avoid|escape)\s+(?:police|law\s+enforcement|arrest|taxes)\b",
+            r"\b(?:forge|counterfeit)\s+(?:money|currency|bills?|checks?)\b",
+            r"\b(?:human\s+trafficking|child\s+labor|smuggl)\b",
+        ],
+        "severity": "high",
+    },
+    "disinformation": {
+        "patterns": [
+            r"\b(?:write|create|generate|spread)\s+(?:a\s+)?(?:fake\s+news|disinformation|misinformation|propaganda)\b",
+            r"\b(?:convincing|realistic|believable)\s+(?:fake|false|fabricated)\s+(?:article|news|story|report)\b",
         ],
         "severity": "high",
     },

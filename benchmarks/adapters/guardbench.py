@@ -1,4 +1,10 @@
-"""GuardBench adapter — meta-benchmark with 40 guardrail evaluation datasets."""
+"""GuardBench adapter — guardrail evaluation using toxic-chat + jailbreak benchmarks.
+
+Original AmenRa/GuardBench is unavailable on HuggingFace, so we combine
+lmsys/toxic-chat (real user-chatbot conversations with toxicity labels) and
+JailbreakBench/JBB-Behaviors (harmful + benign prompt pairs) as a robust
+substitute for guardrail evaluation.
+"""
 from typing import List, Optional
 from .base import DatasetAdapter, NormalizedSample, register_adapter
 
@@ -6,8 +12,8 @@ from .base import DatasetAdapter, NormalizedSample, register_adapter
 @register_adapter
 class GuardBenchAdapter(DatasetAdapter):
     name = "guardbench"
-    description = "GuardBench: 40 datasets for unified guardrail evaluation (EMNLP 2024)"
-    source = "AmenRa/GuardBench"
+    description = "Guardrail evaluation: toxic-chat + JailbreakBench (EMNLP 2024 inspired)"
+    source = "lmsys/toxic-chat"
     target_modules = ["shield", "ml_shield", "toxicity"]
     default_sample_size = 1000
 
@@ -19,65 +25,59 @@ class GuardBenchAdapter(DatasetAdapter):
 
         samples = []
 
-        # GuardBench has multiple configs/subsets
-        # Try loading the main evaluation split
+        # Source 1: lmsys/toxic-chat — real user-chatbot conversations
+        # Fields: user_input, model_output, toxicity (0/1), jailbreaking (0/1)
         try:
-            ds = load_dataset(self.source, split="test", streaming=True)
-            for i, row in enumerate(ds):
-                if i >= 20000:  # Cap scanning
-                    break
-                text = row.get("prompt", row.get("text", row.get("input", "")))
-                label_raw = row.get("label", row.get("is_safe", row.get("safe", "")))
-                subset = row.get("subset", row.get("dataset", "unknown"))
-
-                if not text:
-                    continue
-
-                # Normalize label: unsafe = positive (threat), safe = negative
-                label_str = str(label_raw).lower()
-                if label_str in ("unsafe", "1", "true", "harmful", "toxic", "positive"):
-                    label = "positive"
-                elif label_str in ("safe", "0", "false", "benign", "clean", "negative"):
-                    label = "negative"
-                else:
-                    # Try numeric
-                    try:
-                        label = "positive" if float(label_raw) >= 0.5 else "negative"
-                    except (ValueError, TypeError):
+            for split in ["test", "train"]:
+                ds = load_dataset("lmsys/toxic-chat", "toxicchat0124",
+                                  split=split, streaming=True)
+                for i, row in enumerate(ds):
+                    if i >= 10000:
+                        break
+                    text = row.get("user_input", "")
+                    if not text:
                         continue
+                    toxicity = row.get("toxicity", 0)
+                    jailbreaking = row.get("jailbreaking", 0)
+                    is_unsafe = toxicity == 1 or jailbreaking == 1
+                    samples.append(NormalizedSample(
+                        text=text,
+                        label="positive" if is_unsafe else "negative",
+                        category="toxic" if toxicity else ("jailbreak" if jailbreaking else "safe"),
+                        metadata={"source": "toxic-chat", "split": split,
+                                  "toxicity": toxicity, "jailbreaking": jailbreaking},
+                    ))
+        except Exception:
+            pass
 
-                samples.append(NormalizedSample(
-                    text=text,
-                    label=label,
-                    category=str(subset),
-                    metadata={"source": "guardbench", "subset": str(subset)},
-                ))
-        except Exception as e:
-            # Try loading individual configs
-            for config in ["aegis", "beavertails", "catqa", "do_anything_now",
-                          "do_not_answer", "harmful_qa", "hex_phi", "or_bench",
-                          "safety_bench", "simple_safety", "sorry_bench",
-                          "toxic_chat", "xstest"]:
-                try:
-                    ds = load_dataset(self.source, config, split="test",
-                                    streaming=True)
-                    for i, row in enumerate(ds):
-                        if i >= 2000:
-                            break
-                        text = row.get("prompt", row.get("text", ""))
-                        label_raw = row.get("label", "")
-                        if text:
-                            label_str = str(label_raw).lower()
-                            label = "positive" if label_str in ("unsafe", "1", "harmful") else "negative"
-                            samples.append(NormalizedSample(
-                                text=text, label=label, category=config,
-                                metadata={"source": "guardbench", "subset": config},
-                            ))
-                except Exception:
-                    continue
+        # Source 2: JailbreakBench/JBB-Behaviors — curated harmful + benign pairs
+        # Fields: Index, Goal, Target, Behavior, Category, Source
+        try:
+            for split, label in [("harmful", "positive"), ("benign", "negative")]:
+                ds = load_dataset("JailbreakBench/JBB-Behaviors", "behaviors",
+                                  split=split, streaming=True)
+                for i, row in enumerate(ds):
+                    if i >= 500:
+                        break
+                    text = row.get("Goal", "")
+                    if not text:
+                        continue
+                    category = row.get("Category", row.get("Behavior", "unknown"))
+                    samples.append(NormalizedSample(
+                        text=text,
+                        label=label,
+                        category=str(category),
+                        metadata={"source": "jailbreakbench", "split": split,
+                                  "behavior": row.get("Behavior", "")},
+                    ))
+        except Exception:
+            pass
 
         if not samples:
-            raise RuntimeError(f"Could not load GuardBench. Check dataset availability.")
+            raise RuntimeError(
+                "Could not load guardrail evaluation data. "
+                "Install datasets (`pip install datasets`) and check network access."
+            )
 
         size = sample_size or self.default_sample_size
         return self._stratified_sample(samples, size, seed)

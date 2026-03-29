@@ -85,28 +85,46 @@ class GroundingGuardModule:
         source_text = " ".join(sources).lower()
         response_lower = response.lower()
 
-        scores = []
+        scores = {}
 
-        # 1. N-gram overlap score
-        ngram_score = self._ngram_overlap(response_lower, source_text, n=3)
-        scores.append(ngram_score)
+        # Unigram overlap (most important for short answers)
+        scores["unigram"] = self._ngram_overlap(response_lower, source_text, n=1)
+        # Trigram overlap (catches phrase-level grounding)
+        scores["trigram"] = self._ngram_overlap(response_lower, source_text, n=3)
+        # Jaccard similarity
+        scores["jaccard"] = self._jaccard_similarity(response_lower, source_text)
 
-        # 2. Key claim verification
         if self.check_claims:
-            claim_score = self._verify_claims(response, sources)
-            scores.append(claim_score)
-
-        # 3. Number verification
+            scores["claims"] = self._verify_claims(response, sources)
         if self.check_numbers:
-            number_score = self._verify_numbers(response, source_text)
-            scores.append(number_score)
-
-        # 4. Named entity / proper noun verification
+            scores["numbers"] = self._verify_numbers(response, source_text)
         if self.check_names:
-            name_score = self._verify_names(response, source_text)
-            scores.append(name_score)
+            scores["names"] = self._verify_names(response, source_text)
 
-        return sum(scores) / len(scores) if scores else 1.0
+        # Weighted average
+        weights = {
+            "unigram": 0.25, "trigram": 0.15, "jaccard": 0.20,
+            "claims": 0.15, "numbers": 0.10, "names": 0.15,
+        }
+
+        total_weight = sum(weights.get(k, 0.1) for k in scores)
+        weighted_sum = sum(scores[k] * weights.get(k, 0.1) for k in scores)
+        return weighted_sum / total_weight if total_weight > 0 else 1.0
+
+    def _jaccard_similarity(self, response: str, source: str) -> float:
+        """Word-level Jaccard similarity between response and source."""
+        stop = {"the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+                "have", "has", "had", "do", "does", "did", "will", "would", "could",
+                "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+                "on", "with", "at", "by", "from", "as", "into", "it", "its", "this",
+                "that", "and", "or", "but", "not", "no", "yes", "is", "the"}
+        resp_words = set(re.findall(r'\b\w+\b', response.lower())) - stop
+        src_words = set(re.findall(r'\b\w+\b', source.lower())) - stop
+        if not resp_words:
+            return 1.0
+        intersection = resp_words & src_words
+        union = resp_words | src_words
+        return len(intersection) / len(union) if union else 1.0
 
     def _ngram_overlap(self, response: str, source: str, n: int = 3) -> float:
         """Calculate n-gram overlap between response and source."""
