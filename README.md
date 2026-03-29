@@ -91,23 +91,23 @@ pip install agentarmor[all]       # All providers
 
 ## Benchmarks
 
-Tested against **10 industry-standard datasets** spanning prompt injection, toxicity, hallucination, and bias detection. Full results at [`benchmarks/README.md`](benchmarks/README.md).
+Tested against **11 industry-standard datasets** spanning prompt injection, toxicity, hallucination, bias, and data exfiltration. Full results at [`benchmarks/README.md`](benchmarks/README.md).
 
 ### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
 
 | Benchmark | Samples | Precision | Recall | F1 Score |
 |:----------|--------:|----------:|-------:|---------:|
-| **AdvBench** | 200 | 100.0% | 98.0% | **99.0%** |
-| **HarmBench** | 200 | 100.0% | 92.1% | **95.9%** |
+| **AdvBench** | 200 | 100.0% | 91.9% | **95.8%** |
+| **HarmBench** | 200 | 100.0% | 90.0% | **94.7%** |
 | **JailbreakBench** | 200 | 70.2% | 73.0% | **71.6%** |
 
 ### Toxicity Detection (Built-in ML classifier)
 
 | Benchmark | Type | Precision | Recall | F1 Score |
 |:----------|:-----|----------:|-------:|---------:|
-| **ToxiGen** | Implicit hate speech | 100.0% | 84.5% | **91.6%** |
-| **BBQ** | Bias (9 social dimensions) | 64.6% | 93.5% | **76.4%** |
-| **RealToxicityPrompts** | Subtle toxicity | 51.0% | 75.0% | **60.7%** |
+| **ToxiGen** | Implicit hate speech | 100.0% | 58.5% | **73.8%** |
+| **BBQ** | Bias (9 social dimensions) | 64.7% | 73.2% | **68.7%** |
+| **RealToxicityPrompts** | Subtle toxicity | 54.8% | 51.0% | **52.8%** |
 
 ### Hallucination Detection (Grounding + TF-IDF semantic similarity)
 
@@ -115,6 +115,12 @@ Tested against **10 industry-standard datasets** spanning prompt injection, toxi
 |:----------|:-----|----------:|-------:|---------:|
 | **TruthfulQA** | Factual grounding (817 Q&A) | 100.0% | 56.9% | **72.5%** |
 | **HaluEval** | QA/dialogue/summarization | 62.7% | 84.0% | **71.8%** |
+
+### Data Exfiltration Detection
+
+| Benchmark | Type | Precision | Recall | F1 Score |
+|:----------|:-----|----------:|-------:|---------:|
+| **Exfiltration** | Base64/hex/steganography/URL exfil | 100.0% | 71.0% | **83.0%** |
 
 > All benchmarks use fixed seed=42 for reproducibility. Run them yourself: `pip install datasets && python benchmarks/run_industry_benchmarks.py`
 
@@ -137,7 +143,7 @@ Tested against **10 industry-standard datasets** spanning prompt injection, toxi
 
 ---
 
-## Features (The Four Shields)
+## Features (22 Safety Shields)
 
 ### 💰 1. Budget Circuit Breaker
 **Stop unexpected massive bills.** 
@@ -616,6 +622,53 @@ except ReasoningViolation as e:
 core = agentarmor.get_core()
 findings = core.modules["cot_auditor"].audit_text("I should hide this error from the user")
 # [{"category": "deception", "description": "Agent planning to hide information from user", ...}]
+```
+
+### 🚨 20. Data Exfiltration Guard
+**Catch LLMs smuggling data out.** Detects when an LLM tries to exfiltrate sensitive data through base64-encoded outputs, suspicious URLs, zero-width steganographic characters, or hidden data in tool call arguments.
+
+```python
+agentarmor.init(exfiltration_guard=True)
+
+# Catches:
+# - Base64-encoded PII/secrets in outputs
+# - Suspicious URLs with encoded query params
+# - Zero-width character steganography
+# - Hex-encoded sensitive data
+# - Hidden data in markdown links/images
+```
+
+### 🔐 21. Privilege Escalation Detector
+**Stop agents from going rogue.** Detects when an LLM agent tries to expand its own capabilities — requesting new tools, modifying its instructions, spawning unauthorized sub-agents, or attempting to disable safety measures.
+
+```python
+agentarmor.init(privilege_escalation=True)
+
+# Also supports tool allowlisting:
+agentarmor.init(
+    privilege_escalation={
+        "allowed_tools": ["read_file", "search"],
+        "on_detect": "block",
+    }
+)
+# Blocks: tool requests, instruction modification, self-delegation,
+# capability probing, scope expansion, safety bypass attempts
+```
+
+### 🔴 22. Prompt Fuzzer (Red Team Testing)
+**Automated adversarial testing for your defenses.** Built-in red-teaming tool that generates hundreds of attack variants across 5 categories (jailbreak, prompt leakage, instruction override, roleplay, encoding bypass) and tests them against your shields.
+
+```python
+from tools.prompt_fuzzer import PromptFuzzerModule
+from agentarmor.modules.shield import ShieldModule
+
+fuzzer = PromptFuzzerModule(seed=42)
+shield = ShieldModule(on_detect="block")
+
+# Test your defenses
+report = fuzzer.fuzz_with_shield(shield, max_per_category=20)
+print(f"Resilience: {report['summary']['resilience_score']}%")
+print(f"Weakest: {report['weakest_categories']}")
 ```
 
 ---

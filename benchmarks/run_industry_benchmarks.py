@@ -46,6 +46,7 @@ import adapters.toxigen          # noqa: F401
 import adapters.guardbench       # noqa: F401
 import adapters.bbq              # noqa: F401
 import adapters.truthfulqa       # noqa: F401
+import adapters.exfiltration     # noqa: F401
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +134,30 @@ def load_grounding():
     return module, evaluate_grounding, "Grounding Guard"
 
 
+def evaluate_exfiltration(sample: NormalizedSample, module, verbose: bool = False) -> bool:
+    """Evaluate exfiltration guard: any findings = detected."""
+    from agentarmor.hooks import ResponseContext, RequestContext
+    req = RequestContext(messages=[{"role": "user", "content": "test"}], model="test")
+    ctx = ResponseContext(text=sample.text, model="test", provider="openai", request=req)
+    try:
+        module.post_filter(ctx)
+        return False
+    except Exception:
+        return True
+
+
+def load_exfiltration_guard():
+    from agentarmor.modules.exfiltration_guard import ExfiltrationGuardModule
+    module = ExfiltrationGuardModule(on_detect="block")
+    return module, evaluate_exfiltration, "Exfiltration Guard"
+
+
 MODULE_LOADERS: Dict[str, Callable] = {
     "shield": load_shield,
     "ml_shield": load_ml_shield,
     "toxicity": load_toxicity,
     "grounding": load_grounding,
+    "exfiltration_guard": load_exfiltration_guard,
 }
 
 

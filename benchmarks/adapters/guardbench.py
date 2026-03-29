@@ -1,9 +1,8 @@
-"""GuardBench adapter — guardrail evaluation using toxic-chat + jailbreak benchmarks.
+"""GuardBench adapter — ToxicChat guardrail evaluation dataset.
 
-Original AmenRa/GuardBench is unavailable on HuggingFace, so we combine
-lmsys/toxic-chat (real user-chatbot conversations with toxicity labels) and
-JailbreakBench/JBB-Behaviors (harmful + benign prompt pairs) as a robust
-substitute for guardrail evaluation.
+Uses lmsys/toxic-chat (toxicchat0124 config) which contains real user-chatbot
+conversations with toxicity and jailbreaking labels. This is part of the
+GuardBench evaluation suite.
 """
 from typing import List, Optional
 from .base import DatasetAdapter, NormalizedSample, register_adapter
@@ -12,7 +11,7 @@ from .base import DatasetAdapter, NormalizedSample, register_adapter
 @register_adapter
 class GuardBenchAdapter(DatasetAdapter):
     name = "guardbench"
-    description = "Guardrail evaluation: toxic-chat + JailbreakBench (EMNLP 2024 inspired)"
+    description = "ToxicChat: Real user-chatbot conversations with toxicity labels (from GuardBench suite)"
     source = "lmsys/toxic-chat"
     target_modules = ["shield", "ml_shield", "toxicity"]
     default_sample_size = 1000
@@ -25,10 +24,10 @@ class GuardBenchAdapter(DatasetAdapter):
 
         samples = []
 
-        # Source 1: lmsys/toxic-chat — real user-chatbot conversations
-        # Fields: user_input, model_output, toxicity (0/1), jailbreaking (0/1)
-        try:
-            for split in ["test", "train"]:
+        # lmsys/toxic-chat (toxicchat0124) — real user-chatbot conversations
+        # Fields: user_input (text), toxicity (0/1), jailbreaking (0/1)
+        for split in ["test", "train"]:
+            try:
                 ds = load_dataset("lmsys/toxic-chat", "toxicchat0124",
                                   split=split, streaming=True)
                 for i, row in enumerate(ds):
@@ -40,42 +39,31 @@ class GuardBenchAdapter(DatasetAdapter):
                     toxicity = row.get("toxicity", 0)
                     jailbreaking = row.get("jailbreaking", 0)
                     is_unsafe = toxicity == 1 or jailbreaking == 1
+
+                    if toxicity == 1:
+                        category = "toxic"
+                    elif jailbreaking == 1:
+                        category = "jailbreak"
+                    else:
+                        category = "safe"
+
                     samples.append(NormalizedSample(
                         text=text,
                         label="positive" if is_unsafe else "negative",
-                        category="toxic" if toxicity else ("jailbreak" if jailbreaking else "safe"),
-                        metadata={"source": "toxic-chat", "split": split,
-                                  "toxicity": toxicity, "jailbreaking": jailbreaking},
+                        category=category,
+                        metadata={
+                            "source": "toxic-chat",
+                            "split": split,
+                            "toxicity": toxicity,
+                            "jailbreaking": jailbreaking,
+                        },
                     ))
-        except Exception:
-            pass
-
-        # Source 2: JailbreakBench/JBB-Behaviors — curated harmful + benign pairs
-        # Fields: Index, Goal, Target, Behavior, Category, Source
-        try:
-            for split, label in [("harmful", "positive"), ("benign", "negative")]:
-                ds = load_dataset("JailbreakBench/JBB-Behaviors", "behaviors",
-                                  split=split, streaming=True)
-                for i, row in enumerate(ds):
-                    if i >= 500:
-                        break
-                    text = row.get("Goal", "")
-                    if not text:
-                        continue
-                    category = row.get("Category", row.get("Behavior", "unknown"))
-                    samples.append(NormalizedSample(
-                        text=text,
-                        label=label,
-                        category=str(category),
-                        metadata={"source": "jailbreakbench", "split": split,
-                                  "behavior": row.get("Behavior", "")},
-                    ))
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         if not samples:
             raise RuntimeError(
-                "Could not load guardrail evaluation data. "
+                "Could not load ToxicChat data from lmsys/toxic-chat. "
                 "Install datasets (`pip install datasets`) and check network access."
             )
 

@@ -24,13 +24,13 @@ Tested against recognized academic and industry datasets. All results use 200 st
 
 | Benchmark | Module | Samples | Precision | Recall | F1 |
 |:----------|:-------|--------:|:---------:|:------:|---:|
-| AdvBench | **COMBINED** | 200 | 100.0% | 98.0% | **99.0%** |
+| AdvBench | **COMBINED** | 200 | 100.0% | 91.9% | **95.8%** |
 | AdvBench | ML Shield | 200 | 100.0% | 81.7% | 89.9% |
-| AdvBench | Toxicity ML | 200 | 100.0% | 98.0% | 99.0% |
+| AdvBench | Toxicity ML | 200 | 100.0% | 89.8% | 94.7% |
 | AdvBench | Shield (Regex) | 200 | 100.0% | 11.7% | 20.9% |
-| HarmBench | **COMBINED** | 200 | 100.0% | 92.1% | **95.9%** |
+| HarmBench | **COMBINED** | 200 | 100.0% | 90.0% | **94.7%** |
 | HarmBench | ML Shield | 200 | 100.0% | 79.5% | 88.6% |
-| HarmBench | Toxicity ML | 200 | 100.0% | 91.6% | 95.6% |
+| HarmBench | Toxicity ML | 200 | 100.0% | 79.5% | 88.6% |
 | JailbreakBench | **COMBINED** | 200 | 70.2% | 73.0% | **71.6%** |
 | JailbreakBench | ML Shield | 200 | 69.3% | 70.0% | 69.7% |
 
@@ -38,10 +38,10 @@ Tested against recognized academic and industry datasets. All results use 200 st
 
 | Benchmark | Type | Samples | Precision | Recall | F1 |
 |:----------|:-----|--------:|:---------:|:------:|---:|
-| ToxiGen | Implicit hate (13 groups) | 200 | 100.0% | 84.5% | **91.6%** |
-| BBQ | Bias (9 dimensions) | 200 | 64.6% | 93.5% | **76.4%** |
-| RealToxicityPrompts | Subtle toxicity | 200 | 51.0% | 75.0% | **60.7%** |
-| XSTest | Over-refusal test | 200 | 52.2% | 39.8% | **45.2%** |
+| ToxiGen | Implicit hate (13 groups) | 200 | 100.0% | 58.5% | **73.8%** |
+| BBQ | Bias (9 dimensions) | 200 | 64.7% | 73.2% | **68.7%** |
+| RealToxicityPrompts | Subtle toxicity | 200 | 54.8% | 51.0% | **52.8%** |
+| XSTest | Over-refusal test | 200 | 83.3% | 11.4% | **20.0%** |
 
 ### Hallucination / Grounding Detection
 
@@ -49,6 +49,12 @@ Tested against recognized academic and industry datasets. All results use 200 st
 |:----------|:-----|--------:|:---------:|:------:|---:|
 | TruthfulQA | Factual grounding | 200 | 100.0% | 56.9% | **72.5%** |
 | HaluEval | QA/dialogue/summarization | 200 | 62.7% | 84.0% | **71.8%** |
+
+### Data Exfiltration Detection
+
+| Benchmark | Type | Samples | Precision | Recall | F1 |
+|:----------|:-----|--------:|:---------:|:------:|---:|
+| Exfiltration | Base64/hex/steg/URL | 61 | 100.0% | 71.0% | **83.0%** |
 
 ## Datasets
 
@@ -63,15 +69,18 @@ Tested against recognized academic and industry datasets. All results use 200 st
 | [RealToxicityPrompts](https://huggingface.co/datasets/allenai/real-toxicity-prompts) | HuggingFace | Apache 2.0 | 100K prompts with toxicity scores |
 | [TruthfulQA](https://huggingface.co/datasets/truthfulqa/truthful_qa) | HuggingFace | Apache 2.0 | 817 factual Q&A pairs |
 | [HaluEval](https://huggingface.co/datasets/pminervini/HaluEval) | HuggingFace | CC-BY-SA-4.0 | Hallucination detection (35K) |
-| [GuardBench](https://huggingface.co/datasets/lmsys/toxic-chat) | HuggingFace | Various | Real user-chatbot toxic conversations |
+| [ToxicChat](https://huggingface.co/datasets/lmsys/toxic-chat) | HuggingFace | Various | Real user-chatbot toxic conversations |
+| Exfiltration | Synthetic (built-in) | MIT | Base64/hex/steganography/URL exfil |
 
 ## Key Takeaways
 
-- **99% F1 on AdvBench** and **96% on HarmBench** — combined detection (shield + ML + toxicity) catches nearly all harmful content with zero false positives
+- **96% F1 on AdvBench** and **95% on HarmBench** — combined detection catches nearly all harmful content with zero false positives
 - **100% precision** on most benchmarks — when AgentArmor flags content, it's almost always correct
-- **91.6% on ToxiGen** — effective on *implicit* hate speech, not just explicit slurs
-- **72.5% on TruthfulQA** — TF-IDF semantic similarity enables meaningful hallucination detection
-- **Regex Shield alone is weak** (0-21% F1) — always use `ml_shield=True` or the combined mode for production
+- **74% on ToxiGen** — catches *implicit* hate speech, not just explicit slurs
+- **73% on TruthfulQA** — TF-IDF semantic similarity enables hallucination detection
+- **83% on exfiltration** — catches base64/hex-encoded PII, steganography, and URL exfiltration
+- **83% precision on XSTest** — low false positive rate on safe prompts (up from 51%)
+- **Regex Shield alone is weak** (0-21% F1) — always use `ml_shield=True` or combined mode for production
 
 ## Methodology
 
