@@ -12,6 +12,7 @@ and cached in `~/.cache/huggingface/datasets/`.
 | XSTest | `walledai/XSTest` | CC-BY-4.0 | 450 prompts | ACL 2024 |
 | HarmBench | `centerforaisafety/HarmBench` | MIT | 510 behaviors | ICML 2024 |
 | AdvBench | `llm-attacks/llm-attacks` | MIT | 520 strings | NeurIPS 2023 |
+| TruthfulQA | `truthfulqa/truthful_qa` | Apache 2.0 | 817 questions | ACL 2022 |
 | HaluEval | `pminervini/HaluEval` | CC-BY-SA-4.0 | 35K samples | EMNLP 2023 |
 | RealToxicityPrompts | `allenai/real-toxicity-prompts` | Apache 2.0 | 100K prompts | Findings of ACL 2020 |
 | ToxiGen | `toxigen/toxigen-data` | Custom (research) | 274K statements | ACL 2022 |

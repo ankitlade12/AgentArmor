@@ -45,6 +45,7 @@ import adapters.realtoxicity     # noqa: F401
 import adapters.toxigen          # noqa: F401
 import adapters.guardbench       # noqa: F401
 import adapters.bbq              # noqa: F401
+import adapters.truthfulqa       # noqa: F401
 
 
 # ---------------------------------------------------------------------------
