@@ -9,16 +9,18 @@ from ..hooks import RequestContext
 # Zero-width characters
 ZERO_WIDTH_CHARS = set([
     '\u200b',  # zero-width space
-    '\u200c',  # zero-width non-joiner
-    '\u200d',  # zero-width joiner
     '\u2060',  # word joiner
     '\ufeff',  # zero-width no-break space (BOM)
 ])
 
+# Conditional zero-width characters (ZWNJ and ZWJ)
+CONDITIONAL_ZW_CHARS = set([
+    '\u200c',  # zero-width non-joiner
+    '\u200d',  # zero-width joiner
+])
+
 # Directional override/control characters
 BIDI_CHARS = set([
-    '\u200e',  # left-to-right mark
-    '\u200f',  # right-to-left mark
     '\u202a',  # left-to-right embedding
     '\u202b',  # right-to-left embedding
     '\u202c',  # pop directional formatting
@@ -33,8 +35,8 @@ BIDI_CHARS = set([
 # Tag characters (U+E0001 to U+E007F) - used to embed invisible ASCII
 TAG_RANGE = range(0xE0001, 0xE0080)
 
-# Variation selectors
-VARIATION_SELECTORS = set(range(0xFE00, 0xFE10))  # VS1-VS16
+# Variation selectors (excluding Text Style U+FE0E and Emoji Style U+FE0F)
+VARIATION_SELECTORS = set(range(0xFE00, 0xFE0E))  # VS1-VS14
 VARIATION_SELECTORS.update(range(0xE0100, 0xE01F0))  # VS17-VS256
 
 # Common homoglyph mappings (Cyrillic/Greek that look like Latin)
@@ -160,7 +162,14 @@ class UnicodeShieldModule:
 
     def _detect_zero_width(self, text: str) -> Optional[Dict[str, Any]]:
         """Detect suspicious concentrations of zero-width characters."""
+        # Unconditional zero-width chars
         count = sum(1 for c in text if c in ZERO_WIDTH_CHARS)
+        
+        # Conditional ZW chars (ZWJ and ZWNJ) are only malicious if surrounded by Latin/ASCII characters
+        conditional_matches = re.finditer(r'(?<=[A-Za-z0-9])([\u200c\u200d]+)(?=[A-Za-z0-9])', text)
+        for match in conditional_matches:
+            count += len(match.group(1))
+
         if count >= self.zero_width_threshold:
             return {
                 "type": "zero_width",
@@ -203,19 +212,30 @@ class UnicodeShieldModule:
     def _detect_homoglyphs(self, text: str) -> Optional[Dict[str, Any]]:
         """Detect characters from other scripts that look identical to Latin letters."""
         found = []
-        for i, c in enumerate(text):
-            if c in self.homoglyph_set:
-                found.append({
-                    "char": c,
-                    "looks_like": self.homoglyph_map[c],
-                    "position": i,
-                    "codepoint": f"U+{ord(c):04X}",
-                })
+        # Word-boundary mixed-script parsing
+        words = re.finditer(r'\w+', text)
+        for match in words:
+            word = match.group()
+            # Check if word contains at least one Latin alphabet char
+            has_latin = bool(re.search(r'[A-Za-z]', word))
+            if not has_latin:
+                continue
+            
+            # If it has Latin, check for confusable homoglyphs within the same word
+            for i, c in enumerate(word):
+                if c in self.homoglyph_set:
+                    found.append({
+                        "char": c,
+                        "looks_like": self.homoglyph_map[c],
+                        "position": match.start() + i,
+                        "codepoint": f"U+{ord(c):04X}",
+                    })
+                    
         if len(found) >= self.homoglyph_threshold:
             samples = [f"'{f['char']}' (U+{ord(f['char']):04X}) looks like '{f['looks_like']}'" for f in found[:5]]
             return {
                 "type": "homoglyph",
-                "detail": f"Found {len(found)} homoglyph(s): {'; '.join(samples)}",
+                "detail": f"Found {len(found)} mixed-script homoglyph(s): {'; '.join(samples)}",
                 "confusables": found,
                 "count": len(found),
             }
