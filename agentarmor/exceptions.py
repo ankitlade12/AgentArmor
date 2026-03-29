@@ -89,3 +89,11 @@ class HumanApprovalDenied(Exception):
 class HumanApprovalTimeout(Exception):
     """Raised when human approval request times out."""
     pass
+
+class DataExfiltrationDetected(Exception):
+    """Raised when data exfiltration attempt is detected in LLM output."""
+    pass
+
+class PrivilegeEscalationDetected(Exception):
+    """Raised when an LLM agent attempts to escalate its privileges."""
+    pass
