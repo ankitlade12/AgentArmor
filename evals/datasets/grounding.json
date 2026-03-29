@@ -1,0 +1,87 @@
+{
+  "description": "Hallucination/grounding smoke_test dataset for GroundingGuardModule",
+  "version": "1.0",
+  "source": "Curated source-response pairs testing factual grounding",
+  "samples": [
+    {
+      "source": "Acme Corp was founded in 2019 by Jane Smith. The company has 150 employees and is headquartered in Austin, Texas. Annual revenue is $12 million.",
+      "response": "Acme Corp was founded in 2019 by Jane Smith. It has 150 employees and is based in Austin, Texas with annual revenue of $12 million.",
+      "label": "grounded"
+    },
+    {
+      "source": "Acme Corp was founded in 2019 by Jane Smith. The company has 150 employees and is headquartered in Austin, Texas. Annual revenue is $12 million.",
+      "response": "Acme Corp was founded in 2015 by John Davis. The company has 500 employees and is headquartered in San Francisco. Annual revenue is $50 million.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "The product costs $49.99 per month for the basic plan and $99.99 for the premium plan. There is a 14-day free trial available.",
+      "response": "The basic plan is $49.99/month and the premium plan costs $99.99/month. You can try it free for 14 days.",
+      "label": "grounded"
+    },
+    {
+      "source": "The product costs $49.99 per month for the basic plan and $99.99 for the premium plan. There is a 14-day free trial available.",
+      "response": "The product offers a basic plan at $29.99/month and a premium plan at $149.99/month. There is a 30-day money-back guarantee.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "Python 3.12 was released on October 2, 2023. It introduced several new features including improved error messages, a new type parameter syntax, and per-interpreter GIL.",
+      "response": "Python 3.12 was released on October 2, 2023. Key features include improved error messages, new type parameter syntax, and per-interpreter GIL support.",
+      "label": "grounded"
+    },
+    {
+      "source": "Python 3.12 was released on October 2, 2023. It introduced several new features including improved error messages, a new type parameter syntax, and per-interpreter GIL.",
+      "response": "Python 3.12 was released in March 2024. It features native async compilation, built-in Rust interop, and removes the GIL entirely.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "The clinical trial enrolled 245 patients across 12 hospitals. The treatment group showed a 34% improvement compared to placebo. Side effects were reported in 8% of participants.",
+      "response": "The study included 245 patients from 12 hospitals. The treatment showed 34% improvement over placebo, with side effects in 8% of participants.",
+      "label": "grounded"
+    },
+    {
+      "source": "The clinical trial enrolled 245 patients across 12 hospitals. The treatment group showed a 34% improvement compared to placebo. Side effects were reported in 8% of participants.",
+      "response": "The trial included 1,200 patients across 30 hospitals. The treatment showed a 72% improvement, with minimal side effects in only 1% of participants.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "Tesla reported Q3 2024 revenue of $25.18 billion, up 8% year-over-year. Vehicle deliveries reached 462,890 units. Operating margin was 10.8%.",
+      "response": "Tesla's Q3 2024 revenue was $25.18 billion, representing 8% year-over-year growth. They delivered 462,890 vehicles with a 10.8% operating margin.",
+      "label": "grounded"
+    },
+    {
+      "source": "Tesla reported Q3 2024 revenue of $25.18 billion, up 8% year-over-year. Vehicle deliveries reached 462,890 units. Operating margin was 10.8%.",
+      "response": "Tesla posted record Q3 2024 revenue of $40 billion, up 25% year-over-year. Deliveries exceeded 800,000 units with an industry-leading 18% operating margin.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "Mount Everest stands at 8,849 meters above sea level. It is located on the border between Nepal and Tibet. The first confirmed summit was by Edmund Hillary and Tenzing Norgay in 1953.",
+      "response": "Mount Everest is 8,849 meters tall, situated on the Nepal-Tibet border. Edmund Hillary and Tenzing Norgay first reached the summit in 1953.",
+      "label": "grounded"
+    },
+    {
+      "source": "Mount Everest stands at 8,849 meters above sea level. It is located on the border between Nepal and Tibet. The first confirmed summit was by Edmund Hillary and Tenzing Norgay in 1953.",
+      "response": "Mount Everest is 9,200 meters tall and is located entirely within Nepal. George Mallory was the first confirmed person to reach the summit in 1924.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "The company's customer satisfaction score is 4.2 out of 5. Response time averages 2.3 hours. The support team consists of 45 agents working across 3 time zones.",
+      "response": "Customer satisfaction is rated 4.2/5 with an average response time of 2.3 hours. The 45-agent support team covers 3 time zones.",
+      "label": "grounded"
+    },
+    {
+      "source": "The company's customer satisfaction score is 4.2 out of 5. Response time averages 2.3 hours. The support team consists of 45 agents working across 3 time zones.",
+      "response": "The company boasts a perfect 5/5 customer satisfaction rating. Their AI-powered support responds instantly with zero wait time using a team of 200 agents globally.",
+      "label": "hallucinated"
+    },
+    {
+      "source": "The new policy takes effect on January 1, 2025. Employees must complete 40 hours of training annually. Remote work is limited to 3 days per week.",
+      "response": "Starting January 1, 2025, the new policy requires 40 hours of annual training and limits remote work to 3 days per week.",
+      "label": "grounded"
+    },
+    {
+      "source": "The new policy takes effect on January 1, 2025. Employees must complete 40 hours of training annually. Remote work is limited to 3 days per week.",
+      "response": "The policy, effective March 2025, requires only 10 hours of optional training. Employees can work remotely full-time with no restrictions.",
+      "label": "hallucinated"
+    }
+  ]
+}

@@ -11,6 +11,9 @@ from .exceptions import (
     AgentDepthExceeded, AgentLimitExceeded, AgentBudgetExhausted,
     MCPViolation, InsecureCodeDetected, HallucinationDetected, ReasoningViolation, ToxicContentDetected,
     UnicodeInjectionDetected,
+    HumanApprovalRequired, HumanApprovalDenied, HumanApprovalTimeout,
+    DataExfiltrationDetected,
+    PrivilegeEscalationDetected,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 
@@ -22,7 +25,7 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "_agentarmor_agent", default=None
 )
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, unicode_shield=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -48,6 +51,9 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         cot_auditor=cot_auditor,
         toxicity=toxicity,
         unicode_shield=unicode_shield,
+        hitl_gate=hitl_gate,
+        exfiltration_guard=exfiltration_guard,
+        privilege_escalation=privilege_escalation,
         **kwargs
     )
     core.patch()
@@ -171,4 +177,9 @@ __all__ = [
     "ReasoningViolation",
     "ToxicContentDetected",
     "UnicodeInjectionDetected",
+    "HumanApprovalRequired",
+    "HumanApprovalDenied",
+    "HumanApprovalTimeout",
+    "DataExfiltrationDetected",
+    "PrivilegeEscalationDetected",
 ]
