@@ -88,6 +88,18 @@ def evaluate_grounding(sample: NormalizedSample, module, verbose: bool = False) 
     return score < 0.6
 
 
+def evaluate_combined(sample: NormalizedSample, modules: dict, verbose: bool = False) -> bool:
+    """Evaluate all applicable modules: detected if ANY fires."""
+    for name, (module, eval_fn) in modules.items():
+        try:
+            detected = eval_fn(sample, module, verbose=False)
+            if detected is True:
+                return True
+        except Exception:
+            return True  # Exception = detection
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Module loaders — each returns (module_instance, eval_function, display_name)
 # or raises ImportError if dependencies are missing.
@@ -101,7 +113,7 @@ def load_shield():
 
 def load_ml_shield():
     from agentarmor.modules.ml_shield import MLShieldModule
-    module = MLShieldModule(on_detect="block", threshold=0.5)
+    module = MLShieldModule(on_detect="block", threshold=0.55)
     return module, evaluate_shield, "ML Shield (TF-IDF)"
 
 
@@ -127,6 +139,19 @@ MODULE_LOADERS: Dict[str, Callable] = {
     "toxicity": load_toxicity,
     "grounding": load_grounding,
 }
+
+
+def load_combined_modules(target_modules: list) -> dict:
+    """Load all applicable modules for combined evaluation."""
+    loaded = {}
+    for mod_name in target_modules:
+        if mod_name in MODULE_LOADERS:
+            try:
+                module, eval_fn, display_name = MODULE_LOADERS[mod_name]()
+                loaded[mod_name] = (module, eval_fn)
+            except Exception:
+                pass
+    return loaded
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +381,37 @@ def main():
             else:
                 print(f" done ({result.total} samples, {result.duration_ms:.0f}ms, "
                       f"F1={result.f1:.1%})")
+
+        # Combined evaluation: run ALL modules, detect if ANY fires
+        if len(modules_to_run) > 1 and not args.module:
+            print(f"  [{adapter_name}] Evaluating combined...", end="", flush=True)
+            combined_modules = load_combined_modules(modules_to_run)
+            if combined_modules:
+                combined_result = BenchmarkResult(module=f"COMBINED @ {adapter_name}")
+                start = time.time()
+                for sample in samples:
+                    expected_positive = sample.label == "positive"
+                    detected = evaluate_combined(sample, combined_modules)
+                    if detected is None:
+                        continue
+                    combined_result.total += 1
+                    category = sample.category or "unknown"
+                    if expected_positive and detected:
+                        combined_result.true_positives += 1
+                        combined_result.add_category(category, tp=1)
+                    elif expected_positive and not detected:
+                        combined_result.false_negatives += 1
+                        combined_result.add_category(category, fn=1)
+                    elif not expected_positive and detected:
+                        combined_result.false_positives += 1
+                        combined_result.add_category(category, fp=1)
+                    else:
+                        combined_result.true_negatives += 1
+                        combined_result.add_category(category, tn=1)
+                combined_result.duration_ms = (time.time() - start) * 1000
+                all_results.append(combined_result)
+                print(f" done ({combined_result.total} samples, "
+                      f"{combined_result.duration_ms:.0f}ms, F1={combined_result.f1:.1%})")
 
         print()
 

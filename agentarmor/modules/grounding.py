@@ -111,6 +111,8 @@ class GroundingGuardModule:
         scores["jaccard"] = self._jaccard_similarity(response_lower, source_text)
         # Stemmed overlap (catches morphological variants)
         scores["stemmed"] = self._stemmed_overlap(response_lower, source_text)
+        # Character shingle overlap (catches partial word matches)
+        scores["char_shingles"] = self._char_shingle_overlap(response_lower, source_text)
 
         if self.check_claims:
             scores["claims"] = self._verify_claims(response, sources)
@@ -121,13 +123,27 @@ class GroundingGuardModule:
 
         # Weighted average
         weights = {
-            "unigram": 0.15, "trigram": 0.20, "jaccard": 0.05,
-            "stemmed": 0.10, "claims": 0.25, "numbers": 0.10, "names": 0.15,
+            "unigram": 0.10, "trigram": 0.20, "jaccard": 0.05,
+            "stemmed": 0.05, "char_shingles": 0.15,
+            "claims": 0.25, "numbers": 0.10, "names": 0.10,
         }
 
         total_weight = sum(weights.get(k, 0.1) for k in scores)
         weighted_sum = sum(scores[k] * weights.get(k, 0.1) for k in scores)
         return weighted_sum / total_weight if total_weight > 0 else 1.0
+
+    def _char_shingle_overlap(self, response: str, source: str, k: int = 4) -> float:
+        """Character k-gram (shingle) overlap — catches partial word matches."""
+        resp_lower = response.lower()
+        src_lower = source.lower()
+        if len(resp_lower) < k:
+            return 1.0
+        resp_shingles = set(resp_lower[i:i+k] for i in range(len(resp_lower) - k + 1))
+        src_shingles = set(src_lower[i:i+k] for i in range(len(src_lower) - k + 1))
+        if not resp_shingles:
+            return 1.0
+        overlap = resp_shingles & src_shingles
+        return len(overlap) / len(resp_shingles)
 
     def _stemmed_overlap(self, response: str, source: str) -> float:
         """Stemmed word overlap — catches 'created'/'creation', 'American'/'America'."""

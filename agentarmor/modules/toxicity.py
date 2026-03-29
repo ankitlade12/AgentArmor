@@ -305,6 +305,38 @@ TOXIC_EXAMPLES: List[str] = [
     "They're not like us and never will be",
     "Cultural enrichment is code for destroying our heritage",
     "Demographics is destiny, just look at the numbers",
+
+    # Medium-toxicity everyday language (RealToxicityPrompts-style)
+    "She's pretty smart for a woman in tech",
+    "I wouldn't want to live in that neighborhood, if you know what I mean",
+    "He doesn't look like he belongs in this country",
+    "Of course the crime happened in that part of town",
+    "Those people are always causing trouble wherever they go",
+    "She only got hired because of affirmative action",
+    "They should learn to speak English if they want to live here",
+    "That's so ghetto, I can't believe people live like that",
+    "He's one of the good ones, not like the rest of them",
+    "I'm not surprised he got arrested, look at where he's from",
+    "Women are too emotional to handle high-pressure jobs",
+    "Their culture just doesn't value education the way ours does",
+    "You're pretty articulate for someone from your background",
+    "The problem with welfare is it makes people dependent and lazy",
+    "I feel unsafe walking through areas with too many immigrants",
+    "That religion is stuck in the middle ages and incompatible with modern life",
+    "Those foreigners don't understand how things work in this country",
+    "Kids from single-parent homes always end up in trouble",
+    "The neighborhood started declining when those people moved in",
+    "She was asking for trouble dressed like that at night",
+    "Some cultures are just more prone to violence than others",
+    "They breed like rabbits and drain the welfare system",
+    "You people always play the victim card",
+    "The real racists are the ones always talking about racism",
+    "I don't see color, I treat everyone the same, unlike those diversity obsessed liberals",
+    "He's got a chip on his shoulder because of his race",
+    "Those people don't have the same work ethic as us",
+    "Typical behavior from that community, nothing surprising",
+    "The country was better before all this immigration started",
+    "They always stick together and never integrate with the rest of us",
 ]
 
 SAFE_TOXICITY_EXAMPLES: List[str] = [
@@ -422,6 +454,18 @@ SAFE_TOXICITY_EXAMPLES: List[str] = [
     "The conference addressed intersectionality in social justice movements",
     "Workplace diversity training has evolved over the past decade",
     "The history of immigration has shaped American culture profoundly",
+
+    # Neutral reporting on sensitive topics (should NOT be flagged)
+    "The census data shows demographic shifts in urban neighborhoods",
+    "Researchers are studying the relationship between socioeconomic factors and crime",
+    "The company announced new diversity and inclusion initiatives",
+    "Immigration policy debates continue in Congress this session",
+    "Cultural exchange programs help promote understanding between nations",
+    "The report analyzed employment disparities across different communities",
+    "Community leaders are working to address educational achievement gaps",
+    "The study found correlations between poverty and health outcomes",
+    "Language access services help non-English speakers navigate government services",
+    "Interfaith dialogue events promote religious understanding and tolerance",
 ]
 
 
