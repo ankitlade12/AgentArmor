@@ -1,0 +1,57 @@
+name: E2E Multi-Provider Benchmarks
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'Provider (openai, anthropic, google, or all)'
+        required: false
+        default: 'all'
+        type: string
+      model:
+        description: 'Specific model to test (leave empty for all)'
+        required: false
+        type: string
+      scenario:
+        description: 'Scenario (harmful_blocking, safe_passthrough, response_filtering, or all)'
+        required: false
+        default: 'all'
+        type: string
+
+jobs:
+  e2e-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -e ".[ml]" openai anthropic google-generativeai
+      - name: Run E2E benchmarks
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          ARGS="--export benchmarks/results/e2e_results.json --delay 1.0"
+          if [ "${{ inputs.provider }}" != "all" ] && [ -n "${{ inputs.provider }}" ]; then
+            ARGS="$ARGS --provider ${{ inputs.provider }}"
+          fi
+          if [ -n "${{ inputs.model }}" ]; then
+            ARGS="$ARGS --model ${{ inputs.model }}"
+          fi
+          if [ "${{ inputs.scenario }}" != "all" ] && [ -n "${{ inputs.scenario }}" ]; then
+            ARGS="$ARGS --scenario ${{ inputs.scenario }}"
+          fi
+          python benchmarks/run_e2e_benchmarks.py $ARGS
+      - name: Generate README tables
+        run: python benchmarks/results/generate_tables.py
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-benchmark-results
+          path: benchmarks/results/e2e_results.json
