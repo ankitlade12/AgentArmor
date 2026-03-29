@@ -7,20 +7,20 @@ from ..hooks import ResponseContext
 
 
 class PolicyRule:
-    """Defines a policy rule for matching tool calls."""
+    """Defines a policy rule for matching exact tool calls."""
 
-    def __init__(self, name: str, pattern: str, risk_level: str = "high",
+    def __init__(self, name: str, tool_names: List[str], risk_level: str = "high",
                  description: str = "", arg_patterns: Optional[Dict[str, str]] = None):
         """
         Args:
             name: Rule name for audit trail
-            pattern: Regex pattern to match tool/function names
+            tool_names: List of exact tool names this rule applies to
             risk_level: 'low', 'medium', 'high', 'critical'
             description: Human-readable description of what this rule catches
-            arg_patterns: Dict of arg_name -> regex pattern to match argument values
+            arg_patterns: Dict of arg_name -> regex pattern to match argument values (optional)
         """
         self.name = name
-        self.pattern = re.compile(pattern, re.IGNORECASE)
+        self.tool_names = set(tool_names)
         self.risk_level = risk_level
         self.description = description
         self.arg_patterns = {}
@@ -28,70 +28,17 @@ class PolicyRule:
             self.arg_patterns = {k: re.compile(v, re.IGNORECASE) for k, v in arg_patterns.items()}
 
     def matches(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> bool:
-        """Check if a tool call matches this policy rule."""
-        if not self.pattern.search(tool_name):
+        """Check if a tool call strictly matches this policy rule."""
+        if tool_name not in self.tool_names:
             return False
+
         if self.arg_patterns and arguments:
             for arg_name, arg_pattern in self.arg_patterns.items():
                 arg_value = str(arguments.get(arg_name, ""))
                 if arg_pattern.search(arg_value):
                     return True
-            # If arg_patterns specified but none matched, only name matched
             return not self.arg_patterns
         return True
-
-
-# Default high-risk policy rules
-DEFAULT_POLICIES = [
-    PolicyRule(
-        name="file_delete",
-        pattern=r"(?:delete|remove|rm|unlink).*(?:file|dir|folder|path)",
-        risk_level="critical",
-        description="File or directory deletion"
-    ),
-    PolicyRule(
-        name="shell_execute",
-        pattern=r"(?:exec|execute|run|shell|bash|cmd|system|subprocess)",
-        risk_level="critical",
-        description="Shell command execution"
-    ),
-    PolicyRule(
-        name="email_send",
-        pattern=r"(?:send|compose|draft).*(?:email|mail|message|notification)",
-        risk_level="high",
-        description="Sending emails or messages"
-    ),
-    PolicyRule(
-        name="database_write",
-        pattern=r"(?:drop|truncate|delete|alter|update|insert).*(?:table|database|collection|index)",
-        risk_level="critical",
-        description="Database write/destructive operations"
-    ),
-    PolicyRule(
-        name="api_key_access",
-        pattern=r"(?:get|read|access|fetch).*(?:secret|key|token|credential|password)",
-        risk_level="high",
-        description="Accessing secrets or credentials"
-    ),
-    PolicyRule(
-        name="network_request",
-        pattern=r"(?:http|fetch|request|curl|wget|post|put|patch)",
-        risk_level="medium",
-        description="Making network requests"
-    ),
-    PolicyRule(
-        name="file_write",
-        pattern=r"(?:write|create|save|overwrite|append).*(?:file|path|disk)",
-        risk_level="medium",
-        description="Writing files to disk"
-    ),
-    PolicyRule(
-        name="permission_change",
-        pattern=r"(?:chmod|chown|grant|revoke).*(?:permission|access|role)",
-        risk_level="critical",
-        description="Changing permissions or access controls"
-    ),
-]
 
 
 class ApprovalRequest:
@@ -123,24 +70,26 @@ class ApprovalRequest:
 
 
 class HITLGateModule:
-    """Human-in-the-Loop gate that requires approval for high-risk actions."""
+    """Human-in-the-Loop gate that requires approval for explicitly mapped tool actions."""
 
     def __init__(self, policies: Optional[List[Dict[str, Any]]] = None,
+                 risk_map: Optional[Dict[str, str]] = None,
                  approval_callback: Optional[Callable[[ApprovalRequest], bool]] = None,
                  auto_approve_levels: Optional[List[str]] = None,
                  auto_deny_levels: Optional[List[str]] = None,
                  timeout_seconds: float = 300.0,
                  on_timeout: str = "deny",
-                 use_defaults: bool = True):
+                 default_risk: str = "low"):
         """
         Args:
-            policies: List of policy rule dicts with keys: name, pattern, risk_level, description, arg_patterns
+            policies: List of policy rule dicts with keys: name, tool_names, risk_level, description, arg_patterns
+            risk_map: Simplified dict mapping precise tool names to risk levels.
             approval_callback: Function that takes ApprovalRequest, returns True (approve) or False (deny)
             auto_approve_levels: Risk levels to auto-approve (e.g. ['low'])
             auto_deny_levels: Risk levels to auto-deny (e.g. ['critical'])
             timeout_seconds: How long to wait for approval
             on_timeout: 'deny' or 'approve' when timeout expires
-            use_defaults: Whether to include default policy rules
+            default_risk: The default risk level assigned to a tool if it has no mapping.
         """
         self._lock = threading.Lock()
         self.timeout_seconds = timeout_seconds
@@ -148,10 +97,21 @@ class HITLGateModule:
         self.approval_callback = approval_callback
         self.auto_approve_levels = set(auto_approve_levels or ["low"])
         self.auto_deny_levels = set(auto_deny_levels or [])
+        self.default_risk = default_risk
 
         self.policies: List[PolicyRule] = []
-        if use_defaults:
-            self.policies.extend(DEFAULT_POLICIES)
+        
+        # Load risk_map simplified definitions
+        if risk_map:
+            for tool_name, risk in risk_map.items():
+                self.policies.append(PolicyRule(
+                    name=f"implicit_{tool_name}",
+                    tool_names=[tool_name],
+                    risk_level=risk,
+                    description=f"Action '{tool_name}' explicitly mapped to {risk} risk."
+                ))
+                
+        # Load explicit wide policies
         if policies:
             for p in policies:
                 self.policies.append(PolicyRule(**p))
@@ -164,11 +124,11 @@ class HITLGateModule:
             "auto_approved": 0,
             "auto_denied": 0,
             "timeouts": 0,
-            "no_match": 0,
+            "unmapped": 0,
         }
 
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:
-        """Post-response hook: check tool calls against policies."""
+        """Post-response hook: check tool calls against strictly explicit policies."""
         tool_calls = self._extract_tool_calls(ctx.raw_response, ctx.provider)
 
         for tool_call in tool_calls:
@@ -179,10 +139,17 @@ class HITLGateModule:
                 self.stats["total_checks"] += 1
 
             matched_rule = self._match_policy(tool_name, arguments)
+            
+            # Deterministic missing tool fallback
             if not matched_rule:
                 with self._lock:
-                    self.stats["no_match"] += 1
-                continue
+                    self.stats["unmapped"] += 1
+                matched_rule = PolicyRule(
+                    name="unmapped_tool",
+                    tool_names=[tool_name],
+                    risk_level=self.default_risk,
+                    description=f"Tool '{tool_name}' was not explicitly registered. Defaulting to: {self.default_risk}"
+                )
 
             request = ApprovalRequest(
                 tool_name=tool_name,
@@ -216,7 +183,7 @@ class HITLGateModule:
         return ctx
 
     def _match_policy(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Optional[PolicyRule]:
-        """Find the first matching policy rule for a tool call."""
+        """Find the first exactly mapped deterministic policy rule."""
         for rule in self.policies:
             if rule.matches(tool_name, arguments):
                 return rule
@@ -224,7 +191,7 @@ class HITLGateModule:
 
     def _evaluate(self, request: ApprovalRequest) -> str:
         """Evaluate an approval request and return decision."""
-        # Auto-approve
+        # Auto-approve completely skips the callback
         if request.risk_level in self.auto_approve_levels:
             request.decision = "approved"
             request.decided_at = time.time()
@@ -232,7 +199,7 @@ class HITLGateModule:
                 self.stats["auto_approved"] += 1
             return "approved"
 
-        # Auto-deny
+        # Auto-deny completely skips the callback
         if request.risk_level in self.auto_deny_levels:
             request.decision = "denied"
             request.decided_at = time.time()
@@ -240,7 +207,6 @@ class HITLGateModule:
                 self.stats["auto_denied"] += 1
             return "denied"
 
-        # Call approval callback if provided
         if self.approval_callback:
             try:
                 approved = self.approval_callback(request)
@@ -258,8 +224,14 @@ class HITLGateModule:
                 with self._lock:
                     self.stats["timeouts"] += 1
                 return "timeout"
+            except Exception:
+                request.decision = "denied"
+                request.decided_at = time.time()
+                with self._lock:
+                    self.stats["denied"] += 1
+                return "denied"
 
-        # No callback - raise for human approval
+        # No callback given
         request.decision = "pending"
         with self._lock:
             self.stats["denied"] += 1
@@ -308,8 +280,8 @@ class HITLGateModule:
 
     def check_action(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> str:
         """
-        Standalone method to check an action against policies.
-        Returns: 'approved', 'denied', 'pending', or 'no_match'
+        Standalone method to manually check an action against explicit policies.
+        Returns: 'approved', 'denied', or 'pending'
         """
         with self._lock:
             self.stats["total_checks"] += 1
@@ -317,8 +289,13 @@ class HITLGateModule:
         matched_rule = self._match_policy(tool_name, arguments)
         if not matched_rule:
             with self._lock:
-                self.stats["no_match"] += 1
-            return "no_match"
+                self.stats["unmapped"] += 1
+            matched_rule = PolicyRule(
+                name="unmapped_tool",
+                tool_names=[tool_name],
+                risk_level=self.default_risk,
+                description=f"Tool not mapped"
+            )
 
         request = ApprovalRequest(tool_name=tool_name, arguments=arguments or {}, rule=matched_rule)
         decision = self._evaluate(request)

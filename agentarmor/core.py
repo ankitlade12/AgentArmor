@@ -189,11 +189,15 @@ class ArmorCore:
             pass
 
         try:
-            from google.generativeai import GenerativeModel
-            self._originals["gemini_sync"] = GenerativeModel.generate_content
-            GenerativeModel.generate_content = self._wrap_gemini_sync(self._originals["gemini_sync"])
-            self._originals["gemini_async"] = GenerativeModel.generate_content_async
-            GenerativeModel.generate_content_async = self._wrap_gemini_async(self._originals["gemini_async"])
+            import google.genai as genai
+            self._originals["genai_sync"] = genai.models.Models.generate_content
+            genai.models.Models.generate_content = self._wrap_genai_sync(self._originals["genai_sync"], is_stream=False)
+            self._originals["genai_stream"] = genai.models.Models.generate_content_stream
+            genai.models.Models.generate_content_stream = self._wrap_genai_sync(self._originals["genai_stream"], is_stream=True)
+            self._originals["genai_async"] = genai.models.AsyncModels.generate_content
+            genai.models.AsyncModels.generate_content = self._wrap_genai_async(self._originals["genai_async"], is_stream=False)
+            self._originals["genai_async_stream"] = genai.models.AsyncModels.generate_content_stream
+            genai.models.AsyncModels.generate_content_stream = self._wrap_genai_async(self._originals["genai_async_stream"], is_stream=True)
         except ImportError:
             pass
 
@@ -218,11 +222,15 @@ class ArmorCore:
             pass
 
         try:
-            from google.generativeai import GenerativeModel
-            if "gemini_sync" in self._originals:
-                GenerativeModel.generate_content = self._originals["gemini_sync"]
-            if "gemini_async" in self._originals:
-                GenerativeModel.generate_content_async = self._originals["gemini_async"]
+            import google.genai as genai
+            if "genai_sync" in self._originals:
+                genai.models.Models.generate_content = self._originals["genai_sync"]
+            if "genai_stream" in self._originals:
+                genai.models.Models.generate_content_stream = self._originals["genai_stream"]
+            if "genai_async" in self._originals:
+                genai.models.AsyncModels.generate_content = self._originals["genai_async"]
+            if "genai_async_stream" in self._originals:
+                genai.models.AsyncModels.generate_content_stream = self._originals["genai_async_stream"]
         except ImportError:
             pass
 
@@ -311,32 +319,19 @@ class ArmorCore:
             return [contents]
         return [{"role": "user", "parts": [{"text": str(contents)}]}]
 
-    def _gemini_get_model_name(self, model_instance: Any) -> str:
-        """Extract model name from a GenerativeModel instance."""
-        for attr in ("model_name", "_model_name"):
-            name = getattr(model_instance, attr, None)
-            if name:
-                # Strip 'models/' prefix if present
-                return name.replace("models/", "") if name.startswith("models/") else name
-        return "unknown"
-
-    def _wrap_gemini_sync(self, original_fn: Callable):
+    def _wrap_genai_sync(self, original_fn: Callable, is_stream: bool):
         def wrapped(*args, **kwargs):
-            # args[0] is the GenerativeModel instance (self)
-            model_instance = args[0] if args else None
-            model_name = self._gemini_get_model_name(model_instance) if model_instance else "unknown"
-
-            # contents is the first positional arg after self, or a kwarg
-            contents = args[1] if len(args) > 1 else kwargs.get("contents", None)
+            model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
+            contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
+            config = args[3] if len(args) > 3 else kwargs.get("config", None)
             messages = self._gemini_contents_to_messages(contents)
-            stream = kwargs.get("stream", False)
 
             ctx = RequestContext(
                 messages=messages,
                 model=model_name,
-                temperature=kwargs.get("generation_config", {}).get("temperature") if isinstance(kwargs.get("generation_config"), dict) else None,
-                max_tokens=kwargs.get("generation_config", {}).get("max_output_tokens") if isinstance(kwargs.get("generation_config"), dict) else None,
-                stream=stream,
+                temperature=getattr(config, 'temperature', None) if config else None,
+                max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
+                stream=is_stream,
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
@@ -345,28 +340,26 @@ class ArmorCore:
             response = original_fn(*args, **kwargs)
             latency_ms = (time.perf_counter() - t0) * 1000
 
-            if ctx.stream:
+            if is_stream:
                 return self._handle_stream_sync(response, "gemini", ctx, latency_ms)
 
             return self._handle_non_stream(response, "gemini", ctx, latency_ms)
 
         return wrapped
 
-    def _wrap_gemini_async(self, original_fn: Callable):
+    def _wrap_genai_async(self, original_fn: Callable, is_stream: bool):
         async def wrapped(*args, **kwargs):
-            model_instance = args[0] if args else None
-            model_name = self._gemini_get_model_name(model_instance) if model_instance else "unknown"
-
-            contents = args[1] if len(args) > 1 else kwargs.get("contents", None)
+            model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
+            contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
+            config = args[3] if len(args) > 3 else kwargs.get("config", None)
             messages = self._gemini_contents_to_messages(contents)
-            stream = kwargs.get("stream", False)
 
             ctx = RequestContext(
                 messages=messages,
                 model=model_name,
-                temperature=kwargs.get("generation_config", {}).get("temperature") if isinstance(kwargs.get("generation_config"), dict) else None,
-                max_tokens=kwargs.get("generation_config", {}).get("max_output_tokens") if isinstance(kwargs.get("generation_config"), dict) else None,
-                stream=stream,
+                temperature=getattr(config, 'temperature', None) if config else None,
+                max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
+                stream=is_stream,
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
@@ -375,7 +368,7 @@ class ArmorCore:
             response = await original_fn(*args, **kwargs)
             latency_ms = (time.perf_counter() - t0) * 1000
 
-            if ctx.stream:
+            if is_stream:
                 return self._handle_stream_async(response, "gemini", ctx, latency_ms)
 
             return self._handle_non_stream(response, "gemini", ctx, latency_ms)

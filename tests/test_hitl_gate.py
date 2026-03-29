@@ -10,58 +10,50 @@ def make_response_ctx(text="", raw_response=None):
 
 
 class TestPolicyRule:
-    def test_matches_tool_name(self):
-        rule = PolicyRule(name="test", pattern=r"delete_file", risk_level="critical")
+    def test_matches_tool_names(self):
+        rule = PolicyRule(name="test", tool_names=["delete_file", "rm_file"], risk_level="critical")
         assert rule.matches("delete_file") is True
-        assert rule.matches("read_file") is False
-
-    def test_matches_with_regex(self):
-        rule = PolicyRule(name="test", pattern=r"(?:delete|remove).*file", risk_level="critical")
-        assert rule.matches("delete_file") is True
-        assert rule.matches("remove_file") is True
+        assert rule.matches("rm_file") is True
         assert rule.matches("read_file") is False
 
     def test_matches_with_arg_patterns(self):
         rule = PolicyRule(
-            name="test", pattern=r"execute",
+            name="test", tool_names=["execute_command"],
             risk_level="high",
             arg_patterns={"command": r"rm\s+-rf"}
         )
         assert rule.matches("execute_command", {"command": "rm -rf /"}) is True
         assert rule.matches("execute_command", {"command": "ls -la"}) is False
 
-    def test_case_insensitive(self):
-        rule = PolicyRule(name="test", pattern=r"Delete_File", risk_level="high")
-        assert rule.matches("DELETE_FILE") is True
+    def test_exact_match_enforced(self):
+        rule = PolicyRule(name="test", tool_names=["delete_file"], risk_level="high")
+        # Should NOT match substring or regex
+        assert rule.matches("delete_file_2") is False
+        assert rule.matches("my_delete_file") is False
 
 
 class TestCheckAction:
-    def test_no_match(self):
-        module = HITLGateModule(use_defaults=False, policies=[
-            {"name": "test", "pattern": r"delete_file", "risk_level": "high"}
-        ])
-        assert module.check_action("read_file") == "no_match"
+    def test_unmapped_tool_uses_default(self):
+        module = HITLGateModule(default_risk="high", auto_approve_levels=[])
+        assert module.check_action("read_file") == "pending"
 
     def test_auto_approve(self):
         module = HITLGateModule(
-            use_defaults=False,
-            policies=[{"name": "test", "pattern": r"write_file", "risk_level": "low"}],
+            policies=[{"name": "test", "tool_names": ["write_file"], "risk_level": "low"}],
             auto_approve_levels=["low"],
         )
         assert module.check_action("write_file") == "approved"
 
     def test_auto_deny(self):
         module = HITLGateModule(
-            use_defaults=False,
-            policies=[{"name": "test", "pattern": r"delete_db", "risk_level": "critical"}],
+            policies=[{"name": "test", "tool_names": ["delete_db"], "risk_level": "critical"}],
             auto_deny_levels=["critical"],
         )
         assert module.check_action("delete_db") == "denied"
 
     def test_callback_approve(self):
         module = HITLGateModule(
-            use_defaults=False,
-            policies=[{"name": "test", "pattern": r"send_email", "risk_level": "high"}],
+            policies=[{"name": "test", "tool_names": ["send_email"], "risk_level": "high"}],
             approval_callback=lambda req: True,
             auto_approve_levels=[],
         )
@@ -69,44 +61,28 @@ class TestCheckAction:
 
     def test_callback_deny(self):
         module = HITLGateModule(
-            use_defaults=False,
-            policies=[{"name": "test", "pattern": r"send_email", "risk_level": "high"}],
+            policies=[{"name": "test", "tool_names": ["send_email"], "risk_level": "high"}],
             approval_callback=lambda req: False,
             auto_approve_levels=[],
         )
         assert module.check_action("send_email") == "denied"
 
-    def test_no_callback_pending(self):
+    def test_risk_map_initialization(self):
         module = HITLGateModule(
-            use_defaults=False,
-            policies=[{"name": "test", "pattern": r"delete_file", "risk_level": "high"}],
-            auto_approve_levels=[],
+            risk_map={"drop_table": "critical", "get_status": "low"},
+            auto_approve_levels=["low"],
+            auto_deny_levels=["critical"]
         )
-        assert module.check_action("delete_file") == "pending"
-
-
-class TestDefaultPolicies:
-    def test_shell_execute_matches(self):
-        module = HITLGateModule(auto_approve_levels=[])
-        result = module.check_action("execute_shell_command")
-        assert result in ("pending", "denied")
-
-    def test_file_delete_matches(self):
-        module = HITLGateModule(auto_approve_levels=[])
-        result = module.check_action("delete_file_path")
-        assert result in ("pending", "denied")
-
-    def test_safe_action_no_match(self):
-        module = HITLGateModule()
-        result = module.check_action("get_weather")
-        assert result == "no_match"
+        assert module.check_action("drop_table") == "denied"
+        assert module.check_action("get_status") == "approved"
+        # Since default_risk is 'low', unmatched is auto-approved
+        assert module.check_action("unknown_tool") == "approved"
 
 
 class TestAuditLog:
     def test_audit_log_recorded(self):
         module = HITLGateModule(
-            use_defaults=False,
-            policies=[{"name": "test", "pattern": r"action", "risk_level": "low"}],
+            policies=[{"name": "test", "tool_names": ["action_test"], "risk_level": "low"}],
         )
         module.check_action("action_test")
 
@@ -116,10 +92,9 @@ class TestAuditLog:
 
     def test_stats_tracking(self):
         module = HITLGateModule(
-            use_defaults=False,
             policies=[
-                {"name": "low_action", "pattern": r"low_action", "risk_level": "low"},
-                {"name": "high_action", "pattern": r"high_action", "risk_level": "critical"},
+                {"name": "low_action", "tool_names": ["low_action"], "risk_level": "low"},
+                {"name": "high_action", "tool_names": ["high_action"], "risk_level": "critical"},
             ],
             auto_approve_levels=["low"],
             auto_deny_levels=["critical"],
@@ -129,9 +104,9 @@ class TestAuditLog:
         module.check_action("unmatched")
 
         report = module.report()
-        assert report["stats"]["auto_approved"] == 1
-        assert report["stats"]["auto_denied"] == 1
-        assert report["stats"]["no_match"] == 1
+        assert report["stats"]["auto_approved"] == 2  # low_action + unmatched (default=low)
+        assert report["stats"]["auto_denied"] == 1    # high_action
+        assert report["stats"]["unmapped"] == 1
 
 
 class TestPostFilter:
@@ -144,7 +119,7 @@ class TestPostFilter:
 
 class TestApprovalRequest:
     def test_to_dict(self):
-        rule = PolicyRule(name="test_rule", pattern=r"test", risk_level="high", description="Test rule")
+        rule = PolicyRule(name="test_rule", tool_names=["test"], risk_level="high", description="Test rule")
         req = ApprovalRequest(tool_name="test_action", arguments={"key": "value"}, rule=rule)
         d = req.to_dict()
         assert d["tool_name"] == "test_action"
