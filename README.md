@@ -89,6 +89,37 @@ pip install agentarmor[all]       # All providers
 
 ---
 
+## Benchmarks
+
+Tested against **10 industry-standard datasets** spanning prompt injection, toxicity, hallucination, and bias detection. Full results at [`benchmarks/README.md`](benchmarks/README.md).
+
+### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
+
+| Benchmark | Samples | Precision | Recall | F1 Score |
+|:----------|--------:|----------:|-------:|---------:|
+| **AdvBench** | 200 | 100.0% | 98.0% | **99.0%** |
+| **HarmBench** | 200 | 100.0% | 92.1% | **95.9%** |
+| **JailbreakBench** | 200 | 70.2% | 73.0% | **71.6%** |
+
+### Toxicity Detection (Built-in ML classifier)
+
+| Benchmark | Type | Precision | Recall | F1 Score |
+|:----------|:-----|----------:|-------:|---------:|
+| **ToxiGen** | Implicit hate speech | 100.0% | 84.5% | **91.6%** |
+| **BBQ** | Bias (9 social dimensions) | 64.6% | 93.5% | **76.4%** |
+| **RealToxicityPrompts** | Subtle toxicity | 51.0% | 75.0% | **60.7%** |
+
+### Hallucination Detection (Grounding + TF-IDF semantic similarity)
+
+| Benchmark | Type | Precision | Recall | F1 Score |
+|:----------|:-----|----------:|-------:|---------:|
+| **TruthfulQA** | Factual grounding (817 Q&A) | 100.0% | 56.9% | **72.5%** |
+| **HaluEval** | QA/dialogue/summarization | 62.7% | 84.0% | **71.8%** |
+
+> All benchmarks use fixed seed=42 for reproducibility. Run them yourself: `pip install datasets && python benchmarks/run_industry_benchmarks.py`
+
+---
+
 ## Drop-in API
 
 | Function | Description |
