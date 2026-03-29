@@ -1,4 +1,4 @@
-# AgentArmor Benchmarks
+# AgentArmor Smoke Tests
 
 Evaluation suite measuring detection accuracy across all safety modules.
 
@@ -29,25 +29,25 @@ Evaluation suite measuring detection accuracy across all safety modules.
 
 The regex shield is intentionally lightweight — it catches known patterns fast with near-zero latency. It is **not** designed for comprehensive coverage. For production use, enable the ML Shield (`ml_shield=True`) which achieves 95% recall, or use ensemble mode (`shield=True, ml_shield={"ensemble": True}`) for maximum coverage.
 
-## Running Benchmarks
+## Running Smoke Tests
 
 ```bash
-# Run all benchmarks
-python benchmarks/run_benchmarks.py
+# Run all smoke_tests
+python evals/run_evals.py
 
 # Run a specific module
-python benchmarks/run_benchmarks.py --module ml_shield
+python evals/run_evals.py --module ml_shield
 
 # Verbose output (show misses and false positives)
-python benchmarks/run_benchmarks.py --verbose
+python evals/run_evals.py --verbose
 
 # Export results to JSON (for CI/CD)
-python benchmarks/run_benchmarks.py --export benchmarks/results.json
+python evals/run_evals.py --export smoke_tests/results.json
 ```
 
 ## Datasets
 
-All benchmark datasets are in `benchmarks/datasets/`:
+All smoke_test datasets are in `smoke_tests/datasets/`:
 
 | Dataset | File | Samples | Description |
 |---------|------|---------|-------------|
@@ -67,7 +67,7 @@ All benchmark datasets are in `benchmarks/datasets/`:
 
 ## Contributing
 
-To add benchmark samples:
-1. Add entries to the relevant JSON file in `benchmarks/datasets/`
-2. Run `python benchmarks/run_benchmarks.py --verbose` to verify
+To add smoke_test samples:
+1. Add entries to the relevant JSON file in `smoke_tests/datasets/`
+2. Run `python evals/run_evals.py --verbose` to verify
 3. Submit a PR with the updated dataset and results

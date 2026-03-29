@@ -1,5 +1,5 @@
 {
-  "description": "Code safety benchmark dataset for CodeShieldModule",
+  "description": "Code safety smoke_test dataset for CodeShieldModule",
   "version": "1.0",
   "source": "Curated insecure code patterns across Python, JavaScript, SQL, and Shell",
   "samples": [

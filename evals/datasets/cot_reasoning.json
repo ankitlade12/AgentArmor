@@ -1,5 +1,5 @@
 {
-  "description": "Chain-of-thought reasoning audit benchmark for CoTAuditorModule",
+  "description": "Chain-of-thought reasoning audit smoke_test for CoTAuditorModule",
   "version": "1.0",
   "source": "Curated examples of aligned and misaligned reasoning traces",
   "samples": [

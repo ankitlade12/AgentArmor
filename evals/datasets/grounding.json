@@ -1,5 +1,5 @@
 {
-  "description": "Hallucination/grounding benchmark dataset for GroundingGuardModule",
+  "description": "Hallucination/grounding smoke_test dataset for GroundingGuardModule",
   "version": "1.0",
   "source": "Curated source-response pairs testing factual grounding",
   "samples": [

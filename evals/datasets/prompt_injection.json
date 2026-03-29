@@ -1,5 +1,5 @@
 {
-  "description": "Prompt injection benchmark dataset for Shield (regex) and MLShield modules",
+  "description": "Prompt injection smoke_test dataset for Shield (regex) and MLShield modules",
   "version": "1.0",
   "source": "Curated from OWASP LLM Top 10, real-world jailbreak archives, and original examples",
   "samples": [

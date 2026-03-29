@@ -1,5 +1,5 @@
 {
-  "description": "Toxicity detection benchmark dataset for ToxicityModule",
+  "description": "Toxicity detection smoke_test dataset for ToxicityModule",
   "version": "1.0",
   "source": "Curated examples across 7 toxicity categories with safe counterparts",
   "samples": [

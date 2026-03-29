@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-AgentArmor Benchmark Suite
+AgentArmor SmokeTest Suite
 ===========================
 Evaluates detection accuracy across all safety modules with precision,
 recall, F1 score, and per-category breakdowns.
 
 Usage:
-    python benchmarks/run_benchmarks.py                # Run all benchmarks
-    python benchmarks/run_benchmarks.py --module shield # Run specific module
-    python benchmarks/run_benchmarks.py --verbose       # Show per-sample results
+    python evals/run_evals.py                # Run all smoke_tests
+    python evals/run_evals.py --module shield # Run specific module
+    python evals/run_evals.py --verbose       # Show per-sample results
 """
 
 import argparse
@@ -32,7 +32,7 @@ DATASETS_DIR = Path(__file__).resolve().parent / "datasets"
 # ---------------------------------------------------------------------------
 
 @dataclass
-class BenchmarkResult:
+class SmokeTestResult:
     module: str
     total: int = 0
     true_positives: int = 0
@@ -80,15 +80,15 @@ def load_dataset(name: str) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Module benchmarks
+# Module smoke_tests
 # ---------------------------------------------------------------------------
 
-def bench_shield(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark regex-based prompt injection shield."""
+def bench_shield(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest regex-based prompt injection shield."""
     from agentarmor.modules.shield import ShieldModule
 
     samples = load_dataset("prompt_injection")
-    result = BenchmarkResult(module="Shield (Regex)")
+    result = SmokeTestResult(module="Shield (Regex)")
     shield = ShieldModule(on_detect="block")
     start = time.time()
 
@@ -130,17 +130,17 @@ def bench_shield(verbose: bool = False) -> BenchmarkResult:
     return result
 
 
-def bench_ml_shield(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark ML-based prompt injection shield."""
+def bench_ml_shield(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest ML-based prompt injection shield."""
     try:
         from agentarmor.modules.ml_shield import MLShieldModule
     except ImportError:
-        result = BenchmarkResult(module="ML Shield (TF-IDF)")
+        result = SmokeTestResult(module="ML Shield (TF-IDF)")
         result.errors.append("scikit-learn not installed. Run: pip install agentarmor[ml]")
         return result
 
     samples = load_dataset("prompt_injection")
-    result = BenchmarkResult(module="ML Shield (TF-IDF)")
+    result = SmokeTestResult(module="ML Shield (TF-IDF)")
     shield = MLShieldModule(on_detect="block", threshold=0.5)
     start = time.time()
 
@@ -182,12 +182,12 @@ def bench_ml_shield(verbose: bool = False) -> BenchmarkResult:
     return result
 
 
-def bench_toxicity(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark toxicity detection module."""
+def bench_toxicity(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest toxicity detection module."""
     from agentarmor.modules.toxicity import ToxicityModule
 
     samples = load_dataset("toxicity")
-    result = BenchmarkResult(module="Toxicity Filter")
+    result = SmokeTestResult(module="Toxicity Filter")
     module = ToxicityModule(on_detect="block")
     start = time.time()
 
@@ -221,12 +221,12 @@ def bench_toxicity(verbose: bool = False) -> BenchmarkResult:
     return result
 
 
-def bench_code_shield(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark code safety scanning module."""
+def bench_code_shield(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest code safety scanning module."""
     from agentarmor.modules.code_shield import CodeShieldModule
 
     samples = load_dataset("code_safety")
-    result = BenchmarkResult(module="Code Shield")
+    result = SmokeTestResult(module="Code Shield")
     module = CodeShieldModule(on_detect="block")
     start = time.time()
 
@@ -261,12 +261,12 @@ def bench_code_shield(verbose: bool = False) -> BenchmarkResult:
     return result
 
 
-def bench_grounding(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark hallucination/grounding detection."""
+def bench_grounding(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest hallucination/grounding detection."""
     from agentarmor.modules.grounding import GroundingGuardModule
 
     samples = load_dataset("grounding")
-    result = BenchmarkResult(module="Grounding Guard")
+    result = SmokeTestResult(module="Grounding Guard")
     start = time.time()
 
     for sample in samples:
@@ -304,12 +304,12 @@ def bench_grounding(verbose: bool = False) -> BenchmarkResult:
     return result
 
 
-def bench_cot_auditor(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark chain-of-thought reasoning auditor."""
+def bench_cot_auditor(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest chain-of-thought reasoning auditor."""
     from agentarmor.modules.cot_auditor import CoTAuditorModule
 
     samples = load_dataset("cot_reasoning")
-    result = BenchmarkResult(module="CoT Auditor")
+    result = SmokeTestResult(module="CoT Auditor")
     module = CoTAuditorModule(on_detect="block")
     start = time.time()
 
@@ -343,12 +343,12 @@ def bench_cot_auditor(verbose: bool = False) -> BenchmarkResult:
     return result
 
 
-def bench_filter(verbose: bool = False) -> BenchmarkResult:
-    """Benchmark PII and secrets filter."""
+def bench_filter(verbose: bool = False) -> SmokeTestResult:
+    """SmokeTest PII and secrets filter."""
     from agentarmor.modules.filter import FilterModule
 
     samples = load_dataset("pii_secrets")
-    result = BenchmarkResult(module="PII/Secrets Filter")
+    result = SmokeTestResult(module="PII/Secrets Filter")
     module = FilterModule(rules=["pii", "secrets"])
     start = time.time()
 
@@ -381,8 +381,8 @@ def bench_filter(verbose: bool = False) -> BenchmarkResult:
 # Output formatting
 # ---------------------------------------------------------------------------
 
-def print_result(result: BenchmarkResult):
-    """Print formatted benchmark results."""
+def print_result(result: SmokeTestResult):
+    """Print formatted smoke_test results."""
     print(f"\n{'='*70}")
     print(f"  {result.module}")
     print(f"{'='*70}")
@@ -422,10 +422,10 @@ def print_result(result: BenchmarkResult):
             print(f"  {cat:<25} {prec:>7.1%} {rec:>7.1%} {f1:>7.1%} {tp:>5} {fp:>5} {fn:>5}")
 
 
-def print_summary(results: List[BenchmarkResult]):
-    """Print summary table of all benchmark results."""
+def print_summary(results: List[SmokeTestResult]):
+    """Print summary table of all smoke_test results."""
     print(f"\n{'='*70}")
-    print(f"  BENCHMARK SUMMARY — AgentArmor v1.1")
+    print(f"  SMOKE_TEST SUMMARY — AgentArmor v1.1")
     print(f"{'='*70}")
     print(f"  {'Module':<25} {'Accuracy':>10} {'Precision':>10} {'Recall':>10} {'F1':>10}")
     print(f"  {'─'*66}")
@@ -443,7 +443,7 @@ def print_summary(results: List[BenchmarkResult]):
     print()
 
 
-def export_results(results: List[BenchmarkResult], output_path: str):
+def export_results(results: List[SmokeTestResult], output_path: str):
     """Export results to JSON for CI/CD integration."""
     export = {
         "version": "1.1",
@@ -482,7 +482,7 @@ def export_results(results: List[BenchmarkResult], output_path: str):
 # Main
 # ---------------------------------------------------------------------------
 
-BENCHMARKS = {
+SMOKE_TESTS = {
     "shield": bench_shield,
     "ml_shield": bench_ml_shield,
     "toxicity": bench_toxicity,
@@ -494,25 +494,25 @@ BENCHMARKS = {
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AgentArmor Benchmark Suite")
-    parser.add_argument("--module", choices=list(BENCHMARKS.keys()),
-                        help="Run benchmark for a specific module only")
+    parser = argparse.ArgumentParser(description="AgentArmor SmokeTest Suite")
+    parser.add_argument("--module", choices=list(SMOKE_TESTS.keys()),
+                        help="Run smoke_test for a specific module only")
     parser.add_argument("--verbose", action="store_true",
                         help="Show per-sample miss/false-positive details")
     parser.add_argument("--export", type=str, default=None,
                         help="Export results to JSON file")
     args = parser.parse_args()
 
-    print("\n  AgentArmor Benchmark Suite")
+    print("\n  AgentArmor SmokeTest Suite")
     print("  " + "─" * 40)
 
     if args.module:
-        benchmarks = {args.module: BENCHMARKS[args.module]}
+        smoke_tests = {args.module: SMOKE_TESTS[args.module]}
     else:
-        benchmarks = BENCHMARKS
+        smoke_tests = SMOKE_TESTS
 
     results = []
-    for name, bench_fn in benchmarks.items():
+    for name, bench_fn in smoke_tests.items():
         print(f"\n  Running {name}...", end="", flush=True)
         try:
             result = bench_fn(verbose=args.verbose)
@@ -523,7 +523,7 @@ def main():
                 print(f" skipped")
         except Exception as e:
             print(f" error: {e}")
-            r = BenchmarkResult(module=name)
+            r = SmokeTestResult(module=name)
             r.errors.append(str(e))
             results.append(r)
 
