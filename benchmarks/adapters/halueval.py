@@ -22,7 +22,7 @@ class HaluEvalAdapter(DatasetAdapter):
         # Load QA subset
         for config in ["qa_samples", "dialogue_samples", "summarization_samples"]:
             try:
-                ds = load_dataset(self.source, config, split="data", trust_remote_code=True)
+                ds = load_dataset(self.source, config, split="data")
                 task = config.replace("_samples", "")
 
                 for row in ds:
@@ -56,7 +56,7 @@ class HaluEvalAdapter(DatasetAdapter):
         # If HuggingFace loading fails completely, try general dataset
         if not samples:
             try:
-                ds = load_dataset(self.source, split="train", trust_remote_code=True)
+                ds = load_dataset(self.source, split="train")
                 for row in ds:
                     knowledge = row.get("knowledge", row.get("context", ""))
                     for key, lbl in [("hallucinated_answer", "positive"), ("right_answer", "negative")]:

@@ -21,7 +21,7 @@ class JailbreakBenchAdapter(DatasetAdapter):
 
         # Load harmful behaviors
         try:
-            ds = load_dataset(self.source, "behaviors", split="harmful", trust_remote_code=True)
+            ds = load_dataset(self.source, "behaviors", split="harmful")
             for row in ds:
                 goal = row.get("Goal", row.get("goal", ""))
                 category = row.get("Category", row.get("category", "harmful"))
@@ -34,7 +34,7 @@ class JailbreakBenchAdapter(DatasetAdapter):
                     ))
         except Exception:
             # Fallback: try loading as a simple dataset
-            ds = load_dataset(self.source, split="train", trust_remote_code=True)
+            ds = load_dataset(self.source, split="train")
             for row in ds:
                 text = row.get("Goal", row.get("goal", row.get("text", "")))
                 if text:
@@ -47,7 +47,7 @@ class JailbreakBenchAdapter(DatasetAdapter):
 
         # Load benign behaviors for negatives if available
         try:
-            ds_benign = load_dataset(self.source, "behaviors", split="benign", trust_remote_code=True)
+            ds_benign = load_dataset(self.source, "behaviors", split="benign")
             for row in ds_benign:
                 goal = row.get("Goal", row.get("goal", ""))
                 if goal:

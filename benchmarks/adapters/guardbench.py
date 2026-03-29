@@ -22,7 +22,7 @@ class GuardBenchAdapter(DatasetAdapter):
         # GuardBench has multiple configs/subsets
         # Try loading the main evaluation split
         try:
-            ds = load_dataset(self.source, split="test", streaming=True, trust_remote_code=True)
+            ds = load_dataset(self.source, split="test", streaming=True)
             for i, row in enumerate(ds):
                 if i >= 20000:  # Cap scanning
                     break
@@ -60,7 +60,7 @@ class GuardBenchAdapter(DatasetAdapter):
                           "toxic_chat", "xstest"]:
                 try:
                     ds = load_dataset(self.source, config, split="test",
-                                    streaming=True, trust_remote_code=True)
+                                    streaming=True)
                     for i, row in enumerate(ds):
                         if i >= 2000:
                             break

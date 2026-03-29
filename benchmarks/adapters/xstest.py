@@ -17,7 +17,7 @@ class XSTestAdapter(DatasetAdapter):
         except ImportError:
             raise ImportError("Install datasets: pip install datasets")
 
-        ds = load_dataset(self.source, split="test", trust_remote_code=True)
+        ds = load_dataset(self.source, split="test")
         samples = []
 
         for row in ds:

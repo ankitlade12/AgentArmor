@@ -23,10 +23,10 @@ class ToxiGenAdapter(DatasetAdapter):
             try:
                 if config:
                     ds = load_dataset(self.source, config, split="train",
-                                     streaming=True, trust_remote_code=True)
+                                     streaming=True)
                 else:
                     ds = load_dataset(self.source, split="train",
-                                     streaming=True, trust_remote_code=True)
+                                     streaming=True)
                 break
             except Exception:
                 continue
@@ -35,7 +35,7 @@ class ToxiGenAdapter(DatasetAdapter):
             # Fallback to alternate source
             try:
                 ds = load_dataset("skg/toxigen-data", "annotated", split="train",
-                                 streaming=True, trust_remote_code=True)
+                                 streaming=True)
             except Exception:
                 raise RuntimeError(f"Could not load ToxiGen. Check dataset availability.")
 

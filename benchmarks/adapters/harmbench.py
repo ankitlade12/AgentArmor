@@ -57,7 +57,7 @@ class HarmBenchAdapter(DatasetAdapter):
 
     def _load_from_hf(self) -> List[NormalizedSample]:
         from datasets import load_dataset
-        ds = load_dataset("walledai/HarmBench", split="train", trust_remote_code=True)
+        ds = load_dataset("walledai/HarmBench", split="train")
         samples = []
         for row in ds:
             text = row.get("Behavior", row.get("behavior", row.get("text", "")))

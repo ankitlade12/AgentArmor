@@ -17,7 +17,7 @@ class BBQAdapter(DatasetAdapter):
         except ImportError:
             raise ImportError("Install datasets: pip install datasets")
 
-        ds = load_dataset(self.source, split="test", streaming=True, trust_remote_code=True)
+        ds = load_dataset(self.source, split="test", streaming=True)
 
         samples = []
         max_scan = 10000

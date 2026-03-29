@@ -17,14 +17,19 @@ class RealToxicityAdapter(DatasetAdapter):
         except ImportError:
             raise ImportError("Install datasets: pip install datasets")
 
-        # Stream to avoid downloading entire 100K dataset
-        ds = load_dataset(self.source, split="train", streaming=True, trust_remote_code=True)
+        # Stream and collect toxic/non-toxic separately to ensure balance
+        ds = load_dataset(self.source, split="train", streaming=True)
 
-        samples = []
-        max_scan = 10000  # Scan up to 10K to get a good sample
+        size = sample_size or self.default_sample_size
+        target_per_class = size  # Collect enough for stratified sampling
+        positives = []
+        negatives = []
+        max_scan = 100000
 
         for i, row in enumerate(ds):
             if i >= max_scan:
+                break
+            if len(positives) >= target_per_class and len(negatives) >= target_per_class:
                 break
 
             prompt_data = row.get("prompt", {})
@@ -38,9 +43,8 @@ class RealToxicityAdapter(DatasetAdapter):
             if not text or len(text) < 10:
                 continue
 
-            label = "positive" if toxicity >= 0.5 else "negative"
+            is_toxic = toxicity >= 0.5
 
-            # Bin toxicity for category
             if toxicity >= 0.8:
                 category = "high_toxicity"
             elif toxicity >= 0.5:
@@ -50,12 +54,17 @@ class RealToxicityAdapter(DatasetAdapter):
             else:
                 category = "non_toxic"
 
-            samples.append(NormalizedSample(
+            sample = NormalizedSample(
                 text=text,
-                label=label,
+                label="positive" if is_toxic else "negative",
                 category=category,
                 metadata={"source": "realtoxicity", "toxicity_score": toxicity},
-            ))
+            )
 
-        size = sample_size or self.default_sample_size
+            if is_toxic and len(positives) < target_per_class:
+                positives.append(sample)
+            elif not is_toxic and len(negatives) < target_per_class:
+                negatives.append(sample)
+
+        samples = positives + negatives
         return self._stratified_sample(samples, size, seed)

@@ -1,0 +1,652 @@
+{
+  "version": "2.0",
+  "type": "industry_benchmark",
+  "timestamp": "2026-03-29T03:33:10Z",
+  "modules": {
+    "shield @ advbench": {
+      "accuracy": 0.02,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 100,
+      "true_positives": 0,
+      "true_negatives": 2,
+      "false_positives": 0,
+      "false_negatives": 98,
+      "duration_ms": 1.2,
+      "errors": [],
+      "categories": {
+        "harmful_string": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "harmful_behavior": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "ml_shield @ advbench": {
+      "accuracy": 0.42,
+      "precision": 1.0,
+      "recall": 0.4082,
+      "f1": 0.5797,
+      "total_samples": 100,
+      "true_positives": 40,
+      "true_negatives": 2,
+      "false_positives": 0,
+      "false_negatives": 58,
+      "duration_ms": 671.0,
+      "errors": [],
+      "categories": {
+        "harmful_string": {
+          "precision": 1.0,
+          "recall": 0.6667
+        },
+        "harmful_behavior": {
+          "precision": 1.0,
+          "recall": 0.1277
+        }
+      }
+    },
+    "toxicity @ advbench": {
+      "accuracy": 0.2,
+      "precision": 1.0,
+      "recall": 0.1837,
+      "f1": 0.3103,
+      "total_samples": 100,
+      "true_positives": 18,
+      "true_negatives": 2,
+      "false_positives": 0,
+      "false_negatives": 80,
+      "duration_ms": 16.2,
+      "errors": [],
+      "categories": {
+        "harmful_string": {
+          "precision": 1.0,
+          "recall": 0.0784
+        },
+        "harmful_behavior": {
+          "precision": 1.0,
+          "recall": 0.2979
+        }
+      }
+    },
+    "toxicity @ bbq": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Dataset scripts are no longer supported, but found bbq.py"
+      ],
+      "categories": {}
+    },
+    "shield @ guardbench": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Could not load GuardBench. Check dataset availability."
+      ],
+      "categories": {}
+    },
+    "ml_shield @ guardbench": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Could not load GuardBench. Check dataset availability."
+      ],
+      "categories": {}
+    },
+    "toxicity @ guardbench": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Could not load GuardBench. Check dataset availability."
+      ],
+      "categories": {}
+    },
+    "grounding @ halueval": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Could not load HaluEval from pminervini/HaluEval. Check dataset availability."
+      ],
+      "categories": {}
+    },
+    "shield @ harmbench": {
+      "accuracy": 0.05,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 100,
+      "true_positives": 0,
+      "true_negatives": 5,
+      "false_positives": 0,
+      "false_negatives": 95,
+      "duration_ms": 1.7,
+      "errors": [],
+      "categories": {
+        "copyright": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "harmful": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "chemical_biological": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "cybercrime_intrusion": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "illegal": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "misinformation_disinformation": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "harassment_bullying": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "ml_shield @ harmbench": {
+      "accuracy": 0.22,
+      "precision": 1.0,
+      "recall": 0.1789,
+      "f1": 0.3036,
+      "total_samples": 100,
+      "true_positives": 17,
+      "true_negatives": 5,
+      "false_positives": 0,
+      "false_negatives": 78,
+      "duration_ms": 53.2,
+      "errors": [],
+      "categories": {
+        "copyright": {
+          "precision": 1.0,
+          "recall": 0.0741
+        },
+        "harmful": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "chemical_biological": {
+          "precision": 1.0,
+          "recall": 0.3684
+        },
+        "cybercrime_intrusion": {
+          "precision": 1.0,
+          "recall": 0.1667
+        },
+        "illegal": {
+          "precision": 1.0,
+          "recall": 0.0909
+        },
+        "misinformation_disinformation": {
+          "precision": 1.0,
+          "recall": 0.1538
+        },
+        "harassment_bullying": {
+          "precision": 1.0,
+          "recall": 0.375
+        }
+      }
+    },
+    "toxicity @ harmbench": {
+      "accuracy": 0.08,
+      "precision": 1.0,
+      "recall": 0.0316,
+      "f1": 0.0612,
+      "total_samples": 100,
+      "true_positives": 3,
+      "true_negatives": 5,
+      "false_positives": 0,
+      "false_negatives": 92,
+      "duration_ms": 4.1,
+      "errors": [],
+      "categories": {
+        "copyright": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "harmful": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "chemical_biological": {
+          "precision": 1.0,
+          "recall": 0.0526
+        },
+        "cybercrime_intrusion": {
+          "precision": 1.0,
+          "recall": 0.0833
+        },
+        "illegal": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "misinformation_disinformation": {
+          "precision": 1.0,
+          "recall": 0.0769
+        },
+        "harassment_bullying": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "shield @ jailbreakbench": {
+      "accuracy": 0.5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 100,
+      "true_positives": 0,
+      "true_negatives": 50,
+      "false_positives": 0,
+      "false_negatives": 50,
+      "duration_ms": 1.7,
+      "errors": [],
+      "categories": {
+        "Fraud/Deception": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Government decision-making": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Harassment/Discrimination": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Sexual/Adult content": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Disinformation": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Privacy": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Malware/Hacking": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Economic harm": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Physical harm": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Expert advice": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "ml_shield @ jailbreakbench": {
+      "accuracy": 0.53,
+      "precision": 0.5882,
+      "recall": 0.2,
+      "f1": 0.2985,
+      "total_samples": 100,
+      "true_positives": 10,
+      "true_negatives": 43,
+      "false_positives": 7,
+      "false_negatives": 40,
+      "duration_ms": 55.6,
+      "errors": [],
+      "categories": {
+        "Fraud/Deception": {
+          "precision": 1.0,
+          "recall": 0.25
+        },
+        "Government decision-making": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Harassment/Discrimination": {
+          "precision": 1.0,
+          "recall": 0.5
+        },
+        "Sexual/Adult content": {
+          "precision": 1.0,
+          "recall": 0.6
+        },
+        "Disinformation": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Privacy": {
+          "precision": 1.0,
+          "recall": 0.1667
+        },
+        "Malware/Hacking": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Economic harm": {
+          "precision": 1.0,
+          "recall": 0.1429
+        },
+        "Physical harm": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Expert advice": {
+          "precision": 1.0,
+          "recall": 0.25
+        }
+      }
+    },
+    "toxicity @ realtoxicity": {
+      "accuracy": 0.5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 100,
+      "true_positives": 0,
+      "true_negatives": 50,
+      "false_positives": 0,
+      "false_negatives": 50,
+      "duration_ms": 4.4,
+      "errors": [],
+      "categories": {
+        "medium_toxicity": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "toxicity @ toxigen": {
+      "accuracy": 0.01,
+      "precision": 1.0,
+      "recall": 0.01,
+      "f1": 0.0198,
+      "total_samples": 100,
+      "true_positives": 1,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 99,
+      "duration_ms": 18.7,
+      "errors": [],
+      "categories": {
+        "lgbtq": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "women": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "mental_dis": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "chinese": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "middle_east": {
+          "precision": 1.0,
+          "recall": 0.2
+        },
+        "asian": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "jewish": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "latino": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "muslim": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "physical_dis": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "black": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "mexican": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "native_american": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "grounding @ truthfulqa": {
+      "accuracy": 0.4,
+      "precision": 1.0,
+      "recall": 0.25,
+      "f1": 0.4,
+      "total_samples": 100,
+      "true_positives": 20,
+      "true_negatives": 20,
+      "false_positives": 0,
+      "false_negatives": 60,
+      "duration_ms": 5.5,
+      "errors": [],
+      "categories": {
+        "Misconceptions: Topical": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Confusion: Places": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Indexical Error: Other": {
+          "precision": 1.0,
+          "recall": 0.5
+        },
+        "Paranormal": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Misconceptions": {
+          "precision": 1.0,
+          "recall": 0.1
+        },
+        "Psychology": {
+          "precision": 1.0,
+          "recall": 0.3333
+        },
+        "Misinformation": {
+          "precision": 1.0,
+          "recall": 0.5
+        },
+        "Myths and Fairytales": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Fiction": {
+          "precision": 1.0,
+          "recall": 0.5
+        },
+        "Health": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Religion": {
+          "precision": 1.0,
+          "recall": 0.6667
+        },
+        "Language": {
+          "precision": 1.0,
+          "recall": 0.6667
+        },
+        "Law": {
+          "precision": 1.0,
+          "recall": 0.3333
+        },
+        "Economics": {
+          "precision": 1.0,
+          "recall": 0.25
+        },
+        "Sociology": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Logical Falsehood": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Stereotypes": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Politics": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Indexical Error: Location": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Superstitions": {
+          "precision": 1.0,
+          "recall": 0.5
+        },
+        "Distraction": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Finance": {
+          "precision": 1.0,
+          "recall": 0.6667
+        },
+        "Conspiracies": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "Indexical Error: Time": {
+          "precision": 1.0,
+          "recall": 0.3333
+        },
+        "Mandela Effect": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Weather": {
+          "precision": 0,
+          "recall": 0.0
+        },
+        "Science": {
+          "precision": 0,
+          "recall": 0.0
+        }
+      }
+    },
+    "shield @ xstest": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Dataset 'walledai/XSTest' is a gated dataset on the Hub. You must be authenticated to access it."
+      ],
+      "categories": {}
+    },
+    "ml_shield @ xstest": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Dataset 'walledai/XSTest' is a gated dataset on the Hub. You must be authenticated to access it."
+      ],
+      "categories": {}
+    },
+    "toxicity @ xstest": {
+      "accuracy": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "total_samples": 0,
+      "true_positives": 0,
+      "true_negatives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "duration_ms": 0.0,
+      "errors": [
+        "Dataset loading failed: Dataset 'walledai/XSTest' is a gated dataset on the Hub. You must be authenticated to access it."
+      ],
+      "categories": {}
+    }
+  }
+}
