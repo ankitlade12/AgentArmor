@@ -21,12 +21,13 @@ from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
 from .modules.cot_auditor import CoTAuditorModule
 from .modules.toxicity import ToxicityModule
+from .modules.unicode_shield import UnicodeShieldModule
 from .modules.hitl_gate import HITLGateModule
 from .modules.exfiltration_guard import ExfiltrationGuardModule
 from .modules.privilege_escalation import PrivilegeEscalationModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -160,6 +161,13 @@ class ArmorCore:
             if "toxicity" in self.modules:
                 self.registry.register_after_response(self.modules["toxicity"].post_filter)
                 self.registry.register_on_stream_chunk(self.modules["toxicity"].stream_filter)
+        if unicode_shield is not False and unicode_shield is not None:
+            if isinstance(unicode_shield, dict):
+                self.modules["unicode_shield"] = UnicodeShieldModule(**unicode_shield)
+            elif isinstance(unicode_shield, bool) and unicode_shield:
+                self.modules["unicode_shield"] = UnicodeShieldModule()
+            if "unicode_shield" in self.modules:
+                self.registry.register_before_request(self.modules["unicode_shield"].pre_check)
         if hitl_gate is not False and hitl_gate is not None:
             if isinstance(hitl_gate, dict):
                 self.modules["hitl_gate"] = HITLGateModule(**hitl_gate)
@@ -182,6 +190,7 @@ class ArmorCore:
                 self.modules["privilege_escalation"] = PrivilegeEscalationModule()
             if "privilege_escalation" in self.modules:
                 self.registry.register_after_response(self.modules["privilege_escalation"].post_filter)
+
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""

@@ -78,6 +78,8 @@ class ToxicContentDetected(Exception):
     """Raised when toxic or harmful content is detected in LLM output."""
     pass
 
+class UnicodeInjectionDetected(Exception):
+    """Raised when invisible unicode-based prompt injection is detected."""
 class HumanApprovalRequired(Exception):
     """Raised when an action requires human approval before proceeding."""
     pass
