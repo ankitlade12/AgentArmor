@@ -21,10 +21,11 @@ from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
 from .modules.cot_auditor import CoTAuditorModule
 from .modules.toxicity import ToxicityModule
+from .modules.exfiltration_guard import ExfiltrationGuardModule
 from .modules.privilege_escalation import PrivilegeEscalationModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, privilege_escalation=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, exfiltration_guard=None, privilege_escalation=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -158,6 +159,14 @@ class ArmorCore:
             if "toxicity" in self.modules:
                 self.registry.register_after_response(self.modules["toxicity"].post_filter)
                 self.registry.register_on_stream_chunk(self.modules["toxicity"].stream_filter)
+        if exfiltration_guard is not False and exfiltration_guard is not None:
+            if isinstance(exfiltration_guard, dict):
+                self.modules["exfiltration_guard"] = ExfiltrationGuardModule(**exfiltration_guard)
+            elif isinstance(exfiltration_guard, bool) and exfiltration_guard:
+                self.modules["exfiltration_guard"] = ExfiltrationGuardModule()
+            if "exfiltration_guard" in self.modules:
+                self.registry.register_after_response(self.modules["exfiltration_guard"].post_filter)
+                self.registry.register_on_stream_chunk(self.modules["exfiltration_guard"].stream_filter)
         if privilege_escalation is not False and privilege_escalation is not None:
             if isinstance(privilege_escalation, dict):
                 self.modules["privilege_escalation"] = PrivilegeEscalationModule(**privilege_escalation)

@@ -78,6 +78,9 @@ class ToxicContentDetected(Exception):
     """Raised when toxic or harmful content is detected in LLM output."""
     pass
 
+class DataExfiltrationDetected(Exception):
+    """Raised when data exfiltration attempt is detected in LLM output."""
+
 class PrivilegeEscalationDetected(Exception):
     """Raised when an LLM agent attempts to escalate its privileges."""
     pass
