@@ -121,8 +121,8 @@ class GroundingGuardModule:
 
         # Weighted average
         weights = {
-            "unigram": 0.20, "trigram": 0.15, "jaccard": 0.10,
-            "stemmed": 0.15, "claims": 0.15, "numbers": 0.10, "names": 0.15,
+            "unigram": 0.15, "trigram": 0.20, "jaccard": 0.05,
+            "stemmed": 0.10, "claims": 0.25, "numbers": 0.10, "names": 0.15,
         }
 
         total_weight = sum(weights.get(k, 0.1) for k in scores)

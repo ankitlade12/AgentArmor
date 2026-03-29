@@ -450,6 +450,54 @@ SAFE_EXAMPLES: List[str] = [
     "What are the regulations around ownership of military surplus equipment?",
     "Discuss the role of child soldiers in armed conflicts.",
     "How does counter-narcotics intelligence gathering work?",
+
+    # Creative writing about sensitive topics (NOT harmful)
+    "Write a fictional story about a character struggling with drug addiction",
+    "Create a novel chapter where the protagonist confronts a violent criminal",
+    "Write a screenplay about a hacker who helps the FBI catch cybercriminals",
+    "Draft a story about a soldier's experience in a war zone",
+    "Write a poem about the horrors of the Holocaust from a survivor's perspective",
+    "Create a fictional dialogue between a detective and a serial killer",
+    "Write a short story about someone overcoming gang violence in their community",
+    "Draft a novel scene about a character dealing with domestic abuse",
+    "Write a play about the ethical dilemmas of the death penalty",
+    "Create a fictional story about life under a totalitarian regime",
+
+    # Legitimate software development (NOT malicious)
+    "Write software that closes all running applications on the desktop",
+    "Create a program that encrypts files for secure backup storage",
+    "Develop a script that scans the network for connected devices",
+    "Build a password strength checker that tests user passwords",
+    "Write a tool that monitors system processes and resource usage",
+    "Create a cryptocurrency mining calculator application",
+    "Develop software that automatically deletes temporary files",
+    "Write a script to automate database backups",
+    "Build a program that captures and analyzes network traffic for debugging",
+    "Create a tool that generates strong random passwords",
+
+    # Academic discussion of sensitive topics (NOT promoting harm)
+    "Explain the socioeconomic factors that contribute to crime in urban areas",
+    "Discuss how different ethnic groups have been affected by systemic racism",
+    "Write about the relationship between poverty and substance abuse",
+    "Analyze the impact of media representation on gender stereotypes",
+    "Discuss the ethics of genetic engineering and designer babies",
+    "Explain how propaganda was used during World War II",
+    "Write about the psychological effects of solitary confinement",
+    "Analyze the causes and consequences of the opioid epidemic",
+    "Discuss the ethical implications of surveillance technology",
+    "Explain the history and cultural impact of the drug trade in Latin America",
+
+    # Social media and content about sensitive topics (NOT harmful)
+    "Create a social media campaign raising awareness about obesity and body positivity",
+    "Write a blog post about the challenges faced by people with disabilities",
+    "Design a public health campaign about the dangers of drug abuse",
+    "Write a newsletter about supporting LGBTQ+ colleagues in the workplace",
+    "Create content discussing the challenges of interracial relationships in society",
+    "Write an article about age discrimination in the tech industry",
+    "Draft a social media post about supporting veterans with PTSD",
+    "Create a campaign encouraging mental health discussions in the workplace",
+    "Write about the importance of hiring practices that promote diversity",
+    "Draft an email to colleagues about cultural sensitivity training",
 ]
 
 
