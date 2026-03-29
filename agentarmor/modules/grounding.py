@@ -1,4 +1,5 @@
 import re
+import threading
 from typing import Dict, List, Optional
 from collections import Counter
 from ..hooks import RequestContext, ResponseContext
@@ -52,6 +53,9 @@ class GroundingGuardModule:
         self.hallucinations_detected = 0
         self.scores: List[float] = []
         self._session_sources: List[str] = []
+        # Lazy-initialized TF-IDF for semantic similarity
+        self._tfidf_available: Optional[bool] = None
+        self._tfidf_lock = threading.Lock()
 
     def pre_check(self, ctx: RequestContext) -> RequestContext:
         """Extract source documents from the request messages for grounding."""
@@ -114,6 +118,11 @@ class GroundingGuardModule:
         # Character shingle overlap (catches partial word matches)
         scores["char_shingles"] = self._char_shingle_overlap(response_lower, source_text)
 
+        # TF-IDF semantic similarity (highest signal if available)
+        tfidf_score = self._tfidf_similarity(response_lower, source_text)
+        if tfidf_score is not None:
+            scores["tfidf"] = tfidf_score
+
         if self.check_claims:
             scores["claims"] = self._verify_claims(response, sources)
         if self.check_numbers:
@@ -121,16 +130,63 @@ class GroundingGuardModule:
         if self.check_names:
             scores["names"] = self._verify_names(response, source_text)
 
-        # Weighted average
-        weights = {
-            "unigram": 0.10, "trigram": 0.20, "jaccard": 0.05,
-            "stemmed": 0.05, "char_shingles": 0.15,
-            "claims": 0.25, "numbers": 0.10, "names": 0.10,
-        }
+        # Weighted average — TF-IDF gets highest weight when available
+        if "tfidf" in scores:
+            weights = {
+                "tfidf": 0.35,
+                "unigram": 0.05, "trigram": 0.10, "jaccard": 0.02,
+                "stemmed": 0.03, "char_shingles": 0.05,
+                "claims": 0.20, "numbers": 0.10, "names": 0.10,
+            }
+        else:
+            weights = {
+                "unigram": 0.10, "trigram": 0.20, "jaccard": 0.05,
+                "stemmed": 0.05, "char_shingles": 0.15,
+                "claims": 0.25, "numbers": 0.10, "names": 0.10,
+            }
 
         total_weight = sum(weights.get(k, 0.1) for k in scores)
         weighted_sum = sum(scores[k] * weights.get(k, 0.1) for k in scores)
         return weighted_sum / total_weight if total_weight > 0 else 1.0
+
+    def _tfidf_similarity(self, response: str, source: str) -> Optional[float]:
+        """TF-IDF cosine similarity — semantic document-level grounding.
+
+        Computes how similar the response is to the source as whole documents,
+        not just individual word overlap. Uses scikit-learn if available.
+        Returns None if scikit-learn is not installed (graceful degradation).
+        """
+        if self._tfidf_available is False:
+            return None
+
+        with self._tfidf_lock:
+            if self._tfidf_available is None:
+                try:
+                    from sklearn.feature_extraction.text import TfidfVectorizer
+                    from sklearn.metrics.pairwise import cosine_similarity
+                    self._tfidf_available = True
+                except ImportError:
+                    self._tfidf_available = False
+                    return None
+
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.metrics.pairwise import cosine_similarity
+
+            if not response.strip() or not source.strip():
+                return 1.0
+
+            vectorizer = TfidfVectorizer(
+                ngram_range=(1, 2),
+                max_features=3000,
+                sublinear_tf=True,
+                stop_words='english',
+            )
+            tfidf_matrix = vectorizer.fit_transform([source, response])
+            sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+            return float(sim)
+        except Exception:
+            return None
 
     def _char_shingle_overlap(self, response: str, source: str, k: int = 4) -> float:
         """Character k-gram (shingle) overlap — catches partial word matches."""

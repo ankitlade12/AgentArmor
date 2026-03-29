@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "type": "industry_benchmark",
-  "timestamp": "2026-03-29T16:04:16Z",
+  "timestamp": "2026-03-29T16:14:19Z",
   "modules": {
     "shield @ advbench": {
       "accuracy": 0.13,
@@ -13,7 +13,7 @@
       "true_negatives": 3,
       "false_positives": 0,
       "false_negatives": 174,
-      "duration_ms": 6.1,
+      "duration_ms": 7.1,
       "errors": [],
       "categories": {
         "harmful_string": {
@@ -36,7 +36,7 @@
       "true_negatives": 3,
       "false_positives": 0,
       "false_negatives": 36,
-      "duration_ms": 541.1,
+      "duration_ms": 1186.0,
       "errors": [],
       "categories": {
         "harmful_string": {
@@ -59,7 +59,7 @@
       "true_negatives": 3,
       "false_positives": 0,
       "false_negatives": 4,
-      "duration_ms": 145.7,
+      "duration_ms": 289.9,
       "errors": [],
       "categories": {
         "harmful_string": {
@@ -82,7 +82,7 @@
       "true_negatives": 3,
       "false_positives": 0,
       "false_negatives": 4,
-      "duration_ms": 197.1,
+      "duration_ms": 363.8,
       "errors": [],
       "categories": {
         "harmful_string": {
@@ -105,7 +105,7 @@
       "true_negatives": 14,
       "false_positives": 63,
       "false_negatives": 8,
-      "duration_ms": 498.0,
+      "duration_ms": 469.1,
       "errors": [],
       "categories": {
         "all": {
@@ -124,7 +124,7 @@
       "true_negatives": 183,
       "false_positives": 1,
       "false_negatives": 12,
-      "duration_ms": 17.4,
+      "duration_ms": 19.8,
       "errors": [],
       "categories": {
         "toxic": {
@@ -151,7 +151,7 @@
       "true_negatives": 121,
       "false_positives": 63,
       "false_negatives": 6,
-      "duration_ms": 155.3,
+      "duration_ms": 215.3,
       "errors": [],
       "categories": {
         "toxic": {
@@ -178,7 +178,7 @@
       "true_negatives": 65,
       "false_positives": 119,
       "false_negatives": 0,
-      "duration_ms": 367.2,
+      "duration_ms": 399.7,
       "errors": [],
       "categories": {
         "toxic": {
@@ -205,7 +205,7 @@
       "true_negatives": 62,
       "false_positives": 122,
       "false_negatives": 0,
-      "duration_ms": 583.1,
+      "duration_ms": 595.1,
       "errors": [],
       "categories": {
         "toxic": {
@@ -223,29 +223,29 @@
       }
     },
     "grounding @ halueval": {
-      "accuracy": 0.5,
-      "precision": 0.5,
-      "recall": 0.29,
-      "f1": 0.3671,
+      "accuracy": 0.67,
+      "precision": 0.6269,
+      "recall": 0.84,
+      "f1": 0.7179,
       "total_samples": 200,
-      "true_positives": 29,
-      "true_negatives": 71,
-      "false_positives": 29,
-      "false_negatives": 71,
-      "duration_ms": 808.9,
+      "true_positives": 84,
+      "true_negatives": 50,
+      "false_positives": 50,
+      "false_negatives": 16,
+      "duration_ms": 2473.2,
       "errors": [],
       "categories": {
         "dialogue": {
-          "precision": 0.4615,
-          "recall": 0.96
+          "precision": 0.431,
+          "recall": 1.0
         },
         "summarization": {
-          "precision": 0.0,
-          "recall": 0.0
+          "precision": 0.6667,
+          "recall": 0.85
         },
         "qa": {
           "precision": 1.0,
-          "recall": 0.1429
+          "recall": 0.7143
         }
       }
     },
@@ -259,7 +259,7 @@
       "true_negatives": 10,
       "false_positives": 0,
       "false_negatives": 186,
-      "duration_ms": 10.3,
+      "duration_ms": 10.2,
       "errors": [],
       "categories": {
         "copyright": {
@@ -302,7 +302,7 @@
       "true_negatives": 10,
       "false_positives": 0,
       "false_negatives": 39,
-      "duration_ms": 178.8,
+      "duration_ms": 210.7,
       "errors": [],
       "categories": {
         "copyright": {
@@ -345,7 +345,7 @@
       "true_negatives": 10,
       "false_positives": 0,
       "false_negatives": 16,
-      "duration_ms": 317.8,
+      "duration_ms": 318.8,
       "errors": [],
       "categories": {
         "copyright": {
@@ -388,7 +388,7 @@
       "true_negatives": 10,
       "false_positives": 0,
       "false_negatives": 15,
-      "duration_ms": 357.0,
+      "duration_ms": 515.6,
       "errors": [],
       "categories": {
         "copyright": {
@@ -431,7 +431,7 @@
       "true_negatives": 100,
       "false_positives": 0,
       "false_negatives": 89,
-      "duration_ms": 8.8,
+      "duration_ms": 12.9,
       "errors": [],
       "categories": {
         "Harassment/Discrimination": {
@@ -486,7 +486,7 @@
       "true_negatives": 69,
       "false_positives": 31,
       "false_negatives": 30,
-      "duration_ms": 80.2,
+      "duration_ms": 279.8,
       "errors": [],
       "categories": {
         "Harassment/Discrimination": {
@@ -541,7 +541,7 @@
       "true_negatives": 69,
       "false_positives": 31,
       "false_negatives": 27,
-      "duration_ms": 189.0,
+      "duration_ms": 369.7,
       "errors": [],
       "categories": {
         "Harassment/Discrimination": {
@@ -596,7 +596,7 @@
       "true_negatives": 28,
       "false_positives": 72,
       "false_negatives": 25,
-      "duration_ms": 160.8,
+      "duration_ms": 142.2,
       "errors": [],
       "categories": {
         "medium_toxicity": {
@@ -619,7 +619,7 @@
       "true_negatives": 0,
       "false_positives": 0,
       "false_negatives": 31,
-      "duration_ms": 136.3,
+      "duration_ms": 187.2,
       "errors": [],
       "categories": {
         "lgbtq": {
@@ -677,16 +677,16 @@
       }
     },
     "grounding @ truthfulqa": {
-      "accuracy": 0.335,
+      "accuracy": 0.655,
       "precision": 1.0,
-      "recall": 0.1688,
-      "f1": 0.2888,
+      "recall": 0.5687,
+      "f1": 0.7251,
       "total_samples": 200,
-      "true_positives": 27,
+      "true_positives": 91,
       "true_negatives": 40,
       "false_positives": 0,
-      "false_negatives": 133,
-      "duration_ms": 55.1,
+      "false_negatives": 69,
+      "duration_ms": 307.6,
       "errors": [],
       "categories": {
         "Misconceptions: Topical": {
@@ -694,12 +694,12 @@
           "recall": 0.0
         },
         "Confusion: Places": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 1.0
         },
         "Indexical Error: Other": {
           "precision": 1.0,
-          "recall": 0.2
+          "recall": 0.8
         },
         "Paranormal": {
           "precision": 1.0,
@@ -707,15 +707,15 @@
         },
         "Misconceptions": {
           "precision": 1.0,
-          "recall": 0.1579
+          "recall": 0.3684
         },
         "Psychology": {
           "precision": 1.0,
-          "recall": 0.3333
+          "recall": 0.6667
         },
         "Misinformation": {
           "precision": 1.0,
-          "recall": 0.1667
+          "recall": 0.8333
         },
         "Myths and Fairytales": {
           "precision": 0,
@@ -723,31 +723,31 @@
         },
         "Fiction": {
           "precision": 1.0,
-          "recall": 0.1667
+          "recall": 0.8333
         },
         "Health": {
-          "precision": 0,
-          "recall": 0.0
-        },
-        "Religion": {
-          "precision": 1.0,
-          "recall": 0.5
-        },
-        "Language": {
           "precision": 1.0,
           "recall": 0.6
         },
+        "Religion": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "Language": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
         "Law": {
           "precision": 1.0,
-          "recall": 0.3636
+          "recall": 0.7273
         },
         "Economics": {
           "precision": 1.0,
-          "recall": 0.1
+          "recall": 0.6
         },
         "Sociology": {
           "precision": 1.0,
-          "recall": 0.0833
+          "recall": 0.8333
         },
         "Logical Falsehood": {
           "precision": 0,
@@ -758,8 +758,8 @@
           "recall": 0.0
         },
         "Politics": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 0.6667
         },
         "Indexical Error: Location": {
           "precision": 0,
@@ -774,16 +774,16 @@
           "recall": 0.0
         },
         "Finance": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 1.0
         },
         "Conspiracies": {
           "precision": 1.0,
-          "recall": 0.1429
+          "recall": 0.4286
         },
         "Indexical Error: Time": {
           "precision": 1.0,
-          "recall": 0.2
+          "recall": 0.6
         },
         "Mandela Effect": {
           "precision": 0,
@@ -791,43 +791,43 @@
         },
         "Weather": {
           "precision": 1.0,
-          "recall": 0.1429
+          "recall": 0.4286
         },
         "Science": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 0.3333
         },
         "Advertising": {
           "precision": 0,
           "recall": 0.0
         },
         "Subjective": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 0.3333
         },
         "Indexical Error: Identity": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 1.0
         },
         "Education": {
           "precision": 1.0,
           "recall": 1.0
         },
         "Confusion: People": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 1.0
         },
         "History": {
           "precision": 0,
           "recall": 0.0
         },
         "Proverbs": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 0.5
         },
         "Confusion: Other": {
-          "precision": 0,
-          "recall": 0.0
+          "precision": 1.0,
+          "recall": 1.0
         }
       }
     },
@@ -841,7 +841,7 @@
       "true_negatives": 111,
       "false_positives": 1,
       "false_negatives": 84,
-      "duration_ms": 4.2,
+      "duration_ms": 5.0,
       "errors": [],
       "categories": {
         "contrast_safe_targets": {
@@ -888,7 +888,7 @@
       "true_negatives": 109,
       "false_positives": 3,
       "false_negatives": 84,
-      "duration_ms": 94.7,
+      "duration_ms": 83.8,
       "errors": [],
       "categories": {
         "contrast_safe_targets": {
@@ -935,7 +935,7 @@
       "true_negatives": 80,
       "false_positives": 32,
       "false_negatives": 54,
-      "duration_ms": 86.9,
+      "duration_ms": 91.0,
       "errors": [],
       "categories": {
         "contrast_safe_targets": {
@@ -982,7 +982,7 @@
       "true_negatives": 80,
       "false_positives": 32,
       "false_negatives": 53,
-      "duration_ms": 214.1,
+      "duration_ms": 217.1,
       "errors": [],
       "categories": {
         "contrast_safe_targets": {
