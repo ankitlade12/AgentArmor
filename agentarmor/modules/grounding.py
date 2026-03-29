@@ -5,6 +5,22 @@ from ..hooks import RequestContext, ResponseContext
 from ..exceptions import HallucinationDetected
 
 
+def _simple_stem(word: str) -> str:
+    """Simple suffix-stripping stemmer — no dependencies needed."""
+    word = word.lower()
+    # Common suffixes in order of length (longest first)
+    for suffix in ['ational', 'tional', 'encies', 'ances', 'ences', 'ments',
+                   'ating', 'ation', 'ators', 'iness', 'ously', 'ently',
+                   'ally', 'ment', 'ness', 'able', 'ible', 'ment', 'ence',
+                   'ance', 'ious', 'eous', 'ting', 'ated', 'ling', 'sion',
+                   'tion', 'ical', 'ally', 'ful', 'ous', 'ive', 'ing',
+                   'ism', 'ist', 'ity', 'ant', 'ent', 'ies', 'ize',
+                   'ise', 'fy', 'ly', 'ed', 'er', 'es', 'al', 'en', 's']:
+        if len(word) > len(suffix) + 2 and word.endswith(suffix):
+            return word[:-len(suffix)]
+    return word
+
+
 class GroundingGuardModule:
     def __init__(self,
                  sources: Optional[List[str]] = None,
@@ -93,6 +109,8 @@ class GroundingGuardModule:
         scores["trigram"] = self._ngram_overlap(response_lower, source_text, n=3)
         # Jaccard similarity
         scores["jaccard"] = self._jaccard_similarity(response_lower, source_text)
+        # Stemmed overlap (catches morphological variants)
+        scores["stemmed"] = self._stemmed_overlap(response_lower, source_text)
 
         if self.check_claims:
             scores["claims"] = self._verify_claims(response, sources)
@@ -103,13 +121,29 @@ class GroundingGuardModule:
 
         # Weighted average
         weights = {
-            "unigram": 0.25, "trigram": 0.15, "jaccard": 0.20,
-            "claims": 0.15, "numbers": 0.10, "names": 0.15,
+            "unigram": 0.20, "trigram": 0.15, "jaccard": 0.10,
+            "stemmed": 0.15, "claims": 0.15, "numbers": 0.10, "names": 0.15,
         }
 
         total_weight = sum(weights.get(k, 0.1) for k in scores)
         weighted_sum = sum(scores[k] * weights.get(k, 0.1) for k in scores)
         return weighted_sum / total_weight if total_weight > 0 else 1.0
+
+    def _stemmed_overlap(self, response: str, source: str) -> float:
+        """Stemmed word overlap — catches 'created'/'creation', 'American'/'America'."""
+        stop = {"the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+                "have", "has", "had", "do", "does", "did", "will", "would", "could",
+                "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+                "on", "with", "at", "by", "from", "as", "into", "it", "its", "this",
+                "that", "and", "or", "but", "not", "no", "yes"}
+        resp_words = set(re.findall(r'\b\w+\b', response.lower())) - stop
+        src_words = set(re.findall(r'\b\w+\b', source.lower())) - stop
+        if not resp_words:
+            return 1.0
+        resp_stems = set(_simple_stem(w) for w in resp_words)
+        src_stems = set(_simple_stem(w) for w in src_words)
+        matched = resp_stems & src_stems
+        return len(matched) / len(resp_stems) if resp_stems else 1.0
 
     def _jaccard_similarity(self, response: str, source: str) -> float:
         """Word-level Jaccard similarity between response and source."""
