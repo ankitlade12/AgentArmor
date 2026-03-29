@@ -1,5 +1,5 @@
 import pytest
-from agentarmor.modules.prompt_fuzzer import PromptFuzzerModule, FuzzResult
+from tools.prompt_fuzzer import PromptFuzzerModule, FuzzResult
 from agentarmor.modules.shield import ShieldModule
 from agentarmor.hooks import RequestContext
 

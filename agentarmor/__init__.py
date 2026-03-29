@@ -12,7 +12,6 @@ from .exceptions import (
     MCPViolation, InsecureCodeDetected, HallucinationDetected, ReasoningViolation, ToxicContentDetected,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
-from .modules.prompt_fuzzer import PromptFuzzerModule
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar(
@@ -114,31 +113,6 @@ def validate_mcp_server(server_name: str, server_uri=None) -> bool:
         return core.modules["mcp_firewall"].validate_server(server_name, server_uri)
     return True
 
-def fuzz(check_fn=None, shield=None, categories=None, max_per_category=None, seed=None, **kwargs):
-    """
-    Run adversarial fuzz testing.
-
-    Args:
-        check_fn: Function(text) -> bool. True = blocked.
-        shield: Shield module to test against (alternative to check_fn)
-        categories: Attack categories to test
-        max_per_category: Max attacks per category
-        seed: Random seed for reproducibility
-    """
-    fuzzer = PromptFuzzerModule(seed=seed, **kwargs)
-    if shield:
-        return fuzzer.fuzz_with_shield(shield, categories, max_per_category)
-    elif check_fn:
-        return fuzzer.fuzz(check_fn, categories, max_per_category)
-    else:
-        # If AgentArmor is active, test against its shield
-        core = get_core()
-        if core and "shield" in core.modules:
-            return fuzzer.fuzz_with_shield(core.modules["shield"], categories, max_per_category)
-        elif core and "ml_shield" in core.modules:
-            return fuzzer.fuzz_with_shield(core.modules["ml_shield"], categories, max_per_category)
-        raise ValueError("Provide check_fn, shield module, or initialize AgentArmor with shield=True")
-
 def validate_mcp_tool(tool_name: str, arguments: dict, server_name=None) -> bool:
     """Convenience function to validate an MCP tool call against the active firewall."""
     core = get_core()
@@ -194,6 +168,4 @@ __all__ = [
     "HallucinationDetected",
     "ReasoningViolation",
     "ToxicContentDetected",
-    "PromptFuzzerModule",
-    "fuzz",
 ]

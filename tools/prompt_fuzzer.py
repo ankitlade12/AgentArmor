@@ -4,7 +4,7 @@ import base64
 import hashlib
 import threading
 from typing import Optional, List, Dict, Any, Callable
-from ..hooks import RequestContext
+from agentarmor.hooks import RequestContext
 
 
 # Attack template categories
