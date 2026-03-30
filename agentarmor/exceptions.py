@@ -101,3 +101,7 @@ class DataExfiltrationDetected(Exception):
 class PrivilegeEscalationDetected(Exception):
     """Raised when an LLM agent attempts to escalate its privileges."""
     pass
+
+class SemanticDriftDetected(Exception):
+    """Raised when conversation semantic drift exceeds the configured threshold."""
+    pass
