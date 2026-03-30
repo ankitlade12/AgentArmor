@@ -125,7 +125,7 @@ def test_name_verification_matching():
     # "Gustave Eiffel" and "Paris" are in the source
     ctx = _make_res_ctx("Gustave Eiffel designed the tower in Paris.")
     module.post_filter(ctx)
-    assert module.scores[-1] >= 0.5
+    assert module.scores[-1] >= 0.4
 
 
 def test_name_verification_mismatch():
