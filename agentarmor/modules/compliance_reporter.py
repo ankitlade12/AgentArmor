@@ -133,6 +133,8 @@ class ComplianceReporterModule:
 
     def post_record(self, ctx: ResponseContext) -> ResponseContext:
         """Post-response hook: track events for compliance reporting."""
+        if not self.auto_track:
+            return ctx
         with self._lock:
             self._request_count += 1
             event = {
@@ -169,6 +171,11 @@ class ComplianceReporterModule:
         """
         frameworks_to_report = [framework] if framework else self.frameworks
         module_reports = module_reports or {}
+        framework_reports = {
+            fw: self._evaluate_framework(fw, module_reports)
+            for fw in frameworks_to_report
+            if fw in COMPLIANCE_CONTROLS
+        }
 
         report = {
             "report_metadata": {
@@ -181,8 +188,8 @@ class ComplianceReporterModule:
                 "frameworks": frameworks_to_report,
                 "agentarmor_version": "1.1.0",
             },
-            "summary": self._generate_summary(module_reports),
-            "frameworks": {},
+            "summary": self._generate_summary(module_reports, framework_reports),
+            "frameworks": framework_reports,
             "data_handling": {
                 "events_count": len(self.data_handling_events),
                 "events": self.data_handling_events[-50:],
@@ -194,29 +201,30 @@ class ComplianceReporterModule:
             },
         }
 
-        for fw in frameworks_to_report:
-            if fw in COMPLIANCE_CONTROLS:
-                report["frameworks"][fw] = self._evaluate_framework(
-                    fw, module_reports
-                )
-
         return report
 
-    def _generate_summary(self, module_reports: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_summary(
+        self,
+        module_reports: Dict[str, Any],
+        framework_reports: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
         """Generate executive summary."""
         active_modules = set(module_reports.keys())
         total_controls = 0
-        covered_controls = 0
+        compliant_controls = 0
+        partial_controls = 0
+        non_compliant_controls = 0
 
-        for fw in self.frameworks:
-            controls = COMPLIANCE_CONTROLS.get(fw, {})
-            for control_id, control in controls.items():
-                total_controls += 1
-                required_modules = set(control["modules"])
-                if required_modules & active_modules:
-                    covered_controls += 1
+        for fw_report in framework_reports.values():
+            fw_summary = fw_report.get("summary", {})
+            total_controls += fw_summary.get("total_controls", 0)
+            compliant_controls += fw_summary.get("compliant", 0)
+            partial_controls += fw_summary.get("partial", 0)
+            non_compliant_controls += fw_summary.get("non_compliant", 0)
 
-        coverage_pct = (covered_controls / total_controls * 100) if total_controls > 0 else 0
+        covered_controls = compliant_controls + partial_controls
+        weighted_score = compliant_controls + (0.5 * partial_controls)
+        coverage_pct = (weighted_score / total_controls * 100) if total_controls > 0 else 0
 
         # Count security events from module reports
         security_events = 0
@@ -230,6 +238,9 @@ class ComplianceReporterModule:
             "compliance_score": round(coverage_pct, 1),
             "controls_total": total_controls,
             "controls_covered": covered_controls,
+            "controls_compliant": compliant_controls,
+            "controls_partial": partial_controls,
+            "controls_non_compliant": non_compliant_controls,
             "active_modules": len(active_modules),
             "security_events_total": security_events,
             "data_handling_events": len(self.data_handling_events),

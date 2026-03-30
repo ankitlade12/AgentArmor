@@ -1,22 +1,30 @@
 # examples/gemini_example.py
-# Demonstrates AgentArmor with Google Gemini (google-generativeai SDK).
+# Demonstrates AgentArmor with Google Gemini (google-genai SDK).
 #
 # Install: pip install agentarmor[gemini]
-# Set GOOGLE_API_KEY in your environment before running.
+# Set GEMINI_API_KEY in your environment before running.
 
+import os
 import agentarmor
-import google.generativeai as genai
+from google import genai
 
 def main():
-    # Configure the Gemini SDK with your API key
-    genai.configure(api_key="your-key")
+    # Require API key
+    if not os.getenv("GEMINI_API_KEY"):
+        print("Please set GEMINI_API_KEY")
+        return
+
+    # Initialize the modern Gemini Client
+    client = genai.Client()
 
     # Initialize AgentArmor with budget, shield, and PII filtering
-    armor = agentarmor.init(budget=1.00, shield=True, filter=["pii"])
+    agentarmor.init(budget=1.00, shield=True, filter=["pii"])
 
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content("Hello, how are you?")
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", 
+            contents="Hello, how are you?"
+        )
         print("Response:", response.text)
     except Exception as e:
         print(f"Error: {e}")

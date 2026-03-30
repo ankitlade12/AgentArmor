@@ -1,5 +1,6 @@
 import pytest
 import json
+import agentarmor
 from agentarmor.modules.compliance_reporter import ComplianceReporterModule, COMPLIANCE_CONTROLS
 from agentarmor.hooks import ResponseContext, RequestContext
 
@@ -39,6 +40,7 @@ class TestReportGeneration:
         module = ComplianceReporterModule()
         report = module.generate_report({}, framework="gdpr")
         assert "gdpr" in report["frameworks"]
+        assert report["summary"]["controls_total"] == len(COMPLIANCE_CONTROLS["gdpr"])
 
 
 class TestComplianceScoring:
@@ -56,6 +58,8 @@ class TestComplianceScoring:
         summary = report["summary"]
         assert summary["controls_covered"] > 0
         assert summary["compliance_score"] > 0
+        assert summary["controls_compliant"] == 0
+        assert summary["controls_partial"] == 3
 
     def test_risk_assessment(self):
         module = ComplianceReporterModule(frameworks=["soc2"])
@@ -107,6 +111,13 @@ class TestEventTracking:
         assert module._request_count == 1
         assert len(module.events) == 1
 
+    def test_post_record_respects_auto_track(self):
+        module = ComplianceReporterModule(auto_track=False)
+        ctx = make_response_ctx()
+        module.post_record(ctx)
+        assert module._request_count == 0
+        assert len(module.events) == 0
+
     def test_data_event_recording(self):
         module = ComplianceReporterModule()
         module.record_data_event("pii_detected", "Email found in output", module="filter", severity="warning")
@@ -143,3 +154,22 @@ class TestReport:
         assert "session_id" in report
         assert "frameworks" in report
         assert report["requests_tracked"] == 0
+
+
+class TestInitIntegration:
+    def teardown_method(self):
+        agentarmor.teardown()
+
+    def test_compliance_is_additive(self):
+        core = agentarmor.init(
+            compliance=True,
+            unicode_shield=True,
+            hitl_gate=True,
+            exfiltration_guard=True,
+            privilege_escalation=True,
+        )
+        assert "compliance" in core.modules
+        assert "unicode_shield" in core.modules
+        assert "hitl_gate" in core.modules
+        assert "exfiltration_guard" in core.modules
+        assert "privilege_escalation" in core.modules

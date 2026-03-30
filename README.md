@@ -58,13 +58,15 @@ agentarmor.teardown()
 
 ```python
 import agentarmor
-import google.generativeai as genai
+from google import genai
 
 agentarmor.init(budget="$5.00", shield=True, filter=["pii", "secrets"])
 
-genai.configure(api_key="your-key")
-model = genai.GenerativeModel("gemini-2.0-flash")
-response = model.generate_content("Analyze this market...")
+client = genai.Client()
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents="Analyze this market..."
+)
 
 print(agentarmor.report())  # Gemini calls tracked automatically
 ```
@@ -617,7 +619,7 @@ agentarmor.init_from_config()
 
 AgentArmor works out-of-the-box with **every major AI framework** on the market. 
 
-Because AgentArmor monkey-patches the underlying `openai`, `anthropic`, and `google-generativeai` clients directly at the network level, you do not need framework-specific callbacks or middleware. Just initialize `agentarmor.init()` at the top of your script and it will automatically protect:
+Because AgentArmor monkey-patches the underlying `openai`, `anthropic`, and `google-genai` clients directly at the network level, you do not need framework-specific callbacks or middleware. Just initialize `agentarmor.init()` at the top of your script and it will automatically protect:
 
 - **LangChain / LangGraph**
 - **LlamaIndex**
@@ -689,7 +691,7 @@ AI agents are unpredictable by design. A user might try to hijack your system pr
 - **Zero infrastructure.** No Redis, no servers, no cloud accounts. AgentArmor is a pure Python library that runs entirely in your process.
 - **Zero code changes.** You don't rewrite your codebase to use a special client. Just call `agentarmor.init()` and your existing code is protected.
 - **Data stays local.** Everything runs in-memory and on-disk. Your prompts and responses never leave your machine.
-- **Framework agnostic.** Works with any framework that uses the `openai`, `anthropic`, or `google-generativeai` SDKs under the hood — no vendor lock-in.
+- **Framework agnostic.** Works with any framework that uses the `openai`, `anthropic`, or `google-genai` SDKs under the hood — no vendor lock-in.
 
 ---
 

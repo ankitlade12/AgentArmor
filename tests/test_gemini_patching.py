@@ -9,11 +9,13 @@ from agentarmor.hooks import ResponseContext
 
 
 def _create_mock_genai_module():
-    """Create a fake google.generativeai module hierarchy for testing."""
-    # Build the module tree: google -> google.generativeai
+    """Create a fake google.genai module hierarchy for testing."""
     google_mod = types.ModuleType("google")
-    genai_mod = types.ModuleType("google.generativeai")
-    google_mod.generativeai = genai_mod
+    genai_mod = types.ModuleType("google.genai")
+    models_mod = types.ModuleType("google.genai.models")
+
+    google_mod.genai = genai_mod
+    genai_mod.models = models_mod
 
     class FakePart:
         def __init__(self, text=""):
@@ -34,75 +36,72 @@ def _create_mock_genai_module():
 
     class FakeResponse:
         def __init__(self, text="hello", prompt_tokens=10, output_tokens=5):
-            self._text = text
+            self.text = text
             self.candidates = [FakeCandidate(text)]
             self.usage_metadata = FakeUsageMetadata(prompt_tokens, output_tokens)
 
-        @property
-        def text(self):
-            return self.candidates[0].content.parts[0].text
-
-    class GenerativeModel:
-        def __init__(self, model_name="gemini-2.0-flash"):
-            self.model_name = model_name
-            self._model_name = model_name
-
-        def generate_content(self, contents, **kwargs):
+    class Models:
+        def generate_content(self, model, contents, config=None, **kwargs):
             return FakeResponse("mocked gemini reply")
 
-        async def generate_content_async(self, contents, **kwargs):
+        def generate_content_stream(self, model, contents, config=None, **kwargs):
+            return [FakeResponse("mocked "), FakeResponse("stream")]
+
+    class AsyncModels:
+        async def generate_content(self, model, contents, config=None, **kwargs):
             return FakeResponse("async mocked gemini reply")
 
-    genai_mod.GenerativeModel = GenerativeModel
-    genai_mod.FakeResponse = FakeResponse
-    genai_mod.FakePart = FakePart
-    genai_mod.FakeContent = FakeContent
-    genai_mod.FakeCandidate = FakeCandidate
-    genai_mod.FakeUsageMetadata = FakeUsageMetadata
+        async def generate_content_stream(self, model, contents, config=None, **kwargs):
+            yield FakeResponse("async mocked ")
+            yield FakeResponse("stream")
 
-    return google_mod, genai_mod, GenerativeModel, FakeResponse
+    models_mod.Models = Models
+    models_mod.AsyncModels = AsyncModels
+
+    return google_mod, genai_mod, models_mod, Models, AsyncModels, FakeResponse
 
 
 def _install_mock_genai():
-    """Install mock google.generativeai into sys.modules."""
-    google_mod, genai_mod, GenerativeModel, FakeResponse = _create_mock_genai_module()
+    """Install mock google.genai into sys.modules."""
+    google_mod, genai_mod, models_mod, Models, AsyncModels, FakeResponse = _create_mock_genai_module()
     sys.modules["google"] = google_mod
-    sys.modules["google.generativeai"] = genai_mod
-    return google_mod, genai_mod, GenerativeModel, FakeResponse
+    sys.modules["google.genai"] = genai_mod
+    sys.modules["google.genai.models"] = models_mod
+    return google_mod, genai_mod, models_mod, Models, AsyncModels, FakeResponse
 
 
 def _uninstall_mock_genai():
     """Remove mock google modules from sys.modules."""
-    for key in ["google.generativeai", "google"]:
+    for key in ["google.genai.models", "google.genai", "google", "google.generativeai"]:
         sys.modules.pop(key, None)
 
 
 class TestGeminiPatchUnpatch:
     def setup_method(self):
-        self.google_mod, self.genai_mod, self.GenerativeModel, self.FakeResponse = _install_mock_genai()
+        self.google_mod, self.genai_mod, self.models_mod, self.Models, self.AsyncModels, self.FakeResponse = _install_mock_genai()
 
     def teardown_method(self):
         agentarmor.teardown()
         _uninstall_mock_genai()
 
     def test_patch_replaces_methods(self):
-        original_sync = self.GenerativeModel.generate_content
-        original_async = self.GenerativeModel.generate_content_async
+        original_sync = self.Models.generate_content
+        original_async = self.AsyncModels.generate_content
 
         agentarmor.init()  # sets up the patch
 
-        assert self.GenerativeModel.generate_content is not original_sync
-        assert self.GenerativeModel.generate_content_async is not original_async
+        assert self.Models.generate_content is not original_sync
+        assert self.AsyncModels.generate_content is not original_async
 
     def test_unpatch_restores_methods(self):
-        original_sync = self.GenerativeModel.generate_content
-        original_async = self.GenerativeModel.generate_content_async
+        original_sync = self.Models.generate_content
+        original_async = self.AsyncModels.generate_content
 
         core = agentarmor.init()
         core.unpatch()
 
-        assert self.GenerativeModel.generate_content is original_sync
-        assert self.GenerativeModel.generate_content_async is original_async
+        assert self.Models.generate_content is original_sync
+        assert self.AsyncModels.generate_content is original_async
 
     def test_sync_call_runs_hooks(self):
         core = agentarmor.init()
@@ -118,8 +117,8 @@ class TestGeminiPatchUnpatch:
             assert ctx.model == "gemini-2.0-flash"
             return ctx
 
-        model = self.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content("Hello")
+        model_api = self.Models()
+        response = model_api.generate_content("gemini-2.0-flash", "Hello")
 
         assert hook_ran is True
         assert response.text == "mocked gemini reply"
@@ -138,8 +137,8 @@ class TestGeminiPatchUnpatch:
             assert ctx.provider == "gemini"
             return ctx
 
-        model = self.GenerativeModel("gemini-2.0-flash")
-        response = await model.generate_content_async("Hello")
+        model_api = self.AsyncModels()
+        response = await model_api.generate_content("gemini-2.0-flash", "Hello")
 
         assert hook_ran is True
         assert response.text == "async mocked gemini reply"
@@ -147,7 +146,7 @@ class TestGeminiPatchUnpatch:
 
 class TestGeminiRequestContext:
     def setup_method(self):
-        self.google_mod, self.genai_mod, self.GenerativeModel, self.FakeResponse = _install_mock_genai()
+        self.google_mod, self.genai_mod, self.models_mod, self.Models, self.AsyncModels, self.FakeResponse = _install_mock_genai()
 
     def teardown_method(self):
         agentarmor.teardown()
@@ -164,8 +163,8 @@ class TestGeminiRequestContext:
             captured_ctx = ctx
             return ctx
 
-        model = self.GenerativeModel("gemini-2.0-flash")
-        model.generate_content("What is 2+2?")
+        model_api = self.Models()
+        model_api.generate_content("gemini-2.0-flash", "What is 2+2?")
 
         assert captured_ctx is not None
         assert len(captured_ctx.messages) == 1
@@ -184,8 +183,8 @@ class TestGeminiRequestContext:
             captured_ctx = ctx
             return ctx
 
-        model = self.GenerativeModel("gemini-2.0-flash")
-        model.generate_content([
+        model_api = self.Models()
+        model_api.generate_content("gemini-2.0-flash", [
             {"role": "user", "parts": [{"text": "Hello"}]},
             {"role": "model", "parts": [{"text": "Hi there"}]},
         ])
@@ -195,7 +194,7 @@ class TestGeminiRequestContext:
 
 class TestGeminiOutputExtraction:
     def setup_method(self):
-        self.google_mod, self.genai_mod, self.GenerativeModel, self.FakeResponse = _install_mock_genai()
+        self.google_mod, self.genai_mod, self.models_mod, self.Models, self.AsyncModels, self.FakeResponse = _install_mock_genai()
 
     def teardown_method(self):
         _uninstall_mock_genai()
@@ -212,24 +211,21 @@ class TestGeminiOutputExtraction:
         assert response.candidates[0].content.parts[0].text == "modified"
 
     def test_extract_output_empty_candidates_returns_empty_string(self):
-        """When Gemini blocks a response (safety filter), candidates is empty.
-        _extract_output must return '' instead of raising."""
         core = ArmorCore()
         response = self.FakeResponse("blocked")
-        response.candidates = []  # simulate safety blockage
+        response.candidates = []  
         assert core._extract_output(response, "gemini") == ""
 
     def test_inject_output_empty_candidates_is_noop(self):
-        """When candidates is empty, _inject_output must not raise."""
         core = ArmorCore()
         response = self.FakeResponse("blocked")
         response.candidates = []
-        core._inject_output(response, "gemini", "should not appear")  # must not raise
+        core._inject_output(response, "gemini", "should not appear")  
 
 
 class TestGeminiUsageExtraction:
     def setup_method(self):
-        self.google_mod, self.genai_mod, self.GenerativeModel, self.FakeResponse = _install_mock_genai()
+        self.google_mod, self.genai_mod, self.models_mod, self.Models, self.AsyncModels, self.FakeResponse = _install_mock_genai()
 
     def teardown_method(self):
         agentarmor.teardown()
@@ -254,8 +250,8 @@ class TestGeminiUsageExtraction:
             captured_usage = ctx.usage
             return ctx
 
-        model = self.GenerativeModel("gemini-2.0-flash")
-        model.generate_content("Hello")
+        model_api = self.Models()
+        model_api.generate_content("gemini-2.0-flash", "Hello")
 
         assert captured_usage is not None
         assert captured_usage["input_tokens"] == 10
@@ -264,31 +260,27 @@ class TestGeminiUsageExtraction:
 
 class TestGeminiGracefulSkip:
     def test_patch_skips_when_not_installed(self):
-        """Patching should not raise when google-generativeai is not installed."""
-        # Save and remove all google-related modules so the import fails
+        """Patching should not raise when google-genai is not installed."""
         saved = {}
-        keys_to_remove = [k for k in sys.modules if k == "google" or k.startswith("google.")]
+        keys_to_remove = [k for k in sys.modules if k.startswith("google")]
         for key in keys_to_remove:
             saved[key] = sys.modules.pop(key)
 
-        # Also block fresh imports by temporarily making import raise ImportError
         import builtins
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
-            if name == "google.generativeai" or name == "google":
+            if name.startswith("google"):
                 raise ImportError(f"No module named '{name}'")
             return original_import(name, *args, **kwargs)
 
         builtins.__import__ = mock_import
         try:
             core = ArmorCore()
-            # Should not raise
             core.patch()
-            assert "gemini_sync" not in core._originals
-            assert "gemini_async" not in core._originals
+            assert "genai_sync" not in core._originals
+            assert "genai_async" not in core._originals
 
-            # unpatch should also not raise
             core.unpatch()
         finally:
             builtins.__import__ = original_import
