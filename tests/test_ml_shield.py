@@ -224,7 +224,7 @@ class TestMLShieldReport:
 
         assert report["detections"] == 1
         assert report["scanned"] >= 1
-        assert report["threshold"] == 0.85
+        assert report["threshold"] == 0.65
 
     def test_report_accuracy_is_reasonable(self):
         from agentarmor.modules.ml_shield import MLShieldModule
