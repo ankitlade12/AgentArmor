@@ -80,6 +80,8 @@ class ToxicContentDetected(Exception):
 
 class UnicodeInjectionDetected(Exception):
     """Raised when invisible unicode-based prompt injection is detected."""
+    pass
+
 class HumanApprovalRequired(Exception):
     """Raised when an action requires human approval before proceeding."""
     pass

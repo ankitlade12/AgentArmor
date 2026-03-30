@@ -25,7 +25,7 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "_agentarmor_agent", default=None
 )
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -50,6 +50,7 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         grounding=grounding,
         cot_auditor=cot_auditor,
         toxicity=toxicity,
+        compliance=compliance,
         unicode_shield=unicode_shield,
         hitl_gate=hitl_gate,
         exfiltration_guard=exfiltration_guard,
@@ -113,6 +114,16 @@ def teardown() -> None:
     if core:
         core.unpatch()
         _active_core.set(None)
+
+def compliance_report(framework=None) -> Optional[dict]:
+    """Generate a compliance report from all active modules."""
+    core = get_core()
+    if core and "compliance" in core.modules:
+        return core.modules["compliance"].generate_report(
+            module_reports=core.report(),
+            framework=framework
+        )
+    return None
 
 def validate_mcp_server(server_name: str, server_uri=None) -> bool:
     """Convenience function to validate an MCP server against the active firewall."""
@@ -182,4 +193,5 @@ __all__ = [
     "HumanApprovalTimeout",
     "DataExfiltrationDetected",
     "PrivilegeEscalationDetected",
+    "compliance_report",
 ]

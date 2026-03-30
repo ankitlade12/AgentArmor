@@ -63,3 +63,10 @@ A deep dive into the V1.0 Middleware/Hooks system. It registers custom `@before_
 ```bash
 python examples/hooks_example.py
 ```
+
+### `compliance_example.py`
+Shows how to enable the compliance reporter alongside existing modules, capture a compliance-relevant data event, and generate a SOC2/GDPR report from the active session.
+
+```bash
+python examples/compliance_example.py
+```
