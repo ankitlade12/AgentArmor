@@ -56,3 +56,4 @@ docs/_build/
 *.swo
 .DS_Store
 .claude/worktrees/
+*.pyc

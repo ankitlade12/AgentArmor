@@ -30,7 +30,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import agentarmor
+from agentarmor.exceptions import (
+    InjectionDetected,
+    MLInjectionDetected,
+    ToxicContentDetected,
+    DataExfiltrationDetected,
+)
 from common import BenchmarkResult, print_result, print_summary
+
+# Exception types that indicate AgentArmor intentionally blocked a request
+AGENTARMOR_BLOCK_EXCEPTIONS = (
+    InjectionDetected,
+    MLInjectionDetected,
+    ToxicContentDetected,
+    DataExfiltrationDetected,
+)
 
 # ---------------------------------------------------------------------------
 # Models per provider
@@ -242,15 +256,12 @@ def run_harmful_blocking(
             _ = caller(model, prompt)
             # If we get here, the prompt was NOT blocked -- false negative
             result.false_negatives += 1
+        except AGENTARMOR_BLOCK_EXCEPTIONS:
+            result.true_positives += 1
         except Exception as exc:
-            exc_name = type(exc).__name__
-            # AgentArmor raises specific exceptions when blocking
-            if "blocked" in str(exc).lower() or "shield" in exc_name.lower() or "armor" in exc_name.lower():
-                result.true_positives += 1
-            else:
-                # Unexpected error (network, auth, etc.)
-                result.errors.append(f"[{model}] {exc_name}: {exc}")
-                result.total -= 1  # Don't count errors as test samples
+            # Unexpected error (network, auth, etc.) -- don't count
+            result.errors.append(f"[{model}] {type(exc).__name__}: {exc}")
+            result.total -= 1
 
         if delay > 0:
             time.sleep(delay)
@@ -273,20 +284,14 @@ def run_safe_passthrough(
     for prompt in prompts:
         result.total += 1
         try:
-            response = caller(model, prompt)
-            if response:
-                result.true_negatives += 1
-            else:
-                # Empty response but no exception
-                result.true_negatives += 1
+            _ = caller(model, prompt)
+            result.true_negatives += 1
+        except AGENTARMOR_BLOCK_EXCEPTIONS:
+            # AgentArmor incorrectly blocked a safe prompt
+            result.false_positives += 1
         except Exception as exc:
-            exc_name = type(exc).__name__
-            if "blocked" in str(exc).lower() or "shield" in exc_name.lower() or "armor" in exc_name.lower():
-                # AgentArmor incorrectly blocked a safe prompt
-                result.false_positives += 1
-            else:
-                result.errors.append(f"[{model}] {exc_name}: {exc}")
-                result.total -= 1
+            result.errors.append(f"[{model}] {type(exc).__name__}: {exc}")
+            result.total -= 1
 
         if delay > 0:
             time.sleep(delay)
@@ -301,7 +306,17 @@ def run_response_filtering(
     prompts: List[str],
     delay: float,
 ) -> BenchmarkResult:
-    """Send borderline prompts and check if toxicity post-filter catches issues."""
+    """Send borderline prompts and observe AgentArmor's behavior.
+
+    NOTE: Since borderline prompts have no ground-truth labels, this scenario
+    reports detection rate (how often AgentArmor flags something) rather than
+    precision/recall. A blocked response is NOT necessarily a true positive.
+
+    Metrics:
+      - true_positives: Number of prompts where AgentArmor flagged the response
+      - true_negatives: Number of prompts that passed through unflagged
+      - These do NOT indicate correctness -- just behavior observation
+    """
     result = BenchmarkResult(module=f"response_filtering/{model}")
     caller = PROVIDER_CALLERS[provider]
     t0 = time.time()
@@ -309,21 +324,15 @@ def run_response_filtering(
     for prompt in prompts:
         result.total += 1
         try:
-            response = caller(model, prompt)
-            # Response came through -- if toxicity filter didn't flag it, that's fine
-            # for borderline prompts, either outcome is informative
+            _ = caller(model, prompt)
+            # Response passed through unflagged
             result.true_negatives += 1
+        except AGENTARMOR_BLOCK_EXCEPTIONS:
+            # AgentArmor flagged the response (not necessarily correct)
+            result.true_positives += 1
         except Exception as exc:
-            exc_name = type(exc).__name__
-            if "toxic" in str(exc).lower() or "toxicity" in exc_name.lower():
-                # Post-response toxicity filter caught something
-                result.true_positives += 1
-            elif "blocked" in str(exc).lower() or "shield" in exc_name.lower() or "armor" in exc_name.lower():
-                # Pre-request shield blocked it
-                result.true_positives += 1
-            else:
-                result.errors.append(f"[{model}] {exc_name}: {exc}")
-                result.total -= 1
+            result.errors.append(f"[{model}] {type(exc).__name__}: {exc}")
+            result.total -= 1
 
         if delay > 0:
             time.sleep(delay)

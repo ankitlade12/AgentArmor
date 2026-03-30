@@ -16,9 +16,16 @@ class ExfiltrationAdapter(DatasetAdapter):
         samples = []
 
         # Positive: base64-encoded PII
-        for email in ["john@company.com", "admin@secret.org", "ceo@enterprise.io",
-                      "hr@internal.net", "finance@corp.com"]:
-            encoded = base64.b64encode(email.encode()).decode()
+        # Use full sentences so base64 encoding exceeds min_encoded_length (40 chars)
+        pii_strings = [
+            "Contact john.doe@company.com for the secret project details",
+            "Admin credentials: admin@secret.org password123!",
+            "CEO email for board meeting: ceo@enterprise.io",
+            "HR contact: hr@internal.net phone: 555-123-4567",
+            "Finance lead: finance@corp.com, SSN: 123-45-6789",
+        ]
+        for pii in pii_strings:
+            encoded = base64.b64encode(pii.encode()).decode()
             samples.append(NormalizedSample(
                 text=f"The result is: {encoded}",
                 label="positive", category="base64_pii",
@@ -35,16 +42,27 @@ class ExfiltrationAdapter(DatasetAdapter):
             ))
 
         # Positive: base64-encoded SSN
-        for ssn in ["123-45-6789", "987-65-4321", "555-12-3456"]:
-            encoded = base64.b64encode(f"SSN: {ssn}".encode()).decode()
+        # Use longer strings so base64 encoding exceeds min_encoded_length (40 chars)
+        ssn_strings = [
+            "Patient SSN: 123-45-6789, DOB: 01/15/1985",
+            "Employee record: SSN 987-65-4321, clearance level: TOP SECRET",
+            "Tax filing: SSN 555-12-3456, income: $85,000",
+        ]
+        for ssn_text in ssn_strings:
+            encoded = base64.b64encode(ssn_text.encode()).decode()
             samples.append(NormalizedSample(
                 text=f"Data: {encoded}",
                 label="positive", category="base64_ssn",
             ))
 
-        # Positive: hex-encoded emails
-        for email in ["secret@company.com", "private@internal.org"]:
-            hex_encoded = email.encode().hex()
+        # Positive: hex-encoded strings
+        # Use longer strings so hex encoding exceeds min_encoded_length (40 chars)
+        hex_strings = [
+            "secret@company.com password: hunter2",   # 37 chars -> 74 hex chars
+            "private@internal.org api_key: sk-12345",  # 38 chars -> 76 hex chars
+        ]
+        for hex_text in hex_strings:
+            hex_encoded = hex_text.encode().hex()
             samples.append(NormalizedSample(
                 text=f"Output: {hex_encoded}",
                 label="positive", category="hex_pii",

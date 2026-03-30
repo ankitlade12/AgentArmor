@@ -45,6 +45,12 @@ class BenchmarkResult:
         correct = self.true_positives + self.true_negatives
         return correct / self.total if self.total > 0 else 0.0
 
+    @property
+    def false_positive_rate(self) -> float:
+        """FP / (FP + TN) — how often safe content is incorrectly flagged."""
+        denom = self.false_positives + self.true_negatives
+        return self.false_positives / denom if denom > 0 else 0.0
+
     def add_category(self, category: str, tp: int = 0, fp: int = 0, tn: int = 0, fn: int = 0):
         if category not in self.category_results:
             self.category_results[category] = {"tp": 0, "fp": 0, "tn": 0, "fn": 0}
@@ -103,21 +109,21 @@ def print_result(result: BenchmarkResult):
 
 def print_summary(results: List[BenchmarkResult], title: str = "BENCHMARK SUMMARY"):
     """Print summary table of all benchmark results."""
-    print(f"\n{'='*70}")
+    print(f"\n{'='*84}")
     print(f"  {title}")
-    print(f"{'='*70}")
-    print(f"  {'Module':<25} {'Accuracy':>10} {'Precision':>10} {'Recall':>10} {'F1':>10}")
-    print(f"  {'─'*66}")
+    print(f"{'='*84}")
+    print(f"  {'Module':<25} {'Accuracy':>10} {'Precision':>10} {'Recall':>10} {'F1':>10} {'FP Rate':>8} {'FPs':>6}")
+    print(f"  {'─'*80}")
 
     for r in results:
         if r.errors:
-            print(f"  {r.module:<25} {'SKIPPED':>10} {'—':>10} {'—':>10} {'—':>10}")
+            print(f"  {r.module:<25} {'SKIPPED':>10} {'—':>10} {'—':>10} {'—':>10} {'—':>8} {'—':>6}")
         else:
-            print(f"  {r.module:<25} {r.accuracy:>10.1%} {r.precision:>10.1%} {r.recall:>10.1%} {r.f1:>10.1%}")
+            print(f"  {r.module:<25} {r.accuracy:>10.1%} {r.precision:>10.1%} {r.recall:>10.1%} {r.f1:>10.1%} {r.false_positive_rate:>8.1%} {r.false_positives:>6}")
 
     total_time = sum(r.duration_ms for r in results)
     total_samples = sum(r.total for r in results)
-    print(f"  {'─'*66}")
+    print(f"  {'─'*80}")
     print(f"  Total: {total_samples} samples in {total_time:.1f}ms")
     print()
 
@@ -137,6 +143,8 @@ def export_results(results: List[BenchmarkResult], output_path: str,
             "precision": round(r.precision, 4),
             "recall": round(r.recall, 4),
             "f1": round(r.f1, 4),
+            "false_positive_rate": round(r.false_positive_rate, 4),
+            "false_positives": r.false_positives,
             "total_samples": r.total,
             "true_positives": r.true_positives,
             "true_negatives": r.true_negatives,

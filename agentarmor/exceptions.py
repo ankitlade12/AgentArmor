@@ -78,8 +78,25 @@ class ToxicContentDetected(Exception):
     """Raised when toxic or harmful content is detected in LLM output."""
     pass
 
+class UnicodeInjectionDetected(Exception):
+    """Raised when invisible unicode-based prompt injection is detected."""
+    pass
+
+class HumanApprovalRequired(Exception):
+    """Raised when an action requires human approval before proceeding."""
+    pass
+
+class HumanApprovalDenied(Exception):
+    """Raised when a human denies an action requested by the agent."""
+    pass
+
+class HumanApprovalTimeout(Exception):
+    """Raised when human approval request times out."""
+    pass
+
 class DataExfiltrationDetected(Exception):
     """Raised when data exfiltration attempt is detected in LLM output."""
+    pass
 
 class PrivilegeEscalationDetected(Exception):
     """Raised when an LLM agent attempts to escalate its privileges."""

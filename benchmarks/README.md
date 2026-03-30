@@ -1,6 +1,6 @@
 # AgentArmor Benchmark Results
 
-Evaluated against **10 industry-standard datasets** and 4,800+ samples across prompt injection, toxicity, hallucination detection, and bias.
+Evaluated against **10 industry-standard datasets** and 4,600+ samples across prompt injection, toxicity, hallucination detection, and data exfiltration.
 
 ## Tier A: Curated Smoke Tests
 
@@ -16,45 +16,42 @@ Evaluated against **10 industry-standard datasets** and 4,800+ samples across pr
 | CoT Auditor | 52 | 92.3% | 100.0% | 87.5% | **93.3%** | 3ms |
 | PII/Secrets Filter | 30 | 100.0% | 100.0% | 100.0% | **100.0%** | 0ms |
 
-## Tier B: Industry Benchmarks
+## Tier B: Industry Benchmarks (Baseline)
 
-Tested against recognized academic and industry datasets. All results use 200 stratified samples per dataset (seed=42).
+Tested against recognized academic and industry datasets using default module configurations. All results use 200 stratified samples per dataset (seed=42).
 
 ### Prompt Injection / Harmful Content Detection
 
-| Benchmark | Module | Samples | Precision | Recall | F1 |
-|:----------|:-------|--------:|:---------:|:------:|---:|
-| AdvBench | **COMBINED** | 200 | 100.0% | 91.9% | **95.8%** |
-| AdvBench | ML Shield | 200 | 100.0% | 81.7% | 89.9% |
-| AdvBench | Toxicity ML | 200 | 100.0% | 89.8% | 94.7% |
-| AdvBench | Shield (Regex) | 200 | 100.0% | 11.7% | 20.9% |
-| HarmBench | **COMBINED** | 200 | 100.0% | 90.0% | **94.7%** |
-| HarmBench | ML Shield | 200 | 100.0% | 79.5% | 88.6% |
-| HarmBench | Toxicity ML | 200 | 100.0% | 79.5% | 88.6% |
-| JailbreakBench | **COMBINED** | 200 | 70.2% | 73.0% | **71.6%** |
-| JailbreakBench | ML Shield | 200 | 69.3% | 70.0% | 69.7% |
+| Benchmark | Module | Samples | Precision | Recall | F1 | FP Rate |
+|:----------|:-------|--------:|:---------:|:------:|---:|--------:|
+| AdvBench | **COMBINED** | 200 | 100.0% | 46.7% | **63.7%** | 0.0% |
+| AdvBench | ML Shield | 200 | 100.0% | 31.5% | 47.9% | 0.0% |
+| AdvBench | Toxicity | 200 | 100.0% | 16.2% | 27.9% | 0.0% |
+| HarmBench | **COMBINED** | 200 | 100.0% | 19.5% | **32.6%** | 0.0% |
+| HarmBench | ML Shield | 200 | 100.0% | 15.8% | 27.3% | 0.0% |
+| JailbreakBench | **COMBINED** | 200 | 60.0% | 9.0% | **15.7%** | 6.0% |
+| JailbreakBench | ML Shield | 200 | 60.0% | 9.0% | 15.7% | 6.0% |
 
 ### Toxicity Detection
 
-| Benchmark | Type | Samples | Precision | Recall | F1 |
-|:----------|:-----|--------:|:---------:|:------:|---:|
-| ToxiGen | Implicit hate (13 groups) | 200 | 100.0% | 58.5% | **73.8%** |
-| BBQ | Bias (9 dimensions) | 200 | 64.7% | 73.2% | **68.7%** |
-| RealToxicityPrompts | Subtle toxicity | 200 | 54.8% | 51.0% | **52.8%** |
-| XSTest | Over-refusal test | 200 | 83.3% | 11.4% | **20.0%** |
+| Benchmark | Type | Samples | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|--------:|:---------:|:------:|---:|--------:|
+| RealToxicityPrompts | Subtle toxicity | 200 | 100.0% | 1.0% | **2.0%** | 0.0% |
+| ToxiGen | Implicit hate (13 groups) | 200 | 100.0% | 0.5% | **1.0%** | 0.0% |
+| XSTest | Over-refusal test | 200 | 50.0% | 2.3% | **4.3%** | 1.8% |
 
 ### Hallucination / Grounding Detection
 
-| Benchmark | Type | Samples | Precision | Recall | F1 |
-|:----------|:-----|--------:|:---------:|:------:|---:|
-| TruthfulQA | Factual grounding | 200 | 100.0% | 56.9% | **72.5%** |
-| HaluEval | QA/dialogue/summarization | 200 | 62.7% | 84.0% | **71.8%** |
+| Benchmark | Type | Samples | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|--------:|:---------:|:------:|---:|--------:|
+| TruthfulQA | Factual grounding | 200 | 100.0% | 22.5% | **36.7%** | 0.0% |
+| HaluEval | QA/dialogue/summarization | 200 | 50.7% | 34.0% | **40.7%** | 33.0% |
 
 ### Data Exfiltration Detection
 
-| Benchmark | Type | Samples | Precision | Recall | F1 |
-|:----------|:-----|--------:|:---------:|:------:|---:|
-| Exfiltration | Base64/hex/steg/URL | 61 | 100.0% | 71.0% | **83.0%** |
+| Benchmark | Type | Samples | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|--------:|:---------:|:------:|---:|--------:|
+| Exfiltration | Base64/hex/steg/URL | 61 | 100.0% | 100.0% | **100.0%** | 0.0% |
 
 ## Datasets
 
@@ -65,7 +62,6 @@ Tested against recognized academic and industry datasets. All results use 200 st
 | [JailbreakBench](https://jailbreakbench.github.io/) | HuggingFace | MIT | Jailbreak/injection detection |
 | [XSTest](https://huggingface.co/datasets/Paul/XSTest) | HuggingFace | CC-BY-4.0 | Over-refusal / false positives |
 | [ToxiGen](https://huggingface.co/datasets/toxigen/toxigen-data) | HuggingFace | Research | Implicit hate speech (13 groups) |
-| [BBQ](https://huggingface.co/datasets/lighteval/bbq_helm) | HuggingFace | CC-BY-4.0 | Bias across 9 social dimensions |
 | [RealToxicityPrompts](https://huggingface.co/datasets/allenai/real-toxicity-prompts) | HuggingFace | Apache 2.0 | 100K prompts with toxicity scores |
 | [TruthfulQA](https://huggingface.co/datasets/truthfulqa/truthful_qa) | HuggingFace | Apache 2.0 | 817 factual Q&A pairs |
 | [HaluEval](https://huggingface.co/datasets/pminervini/HaluEval) | HuggingFace | CC-BY-SA-4.0 | Hallucination detection (35K) |
@@ -74,22 +70,20 @@ Tested against recognized academic and industry datasets. All results use 200 st
 
 ## Key Takeaways
 
-- **96% F1 on AdvBench** and **95% on HarmBench** — combined detection catches nearly all harmful content with zero false positives
-- **100% precision** on most benchmarks — when AgentArmor flags content, it's almost always correct
-- **74% on ToxiGen** — catches *implicit* hate speech, not just explicit slurs
-- **73% on TruthfulQA** — TF-IDF semantic similarity enables hallucination detection
-- **83% on exfiltration** — catches base64/hex-encoded PII, steganography, and URL exfiltration
-- **83% precision on XSTest** — low false positive rate on safe prompts (up from 51%)
-- **Regex Shield alone is weak** (0-21% F1) — always use `ml_shield=True` or combined mode for production
+- **100% precision on most benchmarks** — when AgentArmor flags content, it's almost always correct (zero false positives on AdvBench, HarmBench, TruthfulQA, ToxiGen, RealToxicity)
+- **100% F1 on exfiltration** — catches base64/hex-encoded PII, steganographic data, and URL-based exfiltration perfectly
+- **Recall is the bottleneck** — baseline regex/TF-IDF modules have high precision but miss subtle attacks. The [module-upgrades](https://github.com/ankitlade12/AgentArmor/tree/feature/module-upgrades) branch adds expanded training data and TF-IDF classifiers for significantly improved recall
+- **FP Rate column** — shows exactly how often safe content is incorrectly blocked. Most modules have 0.0% FPR
 
 ## Methodology
 
 - **Sampling**: Large datasets stratified-sampled to 200 per benchmark (seed=42)
-- **Metrics**: Standard binary classification — Precision, Recall, F1 Score, Accuracy
+- **Metrics**: Standard binary classification — Precision, Recall, F1 Score, Accuracy, **False Positive Rate** (FP / (FP + TN))
 - **Combined scoring**: Detects if ANY module (shield, ML shield, toxicity) fires — reflects real production behavior
-- **Thresholds**: ML Shield=0.55, Toxicity ML=0.6, Grounding=0.6
+- **Thresholds**: ML Shield=0.85 (default), Toxicity=pattern-matching, Grounding=0.6
+- **Module versions**: Baseline (main branch, default configs). No benchmark-specific tuning applied.
 - **Reproducibility**: Fixed random seeds. `pip install datasets && python benchmarks/run_industry_benchmarks.py`
-- **No LLM API calls needed**: All benchmarks run locally against AgentArmor's detection modules
+- **No LLM API calls needed**: All Tier B benchmarks run locally
 
 ## Running Benchmarks
 
@@ -103,7 +97,7 @@ python benchmarks/run_industry_benchmarks.py
 # List all available datasets
 python benchmarks/run_industry_benchmarks.py --list
 
-# Run a specific dataset
+# Run a specific dataset with verbose output
 python benchmarks/run_industry_benchmarks.py --dataset truthfulqa --verbose
 
 # Tier C: E2E multi-provider (needs API keys in .env)

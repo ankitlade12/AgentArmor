@@ -4,7 +4,7 @@ AgentArmor Industry Benchmark Runner
 ======================================
 Evaluates AgentArmor detection modules against established industry datasets
 (JailbreakBench, XSTest, HarmBench, AdvBench, HaluEval, RealToxicityPrompts,
-ToxiGen, GuardBench, BBQ) using standardized adapters.
+ToxiGen, GuardBench) using standardized adapters.
 
 Usage:
     python benchmarks/run_industry_benchmarks.py                      # All datasets, default samples
@@ -44,7 +44,6 @@ import adapters.halueval         # noqa: F401
 import adapters.realtoxicity     # noqa: F401
 import adapters.toxigen          # noqa: F401
 import adapters.guardbench       # noqa: F401
-import adapters.bbq              # noqa: F401
 import adapters.truthfulqa       # noqa: F401
 import adapters.exfiltration     # noqa: F401
 

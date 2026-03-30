@@ -50,16 +50,17 @@ def generate_industry_table(data: dict) -> str:
     lines = [
         "### Industry Benchmark Results",
         "",
-        "| Benchmark | Module | Samples | Accuracy | Precision | Recall | F1 |",
-        "|-----------|--------|---------|----------|-----------|--------|----|",
+        "| Benchmark | Module | Samples | Accuracy | Precision | Recall | F1 | FP Rate |",
+        "|-----------|--------|---------|----------|-----------|--------|----|---------|",
     ]
     for name, m in data["modules"].items():
         if m.get("errors"):
             continue
+        fp_rate = m.get("false_positive_rate", 0)
         lines.append(
             f"| {name} | - | {m['total_samples']} | {format_pct(m['accuracy'])} | "
             f"{format_pct(m['precision'])} | {format_pct(m['recall'])} | "
-            f"**{format_pct(m['f1'])}** |"
+            f"**{format_pct(m['f1'])}** | {format_pct(fp_rate)} |"
         )
     lines.append("")
     return "\n".join(lines)
@@ -75,15 +76,17 @@ def generate_e2e_table(data: dict) -> str:
         title = scenario_name.replace("_", " ").title()
         lines.append(f"#### {title}")
         lines.append("")
-        lines.append("| Model | Provider | Samples | Accuracy | Precision | Recall | F1 |")
-        lines.append("|-------|----------|---------|----------|-----------|--------|----|")
+        lines.append("| Model | Provider | Samples | Accuracy | Precision | Recall | F1 | FP Rate |")
+        lines.append("|-------|----------|---------|----------|-----------|--------|----|---------|")
 
         for model_name, m in models.items():
             provider = m.get("provider", "unknown")
+            fp_rate = m.get("false_positive_rate", 0)
             lines.append(
                 f"| {model_name} | {provider} | {m.get('total_samples', 0)} | "
                 f"{format_pct(m.get('accuracy', 0))} | {format_pct(m.get('precision', 0))} | "
-                f"{format_pct(m.get('recall', 0))} | **{format_pct(m.get('f1', 0))}** |"
+                f"{format_pct(m.get('recall', 0))} | **{format_pct(m.get('f1', 0))}** | "
+                f"{format_pct(fp_rate)} |"
             )
         lines.append("")
 

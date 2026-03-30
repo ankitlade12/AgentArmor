@@ -21,11 +21,14 @@ from .modules.code_shield import CodeShieldModule
 from .modules.grounding import GroundingGuardModule
 from .modules.cot_auditor import CoTAuditorModule
 from .modules.toxicity import ToxicityModule
+from .modules.unicode_shield import UnicodeShieldModule
+from .modules.hitl_gate import HITLGateModule
 from .modules.exfiltration_guard import ExfiltrationGuardModule
 from .modules.privilege_escalation import PrivilegeEscalationModule
+from .modules.compliance_reporter import ComplianceReporterModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, exfiltration_guard=None, privilege_escalation=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -159,6 +162,20 @@ class ArmorCore:
             if "toxicity" in self.modules:
                 self.registry.register_after_response(self.modules["toxicity"].post_filter)
                 self.registry.register_on_stream_chunk(self.modules["toxicity"].stream_filter)
+        if unicode_shield is not False and unicode_shield is not None:
+            if isinstance(unicode_shield, dict):
+                self.modules["unicode_shield"] = UnicodeShieldModule(**unicode_shield)
+            elif isinstance(unicode_shield, bool) and unicode_shield:
+                self.modules["unicode_shield"] = UnicodeShieldModule()
+            if "unicode_shield" in self.modules:
+                self.registry.register_before_request(self.modules["unicode_shield"].pre_check)
+        if hitl_gate is not False and hitl_gate is not None:
+            if isinstance(hitl_gate, dict):
+                self.modules["hitl_gate"] = HITLGateModule(**hitl_gate)
+            elif isinstance(hitl_gate, bool) and hitl_gate:
+                self.modules["hitl_gate"] = HITLGateModule()
+            if "hitl_gate" in self.modules:
+                self.registry.register_after_response(self.modules["hitl_gate"].post_filter)
         if exfiltration_guard is not False and exfiltration_guard is not None:
             if isinstance(exfiltration_guard, dict):
                 self.modules["exfiltration_guard"] = ExfiltrationGuardModule(**exfiltration_guard)
@@ -174,6 +191,13 @@ class ArmorCore:
                 self.modules["privilege_escalation"] = PrivilegeEscalationModule()
             if "privilege_escalation" in self.modules:
                 self.registry.register_after_response(self.modules["privilege_escalation"].post_filter)
+        if compliance is not False and compliance is not None:
+            if isinstance(compliance, dict):
+                self.modules["compliance"] = ComplianceReporterModule(**compliance)
+            elif isinstance(compliance, bool) and compliance:
+                self.modules["compliance"] = ComplianceReporterModule()
+            if "compliance" in self.modules:
+                self.registry.register_after_response(self.modules["compliance"].post_record)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
@@ -198,11 +222,15 @@ class ArmorCore:
             pass
 
         try:
-            from google.generativeai import GenerativeModel
-            self._originals["gemini_sync"] = GenerativeModel.generate_content
-            GenerativeModel.generate_content = self._wrap_gemini_sync(self._originals["gemini_sync"])
-            self._originals["gemini_async"] = GenerativeModel.generate_content_async
-            GenerativeModel.generate_content_async = self._wrap_gemini_async(self._originals["gemini_async"])
+            import google.genai as genai
+            self._originals["genai_sync"] = genai.models.Models.generate_content
+            genai.models.Models.generate_content = self._wrap_genai_sync(self._originals["genai_sync"], is_stream=False)
+            self._originals["genai_stream"] = genai.models.Models.generate_content_stream
+            genai.models.Models.generate_content_stream = self._wrap_genai_sync(self._originals["genai_stream"], is_stream=True)
+            self._originals["genai_async"] = genai.models.AsyncModels.generate_content
+            genai.models.AsyncModels.generate_content = self._wrap_genai_async(self._originals["genai_async"], is_stream=False)
+            self._originals["genai_async_stream"] = genai.models.AsyncModels.generate_content_stream
+            genai.models.AsyncModels.generate_content_stream = self._wrap_genai_async(self._originals["genai_async_stream"], is_stream=True)
         except ImportError:
             pass
 
@@ -227,11 +255,15 @@ class ArmorCore:
             pass
 
         try:
-            from google.generativeai import GenerativeModel
-            if "gemini_sync" in self._originals:
-                GenerativeModel.generate_content = self._originals["gemini_sync"]
-            if "gemini_async" in self._originals:
-                GenerativeModel.generate_content_async = self._originals["gemini_async"]
+            import google.genai as genai
+            if "genai_sync" in self._originals:
+                genai.models.Models.generate_content = self._originals["genai_sync"]
+            if "genai_stream" in self._originals:
+                genai.models.Models.generate_content_stream = self._originals["genai_stream"]
+            if "genai_async" in self._originals:
+                genai.models.AsyncModels.generate_content = self._originals["genai_async"]
+            if "genai_async_stream" in self._originals:
+                genai.models.AsyncModels.generate_content_stream = self._originals["genai_async_stream"]
         except ImportError:
             pass
 
@@ -320,32 +352,19 @@ class ArmorCore:
             return [contents]
         return [{"role": "user", "parts": [{"text": str(contents)}]}]
 
-    def _gemini_get_model_name(self, model_instance: Any) -> str:
-        """Extract model name from a GenerativeModel instance."""
-        for attr in ("model_name", "_model_name"):
-            name = getattr(model_instance, attr, None)
-            if name:
-                # Strip 'models/' prefix if present
-                return name.replace("models/", "") if name.startswith("models/") else name
-        return "unknown"
-
-    def _wrap_gemini_sync(self, original_fn: Callable):
+    def _wrap_genai_sync(self, original_fn: Callable, is_stream: bool):
         def wrapped(*args, **kwargs):
-            # args[0] is the GenerativeModel instance (self)
-            model_instance = args[0] if args else None
-            model_name = self._gemini_get_model_name(model_instance) if model_instance else "unknown"
-
-            # contents is the first positional arg after self, or a kwarg
-            contents = args[1] if len(args) > 1 else kwargs.get("contents", None)
+            model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
+            contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
+            config = args[3] if len(args) > 3 else kwargs.get("config", None)
             messages = self._gemini_contents_to_messages(contents)
-            stream = kwargs.get("stream", False)
 
             ctx = RequestContext(
                 messages=messages,
                 model=model_name,
-                temperature=kwargs.get("generation_config", {}).get("temperature") if isinstance(kwargs.get("generation_config"), dict) else None,
-                max_tokens=kwargs.get("generation_config", {}).get("max_output_tokens") if isinstance(kwargs.get("generation_config"), dict) else None,
-                stream=stream,
+                temperature=getattr(config, 'temperature', None) if config else None,
+                max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
+                stream=is_stream,
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
@@ -354,28 +373,26 @@ class ArmorCore:
             response = original_fn(*args, **kwargs)
             latency_ms = (time.perf_counter() - t0) * 1000
 
-            if ctx.stream:
+            if is_stream:
                 return self._handle_stream_sync(response, "gemini", ctx, latency_ms)
 
             return self._handle_non_stream(response, "gemini", ctx, latency_ms)
 
         return wrapped
 
-    def _wrap_gemini_async(self, original_fn: Callable):
+    def _wrap_genai_async(self, original_fn: Callable, is_stream: bool):
         async def wrapped(*args, **kwargs):
-            model_instance = args[0] if args else None
-            model_name = self._gemini_get_model_name(model_instance) if model_instance else "unknown"
-
-            contents = args[1] if len(args) > 1 else kwargs.get("contents", None)
+            model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
+            contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
+            config = args[3] if len(args) > 3 else kwargs.get("config", None)
             messages = self._gemini_contents_to_messages(contents)
-            stream = kwargs.get("stream", False)
 
             ctx = RequestContext(
                 messages=messages,
                 model=model_name,
-                temperature=kwargs.get("generation_config", {}).get("temperature") if isinstance(kwargs.get("generation_config"), dict) else None,
-                max_tokens=kwargs.get("generation_config", {}).get("max_output_tokens") if isinstance(kwargs.get("generation_config"), dict) else None,
-                stream=stream,
+                temperature=getattr(config, 'temperature', None) if config else None,
+                max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
+                stream=is_stream,
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
@@ -384,7 +401,7 @@ class ArmorCore:
             response = await original_fn(*args, **kwargs)
             latency_ms = (time.perf_counter() - t0) * 1000
 
-            if ctx.stream:
+            if is_stream:
                 return self._handle_stream_async(response, "gemini", ctx, latency_ms)
 
             return self._handle_non_stream(response, "gemini", ctx, latency_ms)
