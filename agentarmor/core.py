@@ -25,9 +25,10 @@ from .modules.unicode_shield import UnicodeShieldModule
 from .modules.hitl_gate import HITLGateModule
 from .modules.exfiltration_guard import ExfiltrationGuardModule
 from .modules.privilege_escalation import PrivilegeEscalationModule
+from .modules.compliance_reporter import ComplianceReporterModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -190,7 +191,13 @@ class ArmorCore:
                 self.modules["privilege_escalation"] = PrivilegeEscalationModule()
             if "privilege_escalation" in self.modules:
                 self.registry.register_after_response(self.modules["privilege_escalation"].post_filter)
-
+        if compliance is not False and compliance is not None:
+            if isinstance(compliance, dict):
+                self.modules["compliance"] = ComplianceReporterModule(**compliance)
+            elif isinstance(compliance, bool) and compliance:
+                self.modules["compliance"] = ComplianceReporterModule()
+            if "compliance" in self.modules:
+                self.registry.register_after_response(self.modules["compliance"].post_record)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
