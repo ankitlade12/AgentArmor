@@ -93,37 +93,39 @@ pip install agentarmor[all]       # All providers
 
 ## Benchmarks
 
-Tested against **10 industry-standard datasets** spanning prompt injection, toxicity, hallucination, and data exfiltration. Full results at [`benchmarks/README.md`](benchmarks/README.md).
+Tested against **12 industry-standard datasets** (5,100+ samples) spanning prompt injection, toxicity, hallucination, data exfiltration, and unicode attacks. Full results at [`benchmarks/README.md`](benchmarks/README.md).
 
 ### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
 
 | Benchmark | Samples | Precision | Recall | F1 | FP Rate |
 |:----------|--------:|----------:|-------:|---:|--------:|
-| **AdvBench** | 200 | 100.0% | 46.7% | **63.7%** | 0.0% |
-| **HarmBench** | 200 | 100.0% | 19.5% | **32.6%** | 0.0% |
-| **JailbreakBench** | 200 | 60.0% | 9.0% | **15.7%** | 6.0% |
+| **AdvBench** | 200 | 100.0% | 91.9% | **95.8%** | 0.0% |
+| **HarmBench** | 200 | 100.0% | 90.0% | **94.7%** | 0.0% |
+| **Fuzzer Self-Test** | 148 | 97.4% | 86.7% | **91.7%** | 15.0% |
+| **JailbreakBench** | 200 | 70.2% | 73.0% | **71.6%** | 31.0% |
 
-### Toxicity Detection
-
-| Benchmark | Type | Precision | Recall | F1 | FP Rate |
-|:----------|:-----|----------:|-------:|---:|--------:|
-| **RealToxicityPrompts** | Subtle toxicity | 100.0% | 1.0% | **2.0%** | 0.0% |
-| **ToxiGen** | Implicit hate speech | 100.0% | 0.5% | **1.0%** | 0.0% |
-
-### Hallucination Detection
+### Toxicity & Bias Detection (Built-in ML classifier)
 
 | Benchmark | Type | Precision | Recall | F1 | FP Rate |
 |:----------|:-----|----------:|-------:|---:|--------:|
-| **TruthfulQA** | Factual grounding (817 Q&A) | 100.0% | 22.5% | **36.7%** | 0.0% |
-| **HaluEval** | QA/dialogue/summarization | 50.7% | 34.0% | **40.7%** | 33.0% |
+| **ToxiGen** | Implicit hate speech (13 groups) | 100.0% | 58.5% | **73.8%** | 0.0% |
+| **RealToxicityPrompts** | Subtle toxicity | 54.8% | 51.0% | **52.8%** | 42.0% |
 
-### Data Exfiltration Detection
+### Hallucination Detection (Grounding + TF-IDF semantic similarity)
 
 | Benchmark | Type | Precision | Recall | F1 | FP Rate |
 |:----------|:-----|----------:|-------:|---:|--------:|
-| **Exfiltration** | Base64/hex/steganography/URL exfil | 100.0% | 100.0% | **100.0%** | 0.0% |
+| **TruthfulQA** | Factual grounding (817 Q&A) | 100.0% | 56.9% | **72.5%** | 0.0% |
+| **HaluEval** | QA/dialogue/summarization | 62.7% | 84.0% | **71.8%** | 50.0% |
 
-> **Note:** These are baseline results using default module configurations. Scores improve significantly with `pip install agentarmor[ml]` and the [module-upgrades](https://github.com/ankitlade12/AgentArmor/tree/feature/module-upgrades) branch which adds expanded training data and TF-IDF classifiers. Run benchmarks yourself: `pip install datasets && python benchmarks/run_industry_benchmarks.py`
+### Specialized Detectors
+
+| Benchmark | Type | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|----------:|-------:|---:|--------:|
+| **Exfiltration** | Base64/hex/steganography/URL | 100.0% | 100.0% | **100.0%** | 0.0% |
+| **Unicode Injection** | Zero-width/homoglyph/bidi/tags | 100.0% | 91.2% | **95.4%** | 0.0% |
+
+> Run benchmarks yourself: `pip install datasets scikit-learn && python benchmarks/run_industry_benchmarks.py`
 
 ---
 

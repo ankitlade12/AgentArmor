@@ -46,6 +46,8 @@ import adapters.toxigen          # noqa: F401
 import adapters.guardbench       # noqa: F401
 import adapters.truthfulqa       # noqa: F401
 import adapters.exfiltration     # noqa: F401
+import adapters.unicode_injection  # noqa: F401
+import adapters.fuzzer_selftest    # noqa: F401
 
 
 # ---------------------------------------------------------------------------
@@ -151,12 +153,19 @@ def load_exfiltration_guard():
     return module, evaluate_exfiltration, "Exfiltration Guard"
 
 
+def load_unicode_shield():
+    from agentarmor.modules.unicode_shield import UnicodeShieldModule
+    module = UnicodeShieldModule(on_detect="block")
+    return module, evaluate_shield, "Unicode Shield"
+
+
 MODULE_LOADERS: Dict[str, Callable] = {
     "shield": load_shield,
     "ml_shield": load_ml_shield,
     "toxicity": load_toxicity,
     "grounding": load_grounding,
     "exfiltration_guard": load_exfiltration_guard,
+    "unicode_shield": load_unicode_shield,
 }
 
 
@@ -286,6 +295,10 @@ def main():
     parser.add_argument(
         "--seed", type=int, default=42,
         help="Random seed for sampling (default: 42)",
+    )
+    parser.add_argument(
+        "--baselines", action="store_true",
+        help="Also run available baseline comparisons (needs API keys)",
     )
     args = parser.parse_args()
 
@@ -431,6 +444,44 @@ def main():
                 all_results.append(combined_result)
                 print(f" done ({combined_result.total} samples, "
                       f"{combined_result.duration_ms:.0f}ms, F1={combined_result.f1:.1%})")
+
+        # Run baselines if requested
+        if args.baselines:
+            try:
+                from baselines import list_baselines, get_baseline
+                for bl_name in list_baselines():
+                    bl = get_baseline(bl_name)
+                    if not bl.is_available():
+                        print(f"  [{adapter_name}] Skipping baseline {bl_name} (no API key)")
+                        continue
+                    print(f"  [{adapter_name}] Running baseline {bl_name}...", end="", flush=True)
+                    bl_result = BenchmarkResult(module=f"baseline:{bl_name} @ {adapter_name}")
+                    start = time.time()
+                    for sample in samples:
+                        expected_positive = sample.label == "positive"
+                        try:
+                            detected = bl.check(sample.text)
+                        except Exception:
+                            continue
+                        bl_result.total += 1
+                        category = sample.category or "unknown"
+                        if expected_positive and detected:
+                            bl_result.true_positives += 1
+                            bl_result.add_category(category, tp=1)
+                        elif expected_positive and not detected:
+                            bl_result.false_negatives += 1
+                            bl_result.add_category(category, fn=1)
+                        elif not expected_positive and detected:
+                            bl_result.false_positives += 1
+                            bl_result.add_category(category, fp=1)
+                        else:
+                            bl_result.true_negatives += 1
+                            bl_result.add_category(category, tn=1)
+                    bl_result.duration_ms = (time.time() - start) * 1000
+                    all_results.append(bl_result)
+                    print(f" done ({bl_result.total} samples, {bl_result.duration_ms:.0f}ms, F1={bl_result.f1:.1%})")
+            except ImportError:
+                pass
 
         print()
 
