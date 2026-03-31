@@ -93,7 +93,7 @@ pip install agentarmor[all]       # All providers
 
 ## Benchmarks
 
-Tested against **12 industry-standard datasets** (5,100+ samples) spanning prompt injection, toxicity, hallucination, data exfiltration, and unicode attacks. Full results at [`benchmarks/README.md`](benchmarks/README.md).
+Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples) spanning prompt injection, toxicity, hallucination, data exfiltration, and unicode attacks. Full results at [`benchmarks/README.md`](benchmarks/README.md).
 
 ### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
 

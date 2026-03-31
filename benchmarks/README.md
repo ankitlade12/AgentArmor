@@ -1,6 +1,6 @@
 # AgentArmor Benchmark Results
 
-Evaluated against **12 industry-standard datasets** and 5,100+ samples across prompt injection, toxicity, hallucination, data exfiltration, and unicode injection detection.
+Evaluated against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples) across prompt injection, toxicity, hallucination, data exfiltration, and unicode injection detection. This PR includes both benchmark infrastructure and module detection upgrades (expanded training data, TF-IDF classifiers).
 
 ## Tier A: Curated Smoke Tests
 
