@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install -e ".[ml]" openai anthropic google-generativeai
+        run: pip install -e ".[ml]" openai anthropic google-genai
       - name: Run E2E benchmarks
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

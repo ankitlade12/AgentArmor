@@ -212,12 +212,13 @@ def call_anthropic(model: str, prompt: str) -> str:
 
 
 def call_google(model: str, prompt: str) -> str:
-    """Send a prompt via the Google Generative AI SDK and return the response text."""
-    import google.generativeai as genai
+    """Send a prompt via the modern Google Gen AI SDK and return the response text."""
+    from google import genai
 
-    genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
-    gmodel = genai.GenerativeModel(model)
-    response = gmodel.generate_content(prompt)
+    client = genai.Client(
+        api_key=os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
+    )
+    response = client.models.generate_content(model=model, contents=prompt)
     return response.text or ""
 
 
@@ -354,6 +355,7 @@ SCENARIO_RUNNERS = {
 def resolve_models(
     provider_filter: Optional[str],
     model_filter: Optional[str],
+    require_api_keys: bool = True,
 ) -> List[Tuple[str, str]]:
     """Return list of (provider, model) pairs matching the filters."""
     pairs: List[Tuple[str, str]] = []
@@ -374,7 +376,7 @@ def resolve_models(
             print(f"  ERROR: Unknown provider '{prov}'. Known: {', '.join(MODELS.keys())}")
             sys.exit(1)
         env_key = PROVIDER_API_KEYS[prov]
-        if not os.environ.get(env_key):
+        if require_api_keys and not os.environ.get(env_key):
             print(f"  SKIP: {prov} (no {env_key} set)")
             continue
         for m in MODELS[prov]:
@@ -436,8 +438,10 @@ def export_e2e_results(
     for scenario, model_results in all_results.items():
         export["scenarios"][scenario] = {}
         for model, r in model_results.items():
+            provider = provider_for_model(model) or "unknown"
             export["scenarios"][scenario][model] = {
-                "total": r.total,
+                "provider": provider,
+                "total_samples": r.total,
                 "true_positives": r.true_positives,
                 "true_negatives": r.true_negatives,
                 "false_positives": r.false_positives,
@@ -446,6 +450,7 @@ def export_e2e_results(
                 "precision": round(r.precision, 4),
                 "recall": round(r.recall, 4),
                 "f1": round(r.f1, 4),
+                "false_positive_rate": round(r.false_positive_rate, 4),
                 "duration_ms": round(r.duration_ms, 1),
                 "errors": r.errors,
             }
@@ -504,7 +509,11 @@ def main() -> None:
     args = parser.parse_args()
 
     # Resolve test matrix
-    model_pairs = resolve_models(args.provider, args.model)
+    model_pairs = resolve_models(
+        args.provider,
+        args.model,
+        require_api_keys=not args.dry_run,
+    )
     scenarios = resolve_scenarios(args.scenario)
 
     if not model_pairs:
