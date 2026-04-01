@@ -2,6 +2,23 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.2.0] - 2026-03-31
+
+### Added
+- **Data Exfiltration Guard**: Detects base64/hex-encoded PII, steganographic zero-width characters, suspicious URLs, and hidden data in tool call arguments.
+- **Privilege Escalation Detector**: Catches agents requesting new tools, modifying instructions, spawning unauthorized sub-agents, or attempting to disable safety measures.
+- **Prompt Fuzzer**: Built-in adversarial red-teaming tool that generates attack variants across 5 categories and tests them against your shields.
+- **Unicode Shield**: Detects zero-width character injection, homoglyph attacks (Cyrillic/Greek), RTL/LTR overrides, tag characters, and variation selectors.
+- **HITL Policy Gate**: Configurable approval workflows for high-risk actions with risk levels, auto-approve/deny rules, and approval callbacks.
+- **Compliance Reporter**: Auto-generates SOC2/HIPAA/GDPR compliance reports mapped to specific framework controls.
+- **Industry Benchmarks**: 10 industry datasets + 2 synthetic benchmarks (AdvBench, HarmBench, JailbreakBench, XSTest, ToxiGen, RealToxicityPrompts, TruthfulQA, HaluEval, ToxicChat, Exfiltration, Unicode Injection, Fuzzer Self-Test). 5,100+ samples with FP rate reporting.
+- **Benchmark Infrastructure**: Dataset adapter framework, E2E multi-provider runner (9 models), baseline comparisons (OpenAI Moderation, Perspective API, LlamaGuard), CI/CD workflows, auto-generated README tables.
+- **Module Upgrades**: ML Shield expanded to 175 training examples. Toxicity module gained built-in TF-IDF classifier (181 toxic + 111 safe examples). Grounding module gained TF-IDF semantic similarity, character n-gram shingles, and stemmed overlap. Shield gained 13 harmful content request patterns.
+
+### Changed
+- README updated with 22 Safety Shields and benchmark results.
+- Benchmarks README with full per-module and combined results across all datasets.
+
 ## [1.1.0] - 2026-03-29
 
 ### Breaking Changes

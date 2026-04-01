@@ -57,11 +57,26 @@ Shows integration with AutoGen's conversational agents. A `UserProxyAgent` asks 
 python examples/autogen_example.py
 ```
 
+### `gemini_example.py`
+Demonstrates AgentArmor with Google Gemini using the modern `google-genai` SDK. Shows budget tracking and shield protection working seamlessly with Gemini models.
+
+```bash
+export GEMINI_API_KEY="..."
+python examples/gemini_example.py
+```
+
 ### `hooks_example.py`
-A deep dive into the V1.0 Middleware/Hooks system. It registers custom `@before_request`, `@after_response`, and `@on_stream_chunk` decorators to invisibly inject context into prompts, log external analytics, and censor profanity during real-time streaming.
+A deep dive into the Middleware/Hooks system. It registers custom `@before_request`, `@after_response`, and `@on_stream_chunk` decorators to invisibly inject context into prompts, log external analytics, and censor profanity during real-time streaming.
 
 ```bash
 python examples/hooks_example.py
+```
+
+### `hitl_example.py`
+Demonstrates the Human-in-the-Loop Policy Gate. Shows how to configure risk levels, approval callbacks, and auto-approve/deny rules for tool calls. Includes examples of blocking dangerous actions and auto-approving safe ones.
+
+```bash
+python examples/hitl_example.py
 ```
 
 ### `compliance_example.py`

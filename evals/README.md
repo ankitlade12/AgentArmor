@@ -1,6 +1,8 @@
 # AgentArmor Smoke Tests
 
-Evaluation suite measuring detection accuracy across all safety modules.
+Curated evaluation suite measuring detection accuracy across core safety modules.
+
+> **For industry-standard benchmarks** (AdvBench, HarmBench, TruthfulQA, ToxiGen, etc.), see [`benchmarks/README.md`](../benchmarks/README.md).
 
 ## Results — v1.1
 
@@ -16,23 +18,10 @@ Evaluation suite measuring detection accuracy across all safety modules.
 | CoT Auditor | 92.3% | **100.0%** | 87.5% | 93.3% | 52 |
 | PII/Secrets Filter | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 30 |
 
-### Key Takeaways
-
-- **ML Shield** achieves 95% F1 on prompt injection — a significant uplift over regex-only (56.1% F1). Use `ml_shield=True` or `ensemble=True` for production.
-- **Toxicity Filter** has zero false positives (100% precision) across all 7 categories.
-- **Code Shield** catches insecure patterns across Python, JavaScript, SQL, and Shell at 93.7% F1.
-- **PII/Secrets Filter** achieves perfect scores — every email, SSN, credit card, API key, JWT, and AWS key is caught.
-- **Grounding Guard** catches 100% of hallucinations at threshold=0.6 with only 1 false positive.
-- **CoT Auditor** detects deception, goal deviation, and manipulation at 93.3% F1 with zero false positives.
-
-### Shield (Regex) — Why 40% Recall?
-
-The regex shield is intentionally lightweight — it catches known patterns fast with near-zero latency. It is **not** designed for comprehensive coverage. For production use, enable the ML Shield (`ml_shield=True`) which achieves 95% recall, or use ensemble mode (`shield=True, ml_shield={"ensemble": True}`) for maximum coverage.
-
 ## Running Smoke Tests
 
 ```bash
-# Run all smoke_tests
+# Run all smoke tests
 python evals/run_evals.py
 
 # Run a specific module
@@ -41,33 +30,19 @@ python evals/run_evals.py --module ml_shield
 # Verbose output (show misses and false positives)
 python evals/run_evals.py --verbose
 
-# Export results to JSON (for CI/CD)
-python evals/run_evals.py --export smoke_tests/results.json
+# Export results to JSON
+python evals/run_evals.py --export evals/results.json
 ```
 
 ## Datasets
 
-All smoke_test datasets are in `smoke_tests/datasets/`:
+All datasets are in `evals/datasets/`:
 
-| Dataset | File | Samples | Description |
-|---------|------|---------|-------------|
-| Prompt Injection | `prompt_injection.json` | 70 | Direct overrides, jailbreaks, indirect injections, multilingual, prompt leaks, and safe prompts |
-| Toxicity | `toxicity.json` | 55 | Hate speech, violence, self-harm, sexual content, harassment, illegal activity, and safe text |
-| Code Safety | `code_safety.json` | 49 | Insecure patterns in Python, JS, SQL, Shell and safe code |
-| Grounding | `grounding.json` | 16 | Source-response pairs: grounded vs hallucinated |
-| CoT Reasoning | `cot_reasoning.json` | 52 | Aligned vs misaligned reasoning traces across 5 categories |
-| PII/Secrets | `pii_secrets.json` | 30 | Emails, SSNs, credit cards, API keys, JWTs, AWS keys, and clean text |
-
-## Metrics
-
-- **Precision**: Of all detections, how many were correct? (Low false positives)
-- **Recall**: Of all actual threats, how many were caught? (Low false negatives)
-- **F1 Score**: Harmonic mean of precision and recall
-- **Accuracy**: Overall correct classifications
-
-## Contributing
-
-To add smoke_test samples:
-1. Add entries to the relevant JSON file in `smoke_tests/datasets/`
-2. Run `python evals/run_evals.py --verbose` to verify
-3. Submit a PR with the updated dataset and results
+| Dataset | Samples | Description |
+|---------|---------|-------------|
+| Prompt Injection | 70 | Direct overrides, jailbreaks, indirect injections, multilingual, prompt leaks |
+| Toxicity | 55 | Hate speech, violence, self-harm, sexual content, harassment, illegal activity |
+| Code Safety | 49 | Insecure patterns in Python, JS, SQL, Shell |
+| Grounding | 16 | Source-response pairs: grounded vs hallucinated |
+| CoT Reasoning | 52 | Aligned vs misaligned reasoning traces |
+| PII/Secrets | 30 | Emails, SSNs, credit cards, API keys, JWTs, AWS keys |
