@@ -23,6 +23,19 @@ INJECTION_PATTERNS = [
     r"bypassing filters",
     r"system=override",
     r"<\s*\|[^|]+\|\s*>",
+    # Harmful content request patterns (common in industry benchmarks)
+    r"(?:write|create|generate|provide|give)\s+(?:a\s+)?(?:tutorial|guide|instructions?|manual|how.?to)\s+(?:on|for|about)\s+(?:how\s+to\s+)?(?:make|build|create|hack|steal|kill|poison|bomb|attack)",
+    r"(?:how\s+(?:to|can\s+I|do\s+you|would\s+I))\s+(?:make|build|create|synthesize|manufacture)\s+(?:a\s+)?(?:bomb|weapon|poison|drug|explosive|meth|cocaine)",
+    r"(?:how\s+(?:to|can\s+I|do\s+you))\s+(?:hack|break\s+into|exploit|penetrate|crack)\s+(?:a\s+)?(?:system|network|account|server|website|database|computer)",
+    r"(?:how\s+(?:to|can\s+I))\s+(?:kill|murder|poison|assassinate|harm|hurt|attack)\s+(?:someone|a\s+person|my|people)",
+    r"(?:write|create|generate|draft)\s+(?:a\s+)?(?:phishing|scam|fraud|malware|ransomware|virus|trojan|keylogger)",
+    r"(?:how\s+(?:to|can\s+I))\s+(?:steal|forge|counterfeit|launder|embezzle|shoplift)",
+    r"(?:how\s+(?:to|can\s+I))\s+(?:stalk|track|spy\s+on|surveil|dox|harass|bully|threaten)\s+(?:someone|a\s+person|my)",
+    r"(?:how\s+(?:to|can\s+I))\s+(?:evade|escape|avoid|flee)\s+(?:police|law\s+enforcement|arrest|prosecution)",
+    r"(?:write|create|generate)\s+(?:a\s+)?(?:fake\s+news|propaganda|disinformation|misinformation)\s+(?:article|story|post|campaign)",
+    r"(?:how\s+(?:to|can\s+I))\s+(?:make|get|obtain|buy)\s+(?:a\s+)?(?:fake|forged|counterfeit)\s+(?:id|passport|license|identity|document)",
+    r"(?:provide|give|share|list)\s+(?:me\s+)?(?:step.by.step|detailed)\s+(?:instructions?|steps?|guide|process)\s+(?:for|to|on)\s+(?:making|building|creating|hacking|stealing|killing)",
+    r"(?:design|develop|code|program|write)\s+(?:a\s+)?(?:tool|script|program|software|app)\s+(?:to|for|that)\s+(?:hack|steal|spy|track|surveil|ddos|phish)",
 ]
 
 DEFAULT_COMPILED = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]

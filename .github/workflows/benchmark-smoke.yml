@@ -1,0 +1,36 @@
+name: Benchmark Smoke Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install AgentArmor
+        run: pip install -e ".[ml]"
+      - name: Run smoke tests
+        run: python benchmarks/run_benchmarks.py --export benchmarks/results/smoke_results.json
+      - name: Verify results
+        run: |
+          python -c "
+          import json
+          with open('benchmarks/results/smoke_results.json') as f:
+              data = json.load(f)
+          for module, metrics in data['modules'].items():
+              if metrics.get('errors'):
+                  continue
+              f1 = metrics['f1']
+              print(f'{module}: F1={f1:.3f}')
+              # Fail if any module drops below baseline
+              if f1 < 0.50:
+                  raise ValueError(f'{module} F1 score {f1:.3f} below minimum 0.50')
+          print('All modules pass minimum F1 threshold')
+          "

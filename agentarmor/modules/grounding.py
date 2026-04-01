@@ -1,8 +1,25 @@
 import re
+import threading
 from typing import Dict, List, Optional
 from collections import Counter
 from ..hooks import RequestContext, ResponseContext
 from ..exceptions import HallucinationDetected
+
+
+def _simple_stem(word: str) -> str:
+    """Simple suffix-stripping stemmer — no dependencies needed."""
+    word = word.lower()
+    # Common suffixes in order of length (longest first)
+    for suffix in ['ational', 'tional', 'encies', 'ances', 'ences', 'ments',
+                   'ating', 'ation', 'ators', 'iness', 'ously', 'ently',
+                   'ally', 'ment', 'ness', 'able', 'ible', 'ment', 'ence',
+                   'ance', 'ious', 'eous', 'ting', 'ated', 'ling', 'sion',
+                   'tion', 'ical', 'ally', 'ful', 'ous', 'ive', 'ing',
+                   'ism', 'ist', 'ity', 'ant', 'ent', 'ies', 'ize',
+                   'ise', 'fy', 'ly', 'ed', 'er', 'es', 'al', 'en', 's']:
+        if len(word) > len(suffix) + 2 and word.endswith(suffix):
+            return word[:-len(suffix)]
+    return word
 
 
 class GroundingGuardModule:
@@ -36,6 +53,9 @@ class GroundingGuardModule:
         self.hallucinations_detected = 0
         self.scores: List[float] = []
         self._session_sources: List[str] = []
+        # Lazy-initialized TF-IDF for semantic similarity
+        self._tfidf_available: Optional[bool] = None
+        self._tfidf_lock = threading.Lock()
 
     def pre_check(self, ctx: RequestContext) -> RequestContext:
         """Extract source documents from the request messages for grounding."""
@@ -85,28 +105,132 @@ class GroundingGuardModule:
         source_text = " ".join(sources).lower()
         response_lower = response.lower()
 
-        scores = []
+        scores = {}
 
-        # 1. N-gram overlap score
-        ngram_score = self._ngram_overlap(response_lower, source_text, n=3)
-        scores.append(ngram_score)
+        # Unigram overlap (most important for short answers)
+        scores["unigram"] = self._ngram_overlap(response_lower, source_text, n=1)
+        # Trigram overlap (catches phrase-level grounding)
+        scores["trigram"] = self._ngram_overlap(response_lower, source_text, n=3)
+        # Jaccard similarity
+        scores["jaccard"] = self._jaccard_similarity(response_lower, source_text)
+        # Stemmed overlap (catches morphological variants)
+        scores["stemmed"] = self._stemmed_overlap(response_lower, source_text)
+        # Character shingle overlap (catches partial word matches)
+        scores["char_shingles"] = self._char_shingle_overlap(response_lower, source_text)
 
-        # 2. Key claim verification
+        # TF-IDF semantic similarity (highest signal if available)
+        tfidf_score = self._tfidf_similarity(response_lower, source_text)
+        if tfidf_score is not None:
+            scores["tfidf"] = tfidf_score
+
         if self.check_claims:
-            claim_score = self._verify_claims(response, sources)
-            scores.append(claim_score)
-
-        # 3. Number verification
+            scores["claims"] = self._verify_claims(response, sources)
         if self.check_numbers:
-            number_score = self._verify_numbers(response, source_text)
-            scores.append(number_score)
-
-        # 4. Named entity / proper noun verification
+            scores["numbers"] = self._verify_numbers(response, source_text)
         if self.check_names:
-            name_score = self._verify_names(response, source_text)
-            scores.append(name_score)
+            scores["names"] = self._verify_names(response, source_text)
 
-        return sum(scores) / len(scores) if scores else 1.0
+        # Weighted average — TF-IDF gets highest weight when available
+        if "tfidf" in scores:
+            weights = {
+                "tfidf": 0.35,
+                "unigram": 0.05, "trigram": 0.10, "jaccard": 0.02,
+                "stemmed": 0.03, "char_shingles": 0.05,
+                "claims": 0.20, "numbers": 0.10, "names": 0.10,
+            }
+        else:
+            weights = {
+                "unigram": 0.10, "trigram": 0.20, "jaccard": 0.05,
+                "stemmed": 0.05, "char_shingles": 0.15,
+                "claims": 0.25, "numbers": 0.10, "names": 0.10,
+            }
+
+        total_weight = sum(weights.get(k, 0.1) for k in scores)
+        weighted_sum = sum(scores[k] * weights.get(k, 0.1) for k in scores)
+        return weighted_sum / total_weight if total_weight > 0 else 1.0
+
+    def _tfidf_similarity(self, response: str, source: str) -> Optional[float]:
+        """TF-IDF cosine similarity — semantic document-level grounding.
+
+        Computes how similar the response is to the source as whole documents,
+        not just individual word overlap. Uses scikit-learn if available.
+        Returns None if scikit-learn is not installed (graceful degradation).
+        """
+        if self._tfidf_available is False:
+            return None
+
+        with self._tfidf_lock:
+            if self._tfidf_available is None:
+                try:
+                    from sklearn.feature_extraction.text import TfidfVectorizer
+                    from sklearn.metrics.pairwise import cosine_similarity
+                    self._tfidf_available = True
+                except ImportError:
+                    self._tfidf_available = False
+                    return None
+
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.metrics.pairwise import cosine_similarity
+
+            if not response.strip() or not source.strip():
+                return 1.0
+
+            vectorizer = TfidfVectorizer(
+                ngram_range=(1, 2),
+                max_features=3000,
+                sublinear_tf=True,
+                stop_words='english',
+            )
+            tfidf_matrix = vectorizer.fit_transform([source, response])
+            sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+            return float(sim)
+        except Exception:
+            return None
+
+    def _char_shingle_overlap(self, response: str, source: str, k: int = 4) -> float:
+        """Character k-gram (shingle) overlap — catches partial word matches."""
+        resp_lower = response.lower()
+        src_lower = source.lower()
+        if len(resp_lower) < k:
+            return 1.0
+        resp_shingles = set(resp_lower[i:i+k] for i in range(len(resp_lower) - k + 1))
+        src_shingles = set(src_lower[i:i+k] for i in range(len(src_lower) - k + 1))
+        if not resp_shingles:
+            return 1.0
+        overlap = resp_shingles & src_shingles
+        return len(overlap) / len(resp_shingles)
+
+    def _stemmed_overlap(self, response: str, source: str) -> float:
+        """Stemmed word overlap — catches 'created'/'creation', 'American'/'America'."""
+        stop = {"the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+                "have", "has", "had", "do", "does", "did", "will", "would", "could",
+                "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+                "on", "with", "at", "by", "from", "as", "into", "it", "its", "this",
+                "that", "and", "or", "but", "not", "no", "yes"}
+        resp_words = set(re.findall(r'\b\w+\b', response.lower())) - stop
+        src_words = set(re.findall(r'\b\w+\b', source.lower())) - stop
+        if not resp_words:
+            return 1.0
+        resp_stems = set(_simple_stem(w) for w in resp_words)
+        src_stems = set(_simple_stem(w) for w in src_words)
+        matched = resp_stems & src_stems
+        return len(matched) / len(resp_stems) if resp_stems else 1.0
+
+    def _jaccard_similarity(self, response: str, source: str) -> float:
+        """Word-level Jaccard similarity between response and source."""
+        stop = {"the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+                "have", "has", "had", "do", "does", "did", "will", "would", "could",
+                "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+                "on", "with", "at", "by", "from", "as", "into", "it", "its", "this",
+                "that", "and", "or", "but", "not", "no", "yes", "is", "the"}
+        resp_words = set(re.findall(r'\b\w+\b', response.lower())) - stop
+        src_words = set(re.findall(r'\b\w+\b', source.lower())) - stop
+        if not resp_words:
+            return 1.0
+        intersection = resp_words & src_words
+        union = resp_words | src_words
+        return len(intersection) / len(union) if union else 1.0
 
     def _ngram_overlap(self, response: str, source: str, n: int = 3) -> float:
         """Calculate n-gram overlap between response and source."""
