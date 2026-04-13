@@ -223,6 +223,7 @@ class ArmorCore:
             elif isinstance(honeytools, bool) and honeytools:
                 self.modules["honeytools"] = HoneytoolsModule()
             if "honeytools" in self.modules:
+                self.registry.register_before_request(self.modules["honeytools"].pre_check)
                 self.registry.register_after_response(self.modules["honeytools"].post_filter)
 
     def patch(self) -> None:

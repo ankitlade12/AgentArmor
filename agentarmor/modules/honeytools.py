@@ -168,6 +168,33 @@ class HoneytoolsModule:
     # Hook
     # ------------------------------------------------------------------
 
+    def pre_check(self, ctx) -> Any:
+        """Before-request hook: inject honeytool definitions into the tools list.
+
+        When the request includes a 'tools' parameter (OpenAI/Anthropic format),
+        appends honeytool definitions so the model sees them as available tools.
+        A compromised model will attempt to call them, triggering detection.
+        """
+        tools = ctx.extra_kwargs.get("tools")
+        if tools is not None and isinstance(tools, list):
+            existing_names = set()
+            for t in tools:
+                if isinstance(t, dict):
+                    fn = t.get("function", {})
+                    existing_names.add(fn.get("name", ""))
+
+            for ht in self._honeytools.values():
+                if ht["name"] not in existing_names:
+                    tools.append({
+                        "type": "function",
+                        "function": {
+                            "name": ht["name"],
+                            "description": ht.get("description", ""),
+                            "parameters": {"type": "object", "properties": {}},
+                        },
+                    })
+        return ctx
+
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:
         """After-response hook: scan for honeytool usage and honeytoken leaks."""
         with self._lock:

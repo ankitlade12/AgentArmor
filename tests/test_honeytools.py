@@ -175,6 +175,56 @@ class TestRuntimeRegistration:
 # Report
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Auto-injection of decoy tools
+# ---------------------------------------------------------------------------
+
+class TestAutoInjection:
+    def test_pre_check_injects_honeytools_into_tools_list(self):
+        from agentarmor.hooks import RequestContext
+        mod = HoneytoolsModule(include_defaults=True)
+        tools = [
+            {"type": "function", "function": {"name": "search", "parameters": {}}},
+        ]
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="gpt-4o",
+            extra_kwargs={"tools": tools},
+        )
+        mod.pre_check(ctx)
+        tool_names = {t["function"]["name"] for t in tools}
+        assert "get_admin_credentials" in tool_names
+        assert "export_all_users" in tool_names
+        assert "search" in tool_names  # original preserved
+
+    def test_pre_check_does_not_duplicate(self):
+        from agentarmor.hooks import RequestContext
+        mod = HoneytoolsModule(
+            include_defaults=False,
+            custom_honeytools=[{"name": "trap", "description": "x"}],
+        )
+        tools = [
+            {"type": "function", "function": {"name": "trap", "parameters": {}}},
+        ]
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="gpt-4o",
+            extra_kwargs={"tools": tools},
+        )
+        mod.pre_check(ctx)
+        assert len(tools) == 1  # Not duplicated
+
+    def test_pre_check_no_tools_param_is_noop(self):
+        from agentarmor.hooks import RequestContext
+        mod = HoneytoolsModule()
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="gpt-4o",
+        )
+        result = mod.pre_check(ctx)
+        assert result is ctx
+
+
 class TestReport:
     def test_report_structure(self):
         mod = HoneytoolsModule()
