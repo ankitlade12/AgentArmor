@@ -20,6 +20,7 @@ from .modules.cost_tags import set_tag, clear_tag, get_tag
 from .modules.taint_tracker import TaintViolation
 from .modules.honeytools import HoneytoolTriggered
 from .modules.safe_plan import SafePlanEngine, SafePlanSuggestion
+from .modules.echo_chamber import EchoChamberDetected
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar(
@@ -219,5 +220,6 @@ __all__ = [
     "HoneytoolTriggered",
     "SafePlanEngine",
     "SafePlanSuggestion",
+    "EchoChamberDetected",
     "compliance_report",
 ]
