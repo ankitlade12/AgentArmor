@@ -7,12 +7,10 @@ Verified SDK surfaces that AgentArmor intercepts at runtime.
 | Provider | SDK | Surface | Sync | Async | Streaming | Min Version | CI Tested |
 |----------|-----|---------|:----:|:-----:|:---------:|-------------|:---------:|
 | OpenAI | `openai` | `chat.completions.create` | Yes | Yes | Yes | `>=1.0.0` | Yes |
-| OpenAI | `openai` | `responses.create` | Yes | Yes | Yes | `>=1.66.0` | Pending* |
+| OpenAI | `openai` | `responses.create` | Yes | Yes | Yes | `>=1.66.0` | Yes |
 | Anthropic | `anthropic` | `messages.create` | Yes | Yes | Yes | `>=0.25.0` | Yes |
 | Google | `google-genai` | `models.generate_content` | Yes | Yes | Yes | `>=1.0.0` | Yes |
 | Google | `google-genai` | `models.generate_content_stream` | Yes | Yes | — | `>=1.0.0` | Yes |
-
-*Responses API patching is implemented and tested on `feature/openai-responses-api`. CI coverage on this branch will pass after that branch merges.
 
 ## Framework Compatibility
 
