@@ -131,6 +131,7 @@ class ArmorCore:
             elif isinstance(mcp_firewall, bool) and mcp_firewall:
                 self.modules["mcp_firewall"] = MCPFirewallModule()
             if "mcp_firewall" in self.modules:
+                self.registry.register_before_request(self.modules["mcp_firewall"].pre_check)
                 self.registry.register_after_response(self.modules["mcp_firewall"].post_filter)
         if code_shield is not False and code_shield is not None:
             if isinstance(code_shield, dict):

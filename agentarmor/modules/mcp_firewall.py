@@ -190,10 +190,38 @@ class MCPFirewallModule:
     # Hook
     # ------------------------------------------------------------------
 
+    def pre_check(self, ctx) -> Any:
+        """Before-request hook: scan tool_result messages for injection.
+
+        When validate_tool_results is enabled, scans the content of any
+        tool_result messages in the conversation for injection patterns.
+        This catches indirect prompt injection via poisoned tool outputs.
+        """
+        if not self.validate_tool_results:
+            return ctx
+        for msg in ctx.messages:
+            role = msg.get("role", "")
+            if role == "tool":
+                content = msg.get("content", "")
+                if isinstance(content, str) and content.strip():
+                    tool_id = msg.get("tool_call_id", "unknown")
+                    self.validate_tool_result(
+                        tool_name=tool_id, result_text=content,
+                    )
+        return ctx
+
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:
-        """After-response hook that inspects tool_use and mcp_tool_use blocks."""
+        """After-response hook: inspects tool_use and mcp_tool_use blocks.
+
+        Enforces: max tool calls, per-tool policies, server identity,
+        server auth (when server_name is present), and tool result
+        scanning on the response text.
+        """
         tool_calls = self._extract_tool_calls(ctx)
         if not tool_calls:
+            # Even without tool calls, scan response text for tool results
+            if self.validate_tool_results and ctx.text:
+                self.validate_tool_result("response_text", ctx.text)
             return ctx
 
         # Enforce max tool calls per request
@@ -207,6 +235,12 @@ class MCPFirewallModule:
             name = call_info["name"]
             arguments = call_info["arguments"]
             server = call_info.get("server_name")
+
+            # Server auth check (when server identity is available)
+            if server and self.server_auth:
+                auth_token = call_info.get("auth_token")
+                self.validate_server_auth(server, auth_token)
+
             self.validate_tool_call(name, arguments, server_name=server)
 
         return ctx
