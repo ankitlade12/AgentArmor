@@ -1,8 +1,27 @@
 import time
 import json
 import threading
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from typing import Optional, List, Dict, Any
 from ..hooks import ResponseContext
+
+
+def _get_version() -> str:
+    """Read version from installed package metadata, falling back to pyproject.toml."""
+    try:
+        return _pkg_version("agentarmor")
+    except PackageNotFoundError:
+        pass
+    # Fallback: read from pyproject.toml at repo root
+    try:
+        import pathlib
+        pyproject = pathlib.Path(__file__).resolve().parents[2] / "pyproject.toml"
+        for line in pyproject.read_text().splitlines():
+            if line.strip().startswith("version"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return "unknown"
 
 
 # Compliance framework control mappings
@@ -99,7 +118,7 @@ COMPLIANCE_CONTROLS = {
         },
         "Art.35": {
             "name": "Data Protection Impact Assessment",
-            "modules": ["grounding", "toxicity", "semantic_drift"],
+            "modules": ["grounding", "toxicity", "semantic_drift", "cot_auditor"],
             "description": "Assessment of impact of processing on data protection",
         },
     },
@@ -186,7 +205,7 @@ class ComplianceReporterModule:
                 "session_start": self.session_start,
                 "session_duration_seconds": time.time() - self.session_start,
                 "frameworks": frameworks_to_report,
-                "agentarmor_version": "1.1.0",
+                "agentarmor_version": _get_version(),
             },
             "summary": self._generate_summary(module_reports, framework_reports),
             "frameworks": framework_reports,

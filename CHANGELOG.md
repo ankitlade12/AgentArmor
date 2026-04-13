@@ -2,6 +2,20 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.3.0] - 2026-04-13
+
+### Added
+- **Semantic Drift Detector**: Embedding-based multi-turn conversation trajectory tracker. Catches slow-burn manipulation where each individual message looks safe but the cumulative drift is adversarial. Requires `pip install agentarmor[semantic_drift]` (sentence-transformers); base package stays lightweight.
+- **Pricing**: `register_pricing(model, input_cost, output_cost)` API for runtime pricing overrides or custom model entries.
+- **Pricing**: Added missing models — o3, o4-mini, claude-opus-4-6, claude-sonnet-4-6, gemini-2.5-pro, gemini-2.5-flash.
+
+### Fixed
+- **Compliance Reporter**: Version field now reads dynamically from package metadata instead of hardcoded `1.1.0`.
+- **Compliance Reporter**: GDPR Art.35 control mapping now includes `semantic_drift` alongside `grounding`, `toxicity`, and `cot_auditor`.
+
+### Changed
+- **Dependencies**: `google-genai` minimum bumped from `>=0.1.0` to `>=1.0.0` (stable 1.x API).
+
 ## [1.2.0] - 2026-03-31
 
 ### Added

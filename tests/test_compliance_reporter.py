@@ -156,6 +156,42 @@ class TestReport:
         assert report["requests_tracked"] == 0
 
 
+class TestVersionField:
+    def test_version_is_dynamic_not_hardcoded(self):
+        """Version in the report must track the installed package, not a frozen string."""
+        module = ComplianceReporterModule()
+        report = module.generate_report({})
+        version = report["report_metadata"]["agentarmor_version"]
+        assert version != "1.1.0", "version must no longer be hardcoded to 1.1.0"
+        assert version != "unknown"
+
+    def test_version_matches_package_metadata(self):
+        from importlib.metadata import version as pkg_version
+
+        module = ComplianceReporterModule()
+        report = module.generate_report({})
+        assert report["report_metadata"]["agentarmor_version"] == pkg_version("agentarmor")
+
+
+class TestGdprArt35Mapping:
+    def test_art35_includes_semantic_drift(self):
+        """semantic_drift is a real module post-1.3.0 and must appear in Art.35 controls."""
+        art35 = COMPLIANCE_CONTROLS["gdpr"]["Art.35"]
+        assert "semantic_drift" in art35["modules"]
+
+    def test_art35_covers_breadth_of_dpia_signals(self):
+        art35 = COMPLIANCE_CONTROLS["gdpr"]["Art.35"]
+        for expected in ("grounding", "toxicity", "semantic_drift", "cot_auditor"):
+            assert expected in art35["modules"], f"{expected} missing from Art.35"
+
+    def test_art35_coverage_counts_with_drift_enabled(self):
+        """Enabling the drift module must count toward Art.35 coverage."""
+        module = ComplianceReporterModule(frameworks=["gdpr"])
+        report = module.generate_report({"semantic_drift": {"turns_analyzed": 5}})
+        art35_entry = report["frameworks"]["gdpr"]["controls"]["Art.35"]
+        assert "semantic_drift" in art35_entry["active_modules"]
+
+
 class TestInitIntegration:
     def teardown_method(self):
         agentarmor.teardown()
