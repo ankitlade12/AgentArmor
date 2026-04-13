@@ -127,6 +127,10 @@ class TaintTrackerModule:
             if role == "user":
                 labels.add(TAINT_USER_INPUT)
 
+            # Tool result messages are automatically tainted as tool_output
+            if role == "tool":
+                labels.add(TAINT_TOOL_OUTPUT)
+
             # Only label as RAG if the message looks like retrieved context,
             # not every system message (which would over-taint normal prompts)
             if self.track_rag and self._looks_like_rag(content, role):

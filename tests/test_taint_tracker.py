@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import agentarmor
 from agentarmor.modules.taint_tracker import (
     TaintTrackerModule, TaintViolation, TaintedData,
-    TAINT_USER_INPUT, TAINT_PII, TAINT_RAG,
+    TAINT_USER_INPUT, TAINT_PII, TAINT_RAG, TAINT_TOOL_OUTPUT,
 )
 from agentarmor.hooks import RequestContext, ResponseContext
 
@@ -142,6 +142,15 @@ class TestPreCheck:
         ])
         mod.pre_check(ctx)
         assert TAINT_RAG in mod._tainted_strings[0].labels
+
+    def test_tool_result_auto_labeled(self):
+        mod = TaintTrackerModule()
+        ctx = _make_req_ctx([
+            {"role": "tool", "content": "Search result: Paris is the capital."},
+        ])
+        mod.pre_check(ctx)
+        assert len(mod._tainted_strings) == 1
+        assert TAINT_TOOL_OUTPUT in mod._tainted_strings[0].labels
 
 
 # ---------------------------------------------------------------------------
