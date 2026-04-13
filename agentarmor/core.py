@@ -444,6 +444,7 @@ class ArmorCore:
         def wrapped(*args, **kwargs):
             model = kwargs.get("model", "unknown")
             input_val = kwargs.get("input", "")
+            had_instructions = "instructions" in kwargs
             instructions = kwargs.get("instructions", None)
             messages = self._responses_input_to_messages(input_val, instructions)
 
@@ -454,7 +455,13 @@ class ArmorCore:
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
-            kwargs["input"] = self._messages_to_responses_input(ctx.messages)
+            # Round-trip: split messages back into instructions + input
+            new_instructions, new_input = self._split_responses_messages(
+                ctx.messages, had_instructions,
+            )
+            kwargs["input"] = new_input
+            if had_instructions:
+                kwargs["instructions"] = new_instructions
 
             t0 = time.perf_counter()
             response = original_fn(*args, **kwargs)
@@ -471,6 +478,7 @@ class ArmorCore:
         async def wrapped(*args, **kwargs):
             model = kwargs.get("model", "unknown")
             input_val = kwargs.get("input", "")
+            had_instructions = "instructions" in kwargs
             instructions = kwargs.get("instructions", None)
             messages = self._responses_input_to_messages(input_val, instructions)
 
@@ -481,7 +489,12 @@ class ArmorCore:
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
-            kwargs["input"] = self._messages_to_responses_input(ctx.messages)
+            new_instructions, new_input = self._split_responses_messages(
+                ctx.messages, had_instructions,
+            )
+            kwargs["input"] = new_input
+            if had_instructions:
+                kwargs["instructions"] = new_instructions
 
             t0 = time.perf_counter()
             response = await original_fn(*args, **kwargs)
@@ -524,10 +537,43 @@ class ArmorCore:
 
     @staticmethod
     def _messages_to_responses_input(messages: list) -> Any:
-        """Convert normalized messages back to Responses API input format."""
+        """Convert normalized messages back to Responses API input format.
+
+        Deprecated: use _split_responses_messages instead for proper
+        instructions round-tripping. Kept for backwards compatibility.
+        """
         if len(messages) == 1 and messages[0].get("role") == "user":
             return messages[0].get("content", "")
         return messages
+
+    @staticmethod
+    def _split_responses_messages(messages: list, had_instructions: bool) -> tuple:
+        """Split normalized messages back into (instructions, input).
+
+        If the original call had an ``instructions`` field, the first
+        system message is extracted back into instructions and the
+        remaining messages become the input. This prevents duplication
+        and ensures hook rewrites to the system message are reflected
+        in the actual ``instructions`` kwarg sent to the provider.
+
+        Returns (instructions_str_or_None, input_value).
+        """
+        instructions = None
+        input_msgs = list(messages)
+
+        if had_instructions and input_msgs:
+            # Extract the first system message as instructions
+            if input_msgs[0].get("role") == "system":
+                instructions = input_msgs[0].get("content", "")
+                input_msgs = input_msgs[1:]
+
+        # Convert remaining messages to simple format if possible
+        if len(input_msgs) == 1 and input_msgs[0].get("role") == "user":
+            input_val = input_msgs[0].get("content", "")
+        else:
+            input_val = input_msgs
+
+        return instructions, input_val
 
     def _handle_responses_non_stream(self, response: Any, req_ctx: RequestContext, latency_ms: float):
         output_text = self._extract_responses_output(response)

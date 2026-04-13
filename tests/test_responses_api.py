@@ -199,6 +199,75 @@ def test_responses_instructions_scanned_by_shield():
 
 
 @needs_responses
+def test_responses_instructions_round_trip():
+    """instructions must be written back to kwargs, not duplicated in input."""
+    from openai.resources.responses import Responses
+    from agentarmor.core import ArmorCore
+
+    # Test _split_responses_messages directly
+    messages = [
+        {"role": "system", "content": "You are a bot"},
+        {"role": "user", "content": "hello"},
+    ]
+    instructions, input_val = ArmorCore._split_responses_messages(messages, had_instructions=True)
+    assert instructions == "You are a bot"
+    assert input_val == "hello"  # single user message -> string
+
+    # Test that hook-modified system message is reflected in instructions
+    messages_modified = [
+        {"role": "system", "content": "MODIFIED INSTRUCTIONS"},
+        {"role": "user", "content": "hello"},
+    ]
+    instructions, input_val = ArmorCore._split_responses_messages(messages_modified, had_instructions=True)
+    assert instructions == "MODIFIED INSTRUCTIONS"
+
+    # Test that without instructions, no split happens
+    messages_no_sys = [
+        {"role": "user", "content": "hello"},
+    ]
+    instructions, input_val = ArmorCore._split_responses_messages(messages_no_sys, had_instructions=False)
+    assert instructions is None
+    assert input_val == "hello"
+
+    # End-to-end: verify kwargs are set correctly
+    captured_kwargs = {}
+    original_create = Responses.create
+
+    def spy_create(*args, **kwargs):
+        captured_kwargs.update(kwargs)
+        mock_content = MagicMock()
+        mock_content.type = "output_text"
+        mock_content.text = "ok"
+        mock_item = MagicMock()
+        mock_item.type = "message"
+        mock_item.content = [mock_content]
+        resp = MagicMock()
+        resp.output_text = "ok"
+        resp.output = [mock_item]
+        resp.usage = MagicMock(input_tokens=1, output_tokens=1)
+        return resp
+
+    Responses.create = spy_create
+    try:
+        core = agentarmor.init()
+
+        client = openai.OpenAI(api_key="mock")
+        client.responses.create(
+            model="gpt-4o",
+            input="hello",
+            instructions="You are a helpful bot",
+        )
+
+        # instructions should be written back, not duplicated in input
+        assert captured_kwargs["instructions"] == "You are a helpful bot"
+        # input should be just the user message, not a list with system + user
+        assert captured_kwargs["input"] == "hello"
+    finally:
+        agentarmor.teardown()
+        Responses.create = original_create
+
+
+@needs_responses
 def test_responses_output_text_rewritten():
     """output_text accessor must reflect filtered text, not original."""
     from openai.resources.responses import Responses
