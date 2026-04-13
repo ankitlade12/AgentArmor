@@ -142,6 +142,7 @@ class PrivilegeEscalationModule:
         names = []
         try:
             if provider == "openai":
+                # Chat Completions format
                 for choice in getattr(raw_response, 'choices', []):
                     msg = getattr(choice, 'message', None)
                     if msg:
@@ -149,6 +150,12 @@ class PrivilegeEscalationModule:
                             fn = getattr(tc, 'function', None)
                             if fn:
                                 names.append(getattr(fn, 'name', ''))
+                # Responses API format
+                for item in getattr(raw_response, 'output', []):
+                    if getattr(item, 'type', '') == 'function_call':
+                        name = getattr(item, 'name', '')
+                        if name:
+                            names.append(name)
             elif provider == "anthropic":
                 for block in getattr(raw_response, 'content', []):
                     if getattr(block, 'type', '') == 'tool_use':
