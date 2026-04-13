@@ -150,6 +150,21 @@ class ToolFirewallModule:
         except (AttributeError, IndexError, TypeError):
             pass
 
+        # OpenAI Responses API format: output[*] with type="function_call"
+        try:
+            output = getattr(raw, "output", None)
+            if isinstance(output, list):
+                raw.output = [
+                    item
+                    for item in output
+                    if not (
+                        getattr(item, "type", "") == "function_call"
+                        and getattr(item, "name", "").lower() in lower_set
+                    )
+                ]
+        except (AttributeError, TypeError):
+            pass
+
         # Anthropic format
         try:
             content = raw.content

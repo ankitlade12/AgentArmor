@@ -444,7 +444,8 @@ class ArmorCore:
         def wrapped(*args, **kwargs):
             model = kwargs.get("model", "unknown")
             input_val = kwargs.get("input", "")
-            messages = self._responses_input_to_messages(input_val)
+            instructions = kwargs.get("instructions", None)
+            messages = self._responses_input_to_messages(input_val, instructions)
 
             ctx = RequestContext(
                 messages=messages,
@@ -453,7 +454,6 @@ class ArmorCore:
                 extra_kwargs=kwargs,
             )
             ctx = self.registry.execute_before_request(ctx)
-            # Write back potentially modified messages
             kwargs["input"] = self._messages_to_responses_input(ctx.messages)
 
             t0 = time.perf_counter()
@@ -471,7 +471,8 @@ class ArmorCore:
         async def wrapped(*args, **kwargs):
             model = kwargs.get("model", "unknown")
             input_val = kwargs.get("input", "")
-            messages = self._responses_input_to_messages(input_val)
+            instructions = kwargs.get("instructions", None)
+            messages = self._responses_input_to_messages(input_val, instructions)
 
             ctx = RequestContext(
                 messages=messages,
@@ -494,12 +495,22 @@ class ArmorCore:
         return wrapped
 
     @staticmethod
-    def _responses_input_to_messages(input_val: Any) -> list:
-        """Convert Responses API input to normalized messages list."""
+    def _responses_input_to_messages(input_val: Any, instructions: Any = None) -> list:
+        """Convert Responses API input + instructions to normalized messages list.
+
+        The ``instructions`` field is the Responses API equivalent of a
+        system prompt. When present, it is prepended as a system message
+        so that before-request guardrails (shield, ml_shield, etc.) can
+        scan it for injection attempts.
+        """
+        messages = []
+        # Prepend instructions as system message so guardrails can scan it
+        if instructions and isinstance(instructions, str):
+            messages.append({"role": "system", "content": instructions})
+
         if isinstance(input_val, str):
-            return [{"role": "user", "content": input_val}]
-        if isinstance(input_val, list):
-            messages = []
+            messages.append({"role": "user", "content": input_val})
+        elif isinstance(input_val, list):
             for item in input_val:
                 if isinstance(item, str):
                     messages.append({"role": "user", "content": item})
@@ -507,8 +518,9 @@ class ArmorCore:
                     messages.append(item)
                 else:
                     messages.append({"role": "user", "content": str(item)})
-            return messages
-        return [{"role": "user", "content": str(input_val)}]
+        else:
+            messages.append({"role": "user", "content": str(input_val)})
+        return messages
 
     @staticmethod
     def _messages_to_responses_input(messages: list) -> Any:
