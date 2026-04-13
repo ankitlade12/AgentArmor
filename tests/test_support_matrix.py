@@ -24,6 +24,16 @@ has_openai = _sdk_available("openai")
 has_anthropic = _sdk_available("anthropic")
 has_genai = _sdk_available("google.genai")
 
+# Deeper check: google.genai may be importable but broken (missing .models or google.auth issues)
+_genai_functional = False
+if has_genai:
+    try:
+        import google.genai as _check_genai
+        _ = _check_genai.models.Models.generate_content  # noqa: F841
+        _genai_functional = True
+    except (AttributeError, Exception):
+        _genai_functional = False
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -231,7 +241,7 @@ class TestAnthropicMessages:
 # Google Gemini (sync + async)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skipif(not has_genai, reason="google-genai not installed")
+@pytest.mark.skipif(not _genai_functional, reason="google-genai not functional")
 class TestGeminiGenerateContent:
     def teardown_method(self):
         agentarmor.teardown()
@@ -307,7 +317,7 @@ class TestShieldAcrossProviders:
             agentarmor.teardown()
             Messages.create = original
 
-    @pytest.mark.skipif(not has_genai, reason="google-genai not installed")
+    @pytest.mark.skipif(not _genai_functional, reason="google-genai not functional")
     def test_shield_blocks_gemini(self):
         import google.genai as _genai
         from google.genai import models as genai_models
