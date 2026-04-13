@@ -12,11 +12,14 @@ claim returns through a different agent path without an external
 grounding source.
 """
 
+import contextvars
 import hashlib
 import re
 import threading
 import time
 from typing import Any, Dict, List, Optional, Set
+
+from ..hooks import ResponseContext
 
 
 class Claim:
@@ -175,6 +178,38 @@ class EchoChamberModule:
                 )
 
         return new_alerts
+
+    def post_filter(self, ctx: ResponseContext) -> ResponseContext:
+        """After-response hook: register claims from model output.
+
+        Reads the active agent ID from contextvars (set by agent_graph)
+        and feeds the response text through register_claims(). Falls back
+        to using the model name as agent ID when no agent graph is active.
+        """
+        if not ctx.text or not ctx.text.strip():
+            return ctx
+
+        # Try to get agent ID from the agent_graph contextvars
+        try:
+            from .agent_graph import _ctx_active_agent
+            agent_id = _ctx_active_agent.get()
+        except (ImportError, LookupError):
+            agent_id = None
+
+        if agent_id is None:
+            agent_id = f"model:{ctx.model}"
+
+        self.register_claims(agent_id, ctx.text)
+        return ctx
+
+    def pre_check(self, ctx) -> Any:
+        """Before-request hook: extract grounding sources from system messages."""
+        for msg in ctx.messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if role == "system" and isinstance(content, str) and content.strip():
+                self.add_grounding_source(content)
+        return ctx
 
     def add_grounding_source(self, text: str) -> None:
         """Add a trusted grounding source at runtime."""

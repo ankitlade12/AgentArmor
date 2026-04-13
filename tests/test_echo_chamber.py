@@ -170,6 +170,59 @@ class TestReport:
 # Alert structure
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Init integration
+# ---------------------------------------------------------------------------
+
+class TestInitIntegration:
+    def teardown_method(self):
+        import agentarmor
+        agentarmor.teardown()
+
+    def test_echo_chamber_in_modules(self):
+        import agentarmor
+        core = agentarmor.init(echo_chamber=True)
+        assert "echo_chamber" in core.modules
+
+    def test_echo_chamber_with_config(self):
+        import agentarmor
+        core = agentarmor.init(
+            echo_chamber={"on_echo": "warn", "min_claim_length": 50},
+        )
+        mod = core.modules["echo_chamber"]
+        assert mod.on_echo == "warn"
+        assert mod.min_claim_length == 50
+
+
+# ---------------------------------------------------------------------------
+# Post-filter hook
+# ---------------------------------------------------------------------------
+
+class TestPostFilterHook:
+    def test_post_filter_registers_claims(self):
+        from agentarmor.hooks import RequestContext, ResponseContext
+        mod = EchoChamberModule(on_echo="warn")
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="The quantum processor runs at 500 qubits per second.",
+            model="gpt-4o", provider="openai", request=req,
+        )
+        mod.post_filter(ctx)
+        assert mod.stats["claims_tracked"] == 1
+
+    def test_pre_check_extracts_grounding_from_system(self):
+        from agentarmor.hooks import RequestContext
+        mod = EchoChamberModule()
+        ctx = RequestContext(
+            messages=[
+                {"role": "system", "content": "The capital of France is Paris."},
+            ],
+            model="gpt-4o",
+        )
+        mod.pre_check(ctx)
+        assert len(mod.grounding_sources) == 1
+
+
 class TestAlertStructure:
     def test_alert_to_dict(self):
         claim = Claim("Test claim about something.", "agent_a")
