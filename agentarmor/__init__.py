@@ -19,6 +19,7 @@ from .exceptions import (
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 from .modules.taint_tracker import TaintViolation
 from .modules.honeytools import HoneytoolTriggered
+from .modules.safe_plan import SafePlanEngine, SafePlanSuggestion
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar(
@@ -216,5 +217,7 @@ __all__ = [
     "SemanticDriftDetected",
     "TaintViolation",
     "HoneytoolTriggered",
+    "SafePlanEngine",
+    "SafePlanSuggestion",
     "compliance_report",
 ]
