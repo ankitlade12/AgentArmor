@@ -46,10 +46,15 @@ filterwarnings = [
     # Suppress sklearn convergence/future warnings
     "ignore::sklearn.exceptions.ConvergenceWarning",
     "ignore::FutureWarning:sklearn",
-    # Suppress google-genai / google-auth / urllib3 warnings
+    # Suppress google-genai type alias deprecation
     "ignore:.*_UnionGenericAlias.*:DeprecationWarning",
+    # Suppress google-auth DeprecationWarning and FutureWarning
     "ignore::DeprecationWarning:google",
+    "ignore::FutureWarning:google",
+    # Suppress urllib3 DeprecationWarning and NotOpenSSLWarning
     "ignore::DeprecationWarning:urllib3",
+    "ignore:.*NotOpenSSLWarning.*:UserWarning",
+    "ignore::urllib3.exceptions.NotOpenSSLWarning",
 ]
 
 [project.urls]
