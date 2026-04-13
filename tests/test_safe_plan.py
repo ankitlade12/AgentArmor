@@ -131,6 +131,82 @@ class TestSuggestForException:
 # Coverage of all built-in categories
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Integration: SafePlanEngine inside HITLGateModule
+# ---------------------------------------------------------------------------
+
+class TestHITLIntegration:
+    def test_denied_action_includes_safe_alternatives(self):
+        from agentarmor.modules.hitl_gate import HITLGateModule
+        from agentarmor.exceptions import HumanApprovalDenied
+        from agentarmor.hooks import RequestContext, ResponseContext
+        from unittest.mock import MagicMock
+
+        gate = HITLGateModule(
+            risk_map={"rm_file": "critical"},
+            auto_deny_levels=["critical"],
+            safe_plan={"tool_categories": {"rm_file": "file_delete"}},
+        )
+
+        # Build a response with a tool call
+        fn = MagicMock()
+        fn.name = "rm_file"
+        fn.arguments = '{"path": "/etc/passwd"}'
+        tc = MagicMock()
+        tc.function = fn
+        msg = MagicMock()
+        msg.tool_calls = [tc]
+        msg.content = None
+        choice = MagicMock()
+        choice.message = msg
+        raw = MagicMock()
+        raw.choices = [choice]
+
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="", model="gpt-4o", provider="openai",
+            request=req, raw_response=raw,
+        )
+
+        with pytest.raises(HumanApprovalDenied, match="Safe alternatives"):
+            gate.post_filter(ctx)
+
+    def test_hitl_without_safe_plan_still_works(self):
+        from agentarmor.modules.hitl_gate import HITLGateModule
+        from agentarmor.exceptions import HumanApprovalDenied
+        from agentarmor.hooks import RequestContext, ResponseContext
+        from unittest.mock import MagicMock
+
+        gate = HITLGateModule(
+            risk_map={"rm_file": "critical"},
+            auto_deny_levels=["critical"],
+        )
+
+        fn = MagicMock()
+        fn.name = "rm_file"
+        fn.arguments = '{"path": "/tmp/x"}'
+        tc = MagicMock()
+        tc.function = fn
+        msg = MagicMock()
+        msg.tool_calls = [tc]
+        msg.content = None
+        choice = MagicMock()
+        choice.message = msg
+        raw = MagicMock()
+        raw.choices = [choice]
+
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="", model="gpt-4o", provider="openai",
+            request=req, raw_response=raw,
+        )
+
+        with pytest.raises(HumanApprovalDenied) as exc_info:
+            gate.post_filter(ctx)
+        # Should NOT contain safe alternatives
+        assert "Safe alternatives" not in str(exc_info.value)
+
+
 class TestBuiltinCategories:
     @pytest.mark.parametrize("category", [
         k for k in SAFE_ALTERNATIVES if k != "_default"
