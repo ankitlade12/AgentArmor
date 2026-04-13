@@ -219,6 +219,17 @@ class ArmorCore:
         except ImportError:
             pass
 
+        # OpenAI Responses API (Agents-era surface)
+        try:
+            from openai.resources.responses import Responses, AsyncResponses
+            self._originals["openai_responses_sync"] = Responses.create
+            Responses.create = self._wrap_responses_sync(self._originals["openai_responses_sync"])
+
+            self._originals["openai_responses_async"] = AsyncResponses.create
+            AsyncResponses.create = self._wrap_responses_async(self._originals["openai_responses_async"])
+        except ImportError:
+            pass
+
         try:
             from anthropic.resources.messages import Messages, AsyncMessages
             self._originals["anthropic_sync"] = Messages.create
@@ -250,6 +261,15 @@ class ArmorCore:
                 Completions.create = self._originals["openai_sync"]
             if "openai_async" in self._originals:
                 AsyncCompletions.create = self._originals["openai_async"]
+        except ImportError:
+            pass
+
+        try:
+            from openai.resources.responses import Responses, AsyncResponses
+            if "openai_responses_sync" in self._originals:
+                Responses.create = self._originals["openai_responses_sync"]
+            if "openai_responses_async" in self._originals:
+                AsyncResponses.create = self._originals["openai_responses_async"]
         except ImportError:
             pass
             
@@ -415,6 +435,220 @@ class ArmorCore:
             return self._handle_non_stream(response, "gemini", ctx, latency_ms)
 
         return wrapped
+
+    # ------------------------------------------------------------------
+    # OpenAI Responses API wrappers
+    # ------------------------------------------------------------------
+
+    def _wrap_responses_sync(self, original_fn: Callable):
+        def wrapped(*args, **kwargs):
+            model = kwargs.get("model", "unknown")
+            input_val = kwargs.get("input", "")
+            messages = self._responses_input_to_messages(input_val)
+
+            ctx = RequestContext(
+                messages=messages,
+                model=model,
+                stream=kwargs.get("stream", False),
+                extra_kwargs=kwargs,
+            )
+            ctx = self.registry.execute_before_request(ctx)
+            # Write back potentially modified messages
+            kwargs["input"] = self._messages_to_responses_input(ctx.messages)
+
+            t0 = time.perf_counter()
+            response = original_fn(*args, **kwargs)
+            latency_ms = (time.perf_counter() - t0) * 1000
+
+            if kwargs.get("stream", False):
+                return self._handle_responses_stream_sync(response, ctx, latency_ms)
+
+            return self._handle_responses_non_stream(response, ctx, latency_ms)
+
+        return wrapped
+
+    def _wrap_responses_async(self, original_fn: Callable):
+        async def wrapped(*args, **kwargs):
+            model = kwargs.get("model", "unknown")
+            input_val = kwargs.get("input", "")
+            messages = self._responses_input_to_messages(input_val)
+
+            ctx = RequestContext(
+                messages=messages,
+                model=model,
+                stream=kwargs.get("stream", False),
+                extra_kwargs=kwargs,
+            )
+            ctx = self.registry.execute_before_request(ctx)
+            kwargs["input"] = self._messages_to_responses_input(ctx.messages)
+
+            t0 = time.perf_counter()
+            response = await original_fn(*args, **kwargs)
+            latency_ms = (time.perf_counter() - t0) * 1000
+
+            if kwargs.get("stream", False):
+                return self._handle_responses_stream_async(response, ctx, latency_ms)
+
+            return self._handle_responses_non_stream(response, ctx, latency_ms)
+
+        return wrapped
+
+    @staticmethod
+    def _responses_input_to_messages(input_val: Any) -> list:
+        """Convert Responses API input to normalized messages list."""
+        if isinstance(input_val, str):
+            return [{"role": "user", "content": input_val}]
+        if isinstance(input_val, list):
+            messages = []
+            for item in input_val:
+                if isinstance(item, str):
+                    messages.append({"role": "user", "content": item})
+                elif isinstance(item, dict):
+                    messages.append(item)
+                else:
+                    messages.append({"role": "user", "content": str(item)})
+            return messages
+        return [{"role": "user", "content": str(input_val)}]
+
+    @staticmethod
+    def _messages_to_responses_input(messages: list) -> Any:
+        """Convert normalized messages back to Responses API input format."""
+        if len(messages) == 1 and messages[0].get("role") == "user":
+            return messages[0].get("content", "")
+        return messages
+
+    def _handle_responses_non_stream(self, response: Any, req_ctx: RequestContext, latency_ms: float):
+        output_text = self._extract_responses_output(response)
+        usage = self._extract_responses_usage(response)
+
+        res_ctx = ResponseContext(
+            text=output_text,
+            model=req_ctx.model,
+            provider="openai",
+            request=req_ctx,
+            latency_ms=latency_ms,
+            usage=usage,
+            raw_response=response,
+        )
+
+        res_ctx = self.registry.execute_after_response(res_ctx)
+        self._inject_responses_output(response, res_ctx.text)
+        return response
+
+    def _handle_responses_stream_sync(self, stream: Any, req_ctx: RequestContext, latency_ms: float):
+        accumulated_text = ""
+        current_safe_text = ""
+        usage = None
+
+        def generator():
+            nonlocal accumulated_text, current_safe_text, usage
+            try:
+                for event in stream:
+                    delta = self._extract_responses_stream_delta(event)
+                    if delta:
+                        accumulated_text += delta
+                        new_safe = self.registry.execute_on_stream_chunk(accumulated_text)
+                        current_safe_text = new_safe
+                    yield event
+            finally:
+                res_ctx = ResponseContext(
+                    text=current_safe_text or accumulated_text,
+                    model=req_ctx.model,
+                    provider="openai",
+                    request=req_ctx,
+                    latency_ms=latency_ms,
+                    usage=usage,
+                )
+                self.registry.execute_after_response(res_ctx)
+
+        return generator()
+
+    def _handle_responses_stream_async(self, stream: Any, req_ctx: RequestContext, latency_ms: float):
+        accumulated_text = ""
+        current_safe_text = ""
+        usage = None
+
+        async def async_generator():
+            nonlocal accumulated_text, current_safe_text, usage
+            try:
+                async for event in stream:
+                    delta = self._extract_responses_stream_delta(event)
+                    if delta:
+                        accumulated_text += delta
+                        new_safe = self.registry.execute_on_stream_chunk(accumulated_text)
+                        current_safe_text = new_safe
+                    yield event
+            finally:
+                res_ctx = ResponseContext(
+                    text=current_safe_text or accumulated_text,
+                    model=req_ctx.model,
+                    provider="openai",
+                    request=req_ctx,
+                    latency_ms=latency_ms,
+                    usage=usage,
+                )
+                self.registry.execute_after_response(res_ctx)
+
+        return async_generator()
+
+    @staticmethod
+    def _extract_responses_output(response: Any) -> str:
+        """Extract text from an OpenAI Responses API response."""
+        # Try output_text first (convenience accessor)
+        try:
+            text = getattr(response, "output_text", None)
+            if text:
+                return text
+        except Exception:
+            pass
+        # Fall back to iterating output items
+        try:
+            for item in getattr(response, "output", []):
+                if getattr(item, "type", "") == "message":
+                    for content in getattr(item, "content", []):
+                        if getattr(content, "type", "") == "output_text":
+                            return getattr(content, "text", "")
+        except Exception:
+            pass
+        return ""
+
+    @staticmethod
+    def _inject_responses_output(response: Any, text: str) -> None:
+        """Inject filtered text back into a Responses API response."""
+        try:
+            for item in getattr(response, "output", []):
+                if getattr(item, "type", "") == "message":
+                    for content in getattr(item, "content", []):
+                        if getattr(content, "type", "") == "output_text":
+                            content.text = text
+                            return
+        except Exception:
+            pass
+
+    @staticmethod
+    def _extract_responses_stream_delta(event: Any) -> str:
+        """Extract text delta from a Responses API streaming event."""
+        try:
+            etype = getattr(event, "type", "")
+            if etype == "response.output_text.delta":
+                return getattr(event, "delta", "") or ""
+        except Exception:
+            pass
+        return ""
+
+    @staticmethod
+    def _extract_responses_usage(response: Any) -> dict:
+        """Extract usage from a Responses API response."""
+        try:
+            usage = getattr(response, "usage", None)
+            if usage:
+                return {
+                    "input_tokens": getattr(usage, "input_tokens", 0),
+                    "output_tokens": getattr(usage, "output_tokens", 0),
+                }
+        except Exception:
+            pass
+        return None
 
     def _handle_non_stream(self, response: Any, provider: str, req_ctx: RequestContext, latency_ms: float):
         output_text = self._extract_output(response, provider)
