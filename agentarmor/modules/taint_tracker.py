@@ -6,14 +6,21 @@ where tainted data can flow. v1 scope: detect when PII or raw user input
 reaches privileged tool arguments.
 
 Taint labels:
-- "user_input"  : raw user-supplied text
-- "pii"         : text containing PII (emails, SSNs, phone numbers, etc.)
-- "rag"         : content retrieved from RAG / vector DB
-- "tool_output" : output returned by a tool call
-- "mcp"         : data from an MCP server
+- "user_input"  : raw user-supplied text (auto-labeled from role="user")
+- "pii"         : text containing PII (auto-detected via regex patterns)
+- "rag"         : content with RAG markers (auto-detected from role="system"
+                  messages containing Document/Source/Context keywords)
+- "tool_output" : output returned by a tool call (auto-labeled from role="tool")
+- "mcp"         : data from an MCP server (manual via register_taint())
 
 Each label can be restricted from flowing into specific tool arguments
 via the `sink_policies` configuration.
+
+v1 limitations:
+- "mcp" taint requires manual register_taint() calls; automatic MCP
+  server output labeling is planned for v2.
+- Taint tracking is text-based (substring/token overlap); semantic
+  paraphrase detection is not yet supported.
 """
 
 import re
