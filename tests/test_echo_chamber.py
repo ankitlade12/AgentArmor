@@ -210,7 +210,8 @@ class TestPostFilterHook:
         mod.post_filter(ctx)
         assert mod.stats["claims_tracked"] == 1
 
-    def test_pre_check_extracts_grounding_from_system(self):
+    def test_pre_check_does_not_auto_promote_system_messages(self):
+        """System messages must NOT be auto-promoted as grounding sources."""
         from agentarmor.hooks import RequestContext
         mod = EchoChamberModule()
         ctx = RequestContext(
@@ -220,7 +221,14 @@ class TestPostFilterHook:
             model="gpt-4o",
         )
         mod.pre_check(ctx)
-        assert len(mod.grounding_sources) == 1
+        assert len(mod.grounding_sources) == 0
+
+    def test_add_grounding_source_deduplicates(self):
+        mod = EchoChamberModule()
+        mod.add_grounding_source("Source A")
+        mod.add_grounding_source("Source A")  # duplicate
+        mod.add_grounding_source("Source B")
+        assert len(mod.grounding_sources) == 2
 
 
 class TestAlertStructure:

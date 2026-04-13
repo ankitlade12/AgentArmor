@@ -209,24 +209,20 @@ class EchoChamberModule:
         return ctx
 
     def pre_check(self, ctx) -> Any:
-        """Before-request hook: extract grounding sources from system messages.
+        """Before-request hook: no-op placeholder for future pre-processing.
 
-        Uses a set to deduplicate and avoid cross-request contamination.
-        Only adds sources not already present.
+        Grounding sources must be explicitly provided via the constructor
+        or add_grounding_source(). System messages are NOT auto-promoted
+        as grounding because system prompts, policy text, and unverified
+        injected context should not count as ground truth.
         """
-        for msg in ctx.messages:
-            role = msg.get("role", "")
-            content = msg.get("content", "")
-            if role == "system" and isinstance(content, str) and content.strip():
-                # Deduplicate: don't re-add the same system prompt
-                if content not in self._grounding_source_set:
-                    self._grounding_source_set.add(content)
-                    self.grounding_sources.append(content)
         return ctx
 
     def add_grounding_source(self, text: str) -> None:
-        """Add a trusted grounding source at runtime."""
-        self.grounding_sources.append(text)
+        """Add a trusted grounding source at runtime (deduplicated)."""
+        if text not in self._grounding_source_set:
+            self._grounding_source_set.add(text)
+            self.grounding_sources.append(text)
 
     def get_ungrounded_claims(self) -> List[Dict]:
         """Return all tracked ungrounded claims."""
