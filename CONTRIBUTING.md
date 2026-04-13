@@ -16,7 +16,7 @@ This project and everyone participating in it is governed by the [AgentArmor Cod
 
 To keep the repository clean and manageable, please follow these branch naming conventions:
 
-- `feat/feature-name` - For new features
+- `feature/feature-name` - For new features
 - `fix/bug-name` - For bug fixes
 - `docs/update-name` - For documentation changes
 - `test/test-name` - For missing tests
@@ -43,17 +43,18 @@ To keep the repository clean and manageable, please follow these branch naming c
    cd AgentArmor
    ```
 
-2. Create a virtual environment and load it:
+2. Create a virtual environment (**Python 3.10+ required**):
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   python3.10 -m venv .venv   # or python3.11, python3.12, etc.
+   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
    ```
 
-3. Install the package in editable mode with development dependencies:
+3. Install the package in editable mode with all test dependencies:
    ```bash
-   pip install -e .
-   pip install pytest pytest-cov mock
+   pip install -e ".[all,test]"
    ```
+   This installs the SDK providers (openai, anthropic, google-genai),
+   ML dependencies (scikit-learn), and the test runner (pytest, pytest-asyncio).
 
 4. Run the tests:
    ```bash

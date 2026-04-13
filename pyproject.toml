@@ -27,7 +27,14 @@ toxicity = ["detoxify>=0.5.0"]
 semantic_drift = ["sentence-transformers>=2.2.0"]
 benchmarks = ["datasets>=2.14.0"]
 all = ["openai>=1.0.0", "anthropic>=0.25.0", "scikit-learn>=1.3.0", "google-genai>=1.0.0", "detoxify>=0.5.0", "sentence-transformers>=2.2.0"]
-test = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0"]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "openai>=1.0.0",
+    "anthropic>=0.25.0",
+    "scikit-learn>=1.3.0",
+    "google-genai>=1.0.0",
+]
 docs = ["sphinx>=7.0", "furo", "sphinx-copybutton"]
 
 [tool.pytest.ini_options]
@@ -39,8 +46,10 @@ filterwarnings = [
     # Suppress sklearn convergence/future warnings
     "ignore::sklearn.exceptions.ConvergenceWarning",
     "ignore::FutureWarning:sklearn",
-    # Suppress google-genai deprecation warnings
+    # Suppress google-genai / google-auth / urllib3 warnings
     "ignore:.*_UnionGenericAlias.*:DeprecationWarning",
+    "ignore::DeprecationWarning:google",
+    "ignore::DeprecationWarning:urllib3",
 ]
 
 [project.urls]
