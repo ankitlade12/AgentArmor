@@ -4,28 +4,31 @@ Verified SDK surfaces that AgentArmor intercepts at runtime.
 
 ## Provider SDK Surfaces
 
-| Provider | SDK | Surface | Sync | Async | Streaming | Min Version |
-|----------|-----|---------|:----:|:-----:|:---------:|-------------|
-| OpenAI | `openai` | `chat.completions.create` | Yes | Yes | Yes | `>=1.0.0` |
-| OpenAI | `openai` | `responses.create` | Yes | Yes | Yes | `>=1.66.0` |
-| Anthropic | `anthropic` | `messages.create` | Yes | Yes | Yes | `>=0.25.0` |
-| Google | `google-genai` | `models.generate_content` | Yes | Yes | Yes | `>=1.0.0` |
-| Google | `google-genai` | `models.generate_content_stream` | Yes | Yes | — | `>=1.0.0` |
+| Provider | SDK | Surface | Sync | Async | Streaming | Min Version | CI Tested |
+|----------|-----|---------|:----:|:-----:|:---------:|-------------|:---------:|
+| OpenAI | `openai` | `chat.completions.create` | Yes | Yes | Yes | `>=1.0.0` | Yes |
+| OpenAI | `openai` | `responses.create` | Yes | Yes | Yes | `>=1.66.0` | Pending* |
+| Anthropic | `anthropic` | `messages.create` | Yes | Yes | Yes | `>=0.25.0` | Yes |
+| Google | `google-genai` | `models.generate_content` | Yes | Yes | Yes | `>=1.0.0` | Yes |
+| Google | `google-genai` | `models.generate_content_stream` | Yes | Yes | — | `>=1.0.0` | Yes |
+
+*Responses API patching is implemented and tested on `feature/openai-responses-api`. CI coverage on this branch will pass after that branch merges.
 
 ## Framework Compatibility
 
-AgentArmor works with any framework that uses the above SDKs under the hood.
-No framework-specific adapters are needed.
+AgentArmor patches at the **SDK transport layer**, not the framework layer.
+Frameworks below are compatible because they use the patched SDKs under the
+hood. The "Evidence" column indicates how we verified compatibility.
 
-| Framework | Tested | Notes |
-|-----------|:------:|-------|
-| LangChain / LangGraph | Yes | Via OpenAI or Anthropic SDK |
-| LlamaIndex | Yes | Via OpenAI SDK |
-| CrewAI | Yes | Via OpenAI or Anthropic SDK |
-| Autogen | Yes | Via OpenAI SDK |
-| Agno / Phidata | Yes | Via OpenAI SDK |
-| SmolAgents | Yes | Via OpenAI or Anthropic SDK |
-| Raw SDK scripts | Yes | Direct patching |
+| Framework | Compatible | Evidence |
+|-----------|:----------:|----------|
+| LangChain / LangGraph | Yes | Example in `examples/langchain_example.py`; uses OpenAI/Anthropic SDK |
+| LlamaIndex | Yes | Example in `examples/llamaindex_example.py`; uses OpenAI SDK |
+| CrewAI | Yes | Example in `examples/crewai_example.py`; uses OpenAI/Anthropic SDK |
+| Autogen | Yes | Example in `examples/autogen_example.py`; uses OpenAI SDK |
+| Agno / Phidata | Yes | Architecture-level (uses OpenAI SDK); no dedicated example yet |
+| SmolAgents | Yes | Architecture-level (uses OpenAI/Anthropic SDK); no dedicated example yet |
+| Raw SDK scripts | Yes | CI-tested in `tests/test_support_matrix.py` |
 
 ## Python Versions
 
@@ -36,15 +39,8 @@ No framework-specific adapters are needed.
 | 3.12 | Tested |
 | 3.13 | Tested |
 
-## What Gets Patched
-
-AgentArmor patches at the **SDK transport layer**, not the framework layer.
-This means every request/response flowing through a supported SDK is
-intercepted regardless of which framework wraps it. The `agentarmor.init()`
-call applies patches once; no per-framework configuration is needed.
-
 ## Regression Harness
 
-The `tests/test_support_matrix.py` file contains automated regression tests
-for each surface listed above. Tests auto-skip when the corresponding SDK
-is not installed and run against real SDK imports (not mocks) where possible.
+`tests/test_support_matrix.py` contains automated regression tests for each
+SDK surface. Tests auto-skip when the corresponding SDK is not installed.
+Framework-level integration tests are tracked as a separate deliverable.
