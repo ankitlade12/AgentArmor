@@ -73,13 +73,10 @@ class AgentGraphModule:
     """
 
     def __init__(self, max_depth: int = 5, inherit_budget: bool = True,
-                 inherit_firewall: bool = True, inherit_shield: bool = True,
                  max_total_agents: int = 50,
                  default_policies: Optional[Dict] = None):
         self.max_depth = max_depth
         self.inherit_budget = inherit_budget
-        self.inherit_firewall = inherit_firewall
-        self.inherit_shield = inherit_shield
         self.max_total_agents = max_total_agents
         self.default_policies = default_policies or {}
         self._agents: Dict[str, AgentNode] = {}
