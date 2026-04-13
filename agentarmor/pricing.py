@@ -1,6 +1,6 @@
 # Prices in USD per 1,000 tokens
 # Last updated: 2026-04-13
-# To override or extend, pass custom_pricing={"model": {"input": ..., "output": ...}} to agentarmor.init()
+# To override or extend at runtime: from agentarmor.pricing import register_pricing; register_pricing("model", input_cost, output_cost)
 PRICING = {
     # OpenAI
     "gpt-4.5-preview":       {"input": 0.03,     "output": 0.09},
