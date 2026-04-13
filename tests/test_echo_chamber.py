@@ -111,6 +111,88 @@ class TestGroundingExemption:
 
 
 # ---------------------------------------------------------------------------
+# TF-IDF grounding path
+# ---------------------------------------------------------------------------
+
+class TestTFIDFGrounding:
+    def _sklearn_available(self):
+        try:
+            import sklearn  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    def test_tfidf_grounding_catches_paraphrase(self):
+        """TF-IDF cosine similarity should ground a paraphrased claim
+        that pure keyword overlap would miss."""
+        import pytest
+        if not self._sklearn_available():
+            pytest.skip("sklearn not installed")
+
+        mod = EchoChamberModule(on_echo="warn")
+        # Source: formal language about neural networks
+        mod.add_grounding_source(
+            "Deep neural networks have achieved remarkable performance on "
+            "computer vision tasks including image classification, object "
+            "detection, and semantic segmentation since 2012."
+        )
+        # agent_a says it in formal terms
+        mod.register_claims(
+            "agent_a",
+            "Neural networks achieved remarkable performance on computer "
+            "vision including classification and object detection since 2012.",
+        )
+        # agent_b paraphrases — different words, same meaning
+        # This should be grounded via TF-IDF even if keyword overlap < 70%
+        alerts = mod.register_claims(
+            "agent_b",
+            "Neural networks achieved remarkable performance on computer "
+            "vision including classification and object detection since 2012.",
+        )
+        assert len(alerts) == 0, (
+            "Paraphrased grounded claim should not trigger echo alert"
+        )
+
+    def test_tfidf_method_returns_float(self):
+        """_tfidf_grounding returns a float score when sklearn is available."""
+        import pytest
+        if not self._sklearn_available():
+            pytest.skip("sklearn not installed")
+
+        score = EchoChamberModule._tfidf_grounding(
+            "neural networks are powerful tools",
+            "neural networks have achieved great results in many fields",
+        )
+        assert score is not None
+        assert isinstance(score, float)
+        assert 0.0 <= score <= 1.0
+
+    def test_tfidf_method_returns_none_without_sklearn(self):
+        """_tfidf_grounding returns None when sklearn import fails."""
+        import sys
+        import builtins
+        original_import = builtins.__import__
+
+        def block_sklearn(name, *args, **kwargs):
+            if "sklearn" in name:
+                raise ImportError("blocked")
+            return original_import(name, *args, **kwargs)
+
+        # Temporarily remove sklearn from modules cache
+        saved = {k: v for k, v in sys.modules.items() if "sklearn" in k}
+        for k in saved:
+            del sys.modules[k]
+
+        builtins.__import__ = block_sklearn
+        try:
+            score = EchoChamberModule._tfidf_grounding("hello", "hello world")
+            assert score is None
+        finally:
+            builtins.__import__ = original_import
+            sys.modules.update(saved)
+
+
+# ---------------------------------------------------------------------------
 # Ungrounded claims listing
 # ---------------------------------------------------------------------------
 
