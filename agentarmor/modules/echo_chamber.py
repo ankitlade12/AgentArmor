@@ -235,17 +235,44 @@ class EchoChamberModule:
             ]
 
     def _is_grounded(self, sentence: str) -> bool:
-        """Check if a sentence is grounded in trusted sources."""
+        """Check if a sentence is grounded in trusted sources.
+
+        Uses TF-IDF cosine similarity when sklearn is available (more
+        robust to paraphrasing), falling back to keyword overlap.
+        """
         s_lower = sentence.lower()
         for source in self.grounding_sources:
-            if s_lower in source.lower():
+            src_lower = source.lower()
+            # Direct substring match (strongest signal)
+            if s_lower in src_lower:
                 return True
-            # Also check key phrase overlap
+            # TF-IDF cosine similarity (paraphrase-resilient)
+            tfidf_score = self._tfidf_grounding(s_lower, src_lower)
+            if tfidf_score is not None and tfidf_score >= 0.4:
+                return True
+            # Fallback: key phrase overlap (4+ letter words)
             words = set(re.findall(r'\b\w{4,}\b', s_lower))
-            src_words = set(re.findall(r'\b\w{4,}\b', source.lower()))
+            src_words = set(re.findall(r'\b\w{4,}\b', src_lower))
             if words and len(words & src_words) / len(words) >= 0.7:
                 return True
         return False
+
+    @staticmethod
+    def _tfidf_grounding(sentence: str, source: str):
+        """TF-IDF cosine similarity. Returns float or None if sklearn absent."""
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.metrics.pairwise import cosine_similarity
+        except ImportError:
+            return None
+        if not sentence.strip() or not source.strip():
+            return None
+        try:
+            vec = TfidfVectorizer(ngram_range=(1, 2), max_features=2000)
+            mat = vec.fit_transform([source, sentence])
+            return float(cosine_similarity(mat[0:1], mat[1:2])[0][0])
+        except Exception:
+            return None
 
     @staticmethod
     def _extract_sentences(text: str) -> List[str]:
