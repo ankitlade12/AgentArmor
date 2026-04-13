@@ -130,19 +130,22 @@ class GroundingGuardModule:
         if self.check_names:
             scores["names"] = self._verify_names(response, source_text)
 
-        # Weighted average — TF-IDF gets highest weight when available
+        # Weighted average — TF-IDF and stemmed overlap get highest
+        # weight since they handle paraphrases (reducing FPs on HaluEval).
         if "tfidf" in scores:
             weights = {
-                "tfidf": 0.35,
-                "unigram": 0.05, "trigram": 0.10, "jaccard": 0.02,
-                "stemmed": 0.03, "char_shingles": 0.05,
-                "claims": 0.20, "numbers": 0.10, "names": 0.10,
+                "tfidf": 0.40,
+                "stemmed": 0.15,
+                "unigram": 0.03, "trigram": 0.05, "jaccard": 0.02,
+                "char_shingles": 0.05,
+                "claims": 0.15, "numbers": 0.08, "names": 0.07,
             }
         else:
             weights = {
-                "unigram": 0.10, "trigram": 0.20, "jaccard": 0.05,
-                "stemmed": 0.05, "char_shingles": 0.15,
-                "claims": 0.25, "numbers": 0.10, "names": 0.10,
+                "stemmed": 0.25,
+                "unigram": 0.08, "trigram": 0.12, "jaccard": 0.05,
+                "char_shingles": 0.10,
+                "claims": 0.20, "numbers": 0.10, "names": 0.10,
             }
 
         total_weight = sum(weights.get(k, 0.1) for k in scores)
@@ -308,8 +311,14 @@ class GroundingGuardModule:
             if not key_words:
                 grounded += 1
                 continue
-            overlap = sum(1 for w in key_words if w in source_text)
-            if overlap / len(key_words) >= 0.5:
+            # Also check stemmed forms for paraphrase resilience
+            key_stems = set(_simple_stem(w) for w in key_words)
+            src_words = set(re.findall(r'\b\w+\b', source_text))
+            src_stems = set(_simple_stem(w) for w in src_words)
+            stem_overlap = len(key_stems & src_stems)
+            word_overlap = sum(1 for w in key_words if w in source_text)
+            best_overlap = max(stem_overlap, word_overlap)
+            if best_overlap / len(key_words) >= 0.35:
                 grounded += 1
 
         return grounded / total if total > 0 else 1.0
