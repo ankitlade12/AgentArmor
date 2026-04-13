@@ -216,3 +216,85 @@ class TestBuiltinCategories:
         assert "reason_template" in alt
         assert "alternatives" in alt
         assert len(alt["alternatives"]) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Integration: SafePlanEngine inside ToolFirewallModule
+# ---------------------------------------------------------------------------
+
+class TestToolFirewallIntegration:
+    def test_blocked_tool_includes_structured_suggestions(self):
+        from agentarmor.modules.tool_firewall import ToolFirewallModule
+        from agentarmor.exceptions import ToolCallBlocked
+        from agentarmor.hooks import RequestContext, ResponseContext
+        from unittest.mock import MagicMock
+
+        fw = ToolFirewallModule(
+            block=["dangerous_tool"],
+            on_violation="block",
+            safe_plan={"tool_categories": {"dangerous_tool": "shell_exec"}},
+        )
+
+        # Build a response with a blocked tool call
+        fn = MagicMock()
+        fn.name = "dangerous_tool"
+        tc = MagicMock()
+        tc.function = fn
+        msg_mock = MagicMock()
+        msg_mock.tool_calls = [tc]
+        msg_mock.content = None
+        choice = MagicMock()
+        choice.message = msg_mock
+        raw = MagicMock()
+        raw.choices = [choice]
+
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="", model="gpt-4o", provider="openai",
+            request=req, raw_response=raw,
+        )
+
+        with pytest.raises(ToolCallBlocked) as exc_info:
+            fw.post_filter(ctx)
+
+        exc = exc_info.value
+        # Exception must have structured suggestions attribute
+        assert hasattr(exc, "suggestions")
+        assert len(exc.suggestions) == 1
+        assert exc.suggestions[0].tool_name == "dangerous_tool"
+        assert len(exc.suggestions[0].alternatives) >= 2
+        # Exception message must include the safe alternatives text
+        assert "Safe alternatives" in str(exc)
+
+    def test_blocked_tool_without_safe_plan_has_no_suggestions(self):
+        from agentarmor.modules.tool_firewall import ToolFirewallModule
+        from agentarmor.exceptions import ToolCallBlocked
+        from agentarmor.hooks import RequestContext, ResponseContext
+        from unittest.mock import MagicMock
+
+        fw = ToolFirewallModule(block=["bad"], on_violation="block")
+
+        fn = MagicMock()
+        fn.name = "bad"
+        tc = MagicMock()
+        tc.function = fn
+        msg_mock = MagicMock()
+        msg_mock.tool_calls = [tc]
+        msg_mock.content = None
+        choice = MagicMock()
+        choice.message = msg_mock
+        raw = MagicMock()
+        raw.choices = [choice]
+
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="", model="gpt-4o", provider="openai",
+            request=req, raw_response=raw,
+        )
+
+        with pytest.raises(ToolCallBlocked) as exc_info:
+            fw.post_filter(ctx)
+
+        exc = exc_info.value
+        assert not hasattr(exc, "suggestions")
+        assert "Safe alternatives" not in str(exc)
