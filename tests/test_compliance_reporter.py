@@ -192,6 +192,28 @@ class TestGdprArt35Mapping:
         assert "semantic_drift" in art35_entry["active_modules"]
 
 
+class TestControlModulesExist:
+    def test_all_control_modules_are_real_shipped_modules(self):
+        """Every module name in COMPLIANCE_CONTROLS must correspond to a
+        real module that can be activated via agentarmor.init()."""
+        all_module_names = set()
+        for framework in COMPLIANCE_CONTROLS.values():
+            for control in framework.values():
+                all_module_names.update(control["modules"])
+        known_modules = {
+            "shield", "ml_shield", "unicode_shield", "tool_firewall",
+            "mcp_firewall", "hitl_gate", "recorder", "cot_auditor",
+            "latency_breaker", "filter", "exfiltration_guard", "canary",
+            "code_shield", "budget", "rate_limiter", "cost_tags",
+            "grounding", "toxicity", "semantic_drift", "privilege_escalation",
+            "compliance", "dedup", "cascade", "agent_graph", "context_guard",
+        }
+        stale = all_module_names - known_modules
+        assert stale == set(), (
+            f"COMPLIANCE_CONTROLS references modules that don't exist: {stale}"
+        )
+
+
 class TestInitIntegration:
     def teardown_method(self):
         agentarmor.teardown()
