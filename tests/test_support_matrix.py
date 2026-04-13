@@ -124,7 +124,6 @@ def _has_responses_module():
 
 
 @pytest.mark.skipif(not has_openai or not _has_responses_module(), reason="openai SDK lacks responses module")
-@pytest.mark.xfail(reason="Requires feature/openai-responses-api branch merged first")
 class TestOpenAIResponses:
     def teardown_method(self):
         agentarmor.teardown()
