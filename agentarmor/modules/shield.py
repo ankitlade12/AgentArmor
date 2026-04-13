@@ -48,7 +48,7 @@ INJECTION_PATTERNS = [
     r"I\s+(?:am|'m)\s+(?:your|the)\s+(?:developer|creator|admin|owner|programmer)",
     r"(?:enable|activate|switch\s+to|enter)\s+(?:unrestricted|unfiltered|uncensored|raw|jailbr)",
     # Prompt extraction / leakage (expanded)
-    r"(?:show|display|print|output|reveal|list|enumerate)\s+(?:your|the)\s+(?:system|initial|original|hidden|full)\s+(?:prompt|instructions?|message|rules?)",
+    r"(?:show|display|print|output|reveal|list|enumerate)\s+(?:me\s+)?(?:your|the)\s+(?:system|initial|original|hidden|full)\s+(?:prompt|instructions?|message|rules?)",
     r"(?:what|which)\s+(?:rules?|guidelines?|instructions?|constraints?)\s+(?:are|were)\s+(?:you|given)",
     r"(?:recite|repeat|echo|copy)\s+(?:the\s+)?(?:text|content|instructions?)\s+(?:above|before|from\s+(?:the\s+)?(?:system|beginning))",
 ]
