@@ -250,7 +250,7 @@ class ArmorCore:
             genai.models.AsyncModels.generate_content = self._wrap_genai_async(self._originals["genai_async"], is_stream=False)
             self._originals["genai_async_stream"] = genai.models.AsyncModels.generate_content_stream
             genai.models.AsyncModels.generate_content_stream = self._wrap_genai_async(self._originals["genai_async_stream"], is_stream=True)
-        except ImportError:
+        except (ImportError, AttributeError):
             pass
 
     def unpatch(self) -> None:
@@ -292,7 +292,7 @@ class ArmorCore:
                 genai.models.AsyncModels.generate_content = self._originals["genai_async"]
             if "genai_async_stream" in self._originals:
                 genai.models.AsyncModels.generate_content_stream = self._originals["genai_async_stream"]
-        except ImportError:
+        except (ImportError, AttributeError):
             pass
 
     def _build_request_context(self, provider: str, args: tuple, kwargs: dict) -> RequestContext:
