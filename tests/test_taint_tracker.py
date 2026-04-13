@@ -99,7 +99,7 @@ class TestPreCheck:
         mod.pre_check(ctx)
         assert len(mod._tainted_strings) == 0
 
-    def test_clears_previous_taint(self):
+    def test_accumulates_taint_across_requests(self):
         mod = TaintTrackerModule()
         ctx1 = _make_req_ctx([{"role": "user", "content": "first"}])
         mod.pre_check(ctx1)
@@ -107,8 +107,41 @@ class TestPreCheck:
 
         ctx2 = _make_req_ctx([{"role": "user", "content": "second"}])
         mod.pre_check(ctx2)
+        assert len(mod._tainted_strings) == 2
+
+    def test_reset_clears_taint(self):
+        mod = TaintTrackerModule()
+        ctx = _make_req_ctx([{"role": "user", "content": "first"}])
+        mod.pre_check(ctx)
         assert len(mod._tainted_strings) == 1
-        assert mod._tainted_strings[0].text == "second"
+        mod.reset()
+        assert len(mod._tainted_strings) == 0
+
+    def test_plain_system_prompt_not_labeled_rag(self):
+        mod = TaintTrackerModule(track_rag=True)
+        ctx = _make_req_ctx([
+            {"role": "system", "content": "You are a helpful assistant."},
+        ])
+        mod.pre_check(ctx)
+        # Plain system prompt should NOT be labeled as RAG
+        assert len(mod._tainted_strings) == 0
+
+    def test_rag_context_message_labeled(self):
+        mod = TaintTrackerModule(track_rag=True)
+        ctx = _make_req_ctx([
+            {"role": "system", "content": "Context: The capital of France is Paris."},
+        ])
+        mod.pre_check(ctx)
+        assert len(mod._tainted_strings) == 1
+        assert TAINT_RAG in mod._tainted_strings[0].labels
+
+    def test_context_role_always_labeled_rag(self):
+        mod = TaintTrackerModule(track_rag=True)
+        ctx = _make_req_ctx([
+            {"role": "context", "content": "Retrieved document about quantum physics."},
+        ])
+        mod.pre_check(ctx)
+        assert TAINT_RAG in mod._tainted_strings[0].labels
 
 
 # ---------------------------------------------------------------------------

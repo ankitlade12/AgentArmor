@@ -106,10 +106,14 @@ class TaintTrackerModule:
     # ------------------------------------------------------------------
 
     def pre_check(self, ctx: RequestContext) -> RequestContext:
-        """Before-request hook: label incoming messages with taint."""
+        """Before-request hook: label incoming messages with taint.
+
+        Taint accumulates across the session (not cleared per request)
+        to support multi-step lineage tracking. Call reset() explicitly
+        to clear taint state.
+        """
         with self._lock:
             self.stats["requests_scanned"] += 1
-            self._tainted_strings.clear()
 
         for msg in ctx.messages:
             role = msg.get("role", "")
@@ -123,8 +127,9 @@ class TaintTrackerModule:
             if role == "user":
                 labels.add(TAINT_USER_INPUT)
 
-            # System / context messages may be RAG
-            if self.track_rag and role in ("system", "context"):
+            # Only label as RAG if the message looks like retrieved context,
+            # not every system message (which would over-taint normal prompts)
+            if self.track_rag and self._looks_like_rag(content, role):
                 labels.add(TAINT_RAG)
 
             # Auto-detect PII
@@ -273,6 +278,31 @@ class TaintTrackerModule:
                 return True
 
         return False
+
+    @staticmethod
+    def _looks_like_rag(content: str, role: str) -> bool:
+        """Heuristic: does this message look like retrieved RAG context?
+
+        Only labels as RAG if the message contains document/source markers
+        or if the role is explicitly 'context'. Plain system prompts
+        (e.g. 'You are a helpful assistant') are NOT labeled as RAG.
+        """
+        if role == "context":
+            return True
+        if role != "system":
+            return False
+        # Check for common RAG context markers
+        lower = content.lower()[:200]
+        rag_markers = (
+            "document", "source", "context:", "reference",
+            "retrieved", "passage", "excerpt", "chunk",
+        )
+        return any(marker in lower for marker in rag_markers)
+
+    def reset(self) -> None:
+        """Clear all taint state. Call between independent sessions."""
+        with self._lock:
+            self._tainted_strings.clear()
 
     @staticmethod
     def _contains_pii(text: str) -> bool:
