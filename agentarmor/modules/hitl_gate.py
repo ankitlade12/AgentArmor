@@ -179,14 +179,16 @@ class HITLGateModule:
                     f"Action '{tool_name}' denied by policy '{matched_rule.name}' "
                     f"(risk: {matched_rule.risk_level}): {matched_rule.description}"
                 )
+                exc = HumanApprovalDenied(msg)
                 if self._safe_plan:
                     suggestion = self._safe_plan.suggest(
                         tool_name, arguments,
                         risk_level=matched_rule.risk_level,
                         policy_name=matched_rule.name,
                     )
-                    msg += "\n\n" + suggestion.to_message()
-                raise HumanApprovalDenied(msg)
+                    exc = HumanApprovalDenied(msg + "\n\n" + suggestion.to_message())
+                    exc.suggestion = suggestion  # structured data
+                raise exc
             elif decision == "timeout":
                 raise HumanApprovalTimeout(
                     f"Approval timed out for '{tool_name}' "

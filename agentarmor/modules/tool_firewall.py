@@ -18,6 +18,7 @@ class ToolFirewallModule:
         allow: Optional[List[str]] = None,
         block: Optional[List[str]] = None,
         on_violation: str = "block",
+        safe_plan: Optional[dict] = None,
     ):
         if allow and block:
             raise ValueError(
@@ -33,6 +34,12 @@ class ToolFirewallModule:
         self.on_violation = on_violation
         self.violations = 0
         self.blocked_tools: List[str] = []
+
+        self._safe_plan = None
+        if safe_plan is not None:
+            from .safe_plan import SafePlanEngine
+            sp_config = safe_plan if isinstance(safe_plan, dict) else {}
+            self._safe_plan = SafePlanEngine(**sp_config)
 
     # ------------------------------------------------------------------
     # Hook
@@ -52,9 +59,17 @@ class ToolFirewallModule:
         self.blocked_tools.extend(violating)
 
         if self.on_violation == "block":
-            raise ToolCallBlocked(
-                f"Blocked tool call(s): {', '.join(violating)}"
-            )
+            msg = f"Blocked tool call(s): {', '.join(violating)}"
+            exc = ToolCallBlocked(msg)
+            if self._safe_plan:
+                suggestions = []
+                for tool_name in violating:
+                    s = self._safe_plan.suggest(tool_name, policy_name="tool_firewall")
+                    suggestions.append(s)
+                    msg += "\n\n" + s.to_message()
+                exc = ToolCallBlocked(msg)
+                exc.suggestions = suggestions  # structured data
+            raise exc
 
         # strip mode — remove violating tool calls from the response
         warnings.warn(
