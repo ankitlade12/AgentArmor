@@ -2,6 +2,13 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.2.1] - 2026-04-13
+
+### Fixed
+- **Compliance Reporter**: Removed reference to nonexistent `semantic_drift` module in GDPR Art.35 control mapping; replaced with `cot_auditor`.
+- **Compliance Reporter**: Version field now reads dynamically from package metadata instead of hardcoded `1.1.0`.
+- **Pricing**: Added missing models (o3, o4-mini, claude-opus-4-6, claude-sonnet-4-6, gemini-2.5-pro, gemini-2.5-flash). Added `register_pricing()` for runtime overrides. Added last-updated date comment.
+
 ## [1.2.0] - 2026-03-31
 
 ### Added
