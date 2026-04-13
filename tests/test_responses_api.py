@@ -165,3 +165,92 @@ def test_responses_input_normalization():
     msgs = ArmorCore._responses_input_to_messages(["hello", "world"])
     assert len(msgs) == 2
     assert msgs[0]["content"] == "hello"
+
+
+@needs_responses
+def test_responses_output_text_rewritten():
+    """output_text accessor must reflect filtered text, not original."""
+    from openai.resources.responses import Responses
+
+    mock_content = MagicMock()
+    mock_content.type = "output_text"
+    mock_content.text = "original text"
+
+    mock_item = MagicMock()
+    mock_item.type = "message"
+    mock_item.content = [mock_content]
+
+    mock_response = MagicMock()
+    mock_response.output_text = "original text"
+    mock_response.output = [mock_item]
+    mock_response.usage = MagicMock()
+    mock_response.usage.input_tokens = 1
+    mock_response.usage.output_tokens = 1
+
+    original_create = Responses.create
+    Responses.create = MagicMock(return_value=mock_response)
+
+    try:
+        core = agentarmor.init(filter=["pii"])
+
+        @core.registry.register_after_response
+        def rewrite(ctx: ResponseContext):
+            ctx.text = "FILTERED"
+            return ctx
+
+        client = openai.OpenAI(api_key="mock")
+        resp = client.responses.create(model="gpt-4o", input="hi")
+
+        # Both accessors must show filtered text
+        assert mock_content.text == "FILTERED"
+        assert resp.output_text == "FILTERED"
+    finally:
+        agentarmor.teardown()
+        Responses.create = original_create
+
+
+@needs_responses
+def test_responses_stream_delta_rewritten():
+    """Streaming deltas must be sanitized before yielding to caller."""
+    from openai.resources.responses import Responses
+
+    evt1 = MagicMock()
+    evt1.type = "response.output_text.delta"
+    evt1.delta = "hello "
+
+    evt2 = MagicMock()
+    evt2.type = "response.output_text.delta"
+    evt2.delta = "world"
+
+    evt3 = MagicMock()
+    evt3.type = "response.completed"
+
+    def mock_stream():
+        yield evt1
+        yield evt2
+        yield evt3
+
+    original_create = Responses.create
+    Responses.create = MagicMock(return_value=mock_stream())
+
+    try:
+        core = agentarmor.init()
+
+        @core.registry.register_on_stream_chunk
+        def censor(text: str) -> str:
+            return text.replace("world", "****")
+
+        client = openai.OpenAI(api_key="mock")
+        resp = client.responses.create(model="gpt-4o", input="hi", stream=True)
+
+        deltas = []
+        for event in resp:
+            if getattr(event, "type", "") == "response.output_text.delta":
+                deltas.append(event.delta)
+
+        combined = "".join(deltas)
+        assert "world" not in combined
+        assert "****" in combined
+    finally:
+        agentarmor.teardown()
+        Responses.create = original_create

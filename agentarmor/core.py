@@ -548,6 +548,12 @@ class ArmorCore:
                     if delta:
                         accumulated_text += delta
                         new_safe = self.registry.execute_on_stream_chunk(accumulated_text)
+                        # Rewrite the delta in the event before yielding
+                        if len(new_safe) > len(current_safe_text):
+                            safe_delta = new_safe[len(current_safe_text):]
+                            self._inject_responses_stream_delta(event, safe_delta)
+                        else:
+                            self._inject_responses_stream_delta(event, "")
                         current_safe_text = new_safe
                     yield event
             finally:
@@ -576,6 +582,11 @@ class ArmorCore:
                     if delta:
                         accumulated_text += delta
                         new_safe = self.registry.execute_on_stream_chunk(accumulated_text)
+                        if len(new_safe) > len(current_safe_text):
+                            safe_delta = new_safe[len(current_safe_text):]
+                            self._inject_responses_stream_delta(event, safe_delta)
+                        else:
+                            self._inject_responses_stream_delta(event, "")
                         current_safe_text = new_safe
                     yield event
             finally:
@@ -614,15 +625,25 @@ class ArmorCore:
 
     @staticmethod
     def _inject_responses_output(response: Any, text: str) -> None:
-        """Inject filtered text back into a Responses API response."""
+        """Inject filtered text back into a Responses API response.
+
+        Rewrites both the nested output[*].content[*].text AND the
+        top-level output_text convenience accessor so filtered text
+        is returned regardless of which accessor the caller uses.
+        """
         try:
             for item in getattr(response, "output", []):
                 if getattr(item, "type", "") == "message":
                     for content in getattr(item, "content", []):
                         if getattr(content, "type", "") == "output_text":
                             content.text = text
-                            return
         except Exception:
+            pass
+        # Also rewrite the top-level convenience accessor
+        try:
+            if hasattr(response, "output_text"):
+                response.output_text = text
+        except (AttributeError, TypeError):
             pass
 
     @staticmethod
@@ -635,6 +656,15 @@ class ArmorCore:
         except Exception:
             pass
         return ""
+
+    @staticmethod
+    def _inject_responses_stream_delta(event: Any, new_delta: str) -> None:
+        """Rewrite the delta text in a Responses API streaming event."""
+        try:
+            if getattr(event, "type", "") == "response.output_text.delta":
+                event.delta = new_delta
+        except (AttributeError, TypeError):
+            pass
 
     @staticmethod
     def _extract_responses_usage(response: Any) -> dict:
