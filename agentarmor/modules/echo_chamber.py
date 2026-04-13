@@ -106,6 +106,7 @@ class EchoChamberModule:
         self.min_claim_length = min_claim_length
         self.on_echo = on_echo
         self.grounding_sources = grounding_sources or []
+        self._grounding_source_set: set = set(self.grounding_sources)
         self.max_claims = max_claims
         self._lock = threading.Lock()
         self._claims: Dict[str, Claim] = {}  # hash -> Claim
@@ -197,18 +198,30 @@ class EchoChamberModule:
             agent_id = None
 
         if agent_id is None:
-            agent_id = f"model:{ctx.model}"
+            # Use model + request hash to distinguish separate callers on
+            # the same model (avoids collapsing parallel agents into one ID)
+            req_hash = hashlib.md5(
+                str(ctx.request.messages).encode()
+            ).hexdigest()[:8]
+            agent_id = f"model:{ctx.model}:{req_hash}"
 
         self.register_claims(agent_id, ctx.text)
         return ctx
 
     def pre_check(self, ctx) -> Any:
-        """Before-request hook: extract grounding sources from system messages."""
+        """Before-request hook: extract grounding sources from system messages.
+
+        Uses a set to deduplicate and avoid cross-request contamination.
+        Only adds sources not already present.
+        """
         for msg in ctx.messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
             if role == "system" and isinstance(content, str) and content.strip():
-                self.add_grounding_source(content)
+                # Deduplicate: don't re-add the same system prompt
+                if content not in self._grounding_source_set:
+                    self._grounding_source_set.add(content)
+                    self.grounding_sources.append(content)
         return ctx
 
     def add_grounding_source(self, text: str) -> None:
