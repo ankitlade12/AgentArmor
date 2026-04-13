@@ -118,7 +118,7 @@ COMPLIANCE_CONTROLS = {
         },
         "Art.35": {
             "name": "Data Protection Impact Assessment",
-            "modules": ["grounding", "toxicity", "cot_auditor"],
+            "modules": ["grounding", "toxicity", "semantic_drift", "cot_auditor"],
             "description": "Assessment of impact of processing on data protection",
         },
     },
