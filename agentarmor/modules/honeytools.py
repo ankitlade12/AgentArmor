@@ -171,28 +171,48 @@ class HoneytoolsModule:
     def pre_check(self, ctx) -> Any:
         """Before-request hook: inject honeytool definitions into the tools list.
 
-        When the request includes a 'tools' parameter (OpenAI/Anthropic format),
-        appends honeytool definitions so the model sees them as available tools.
-        A compromised model will attempt to call them, triggering detection.
+        Supports both OpenAI format ({"type":"function","function":{...}}) and
+        Anthropic format ({"name":"...","description":"...","input_schema":{...}}).
+        Detects which format is in use by inspecting existing tool entries and
+        injects honeytools in the matching format.
         """
         tools = ctx.extra_kwargs.get("tools")
-        if tools is not None and isinstance(tools, list):
-            existing_names = set()
-            for t in tools:
-                if isinstance(t, dict):
-                    fn = t.get("function", {})
-                    existing_names.add(fn.get("name", ""))
+        if tools is None or not isinstance(tools, list):
+            return ctx
 
-            for ht in self._honeytools.values():
-                if ht["name"] not in existing_names:
-                    tools.append({
-                        "type": "function",
-                        "function": {
-                            "name": ht["name"],
-                            "description": ht.get("description", ""),
-                            "parameters": {"type": "object", "properties": {}},
-                        },
-                    })
+        # Detect format and collect existing names
+        existing_names = set()
+        is_anthropic_format = False
+        for t in tools:
+            if not isinstance(t, dict):
+                continue
+            # Anthropic format: top-level "name" key without "function" wrapper
+            if "name" in t and "function" not in t:
+                existing_names.add(t["name"])
+                is_anthropic_format = True
+            # OpenAI format: nested under "function"
+            elif "function" in t:
+                fn = t.get("function", {})
+                existing_names.add(fn.get("name", ""))
+
+        for ht in self._honeytools.values():
+            if ht["name"] in existing_names:
+                continue
+            if is_anthropic_format:
+                tools.append({
+                    "name": ht["name"],
+                    "description": ht.get("description", ""),
+                    "input_schema": {"type": "object", "properties": {}},
+                })
+            else:
+                tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": ht["name"],
+                        "description": ht.get("description", ""),
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                })
         return ctx
 
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:

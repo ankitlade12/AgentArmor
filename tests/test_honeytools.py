@@ -180,7 +180,7 @@ class TestRuntimeRegistration:
 # ---------------------------------------------------------------------------
 
 class TestAutoInjection:
-    def test_pre_check_injects_honeytools_into_tools_list(self):
+    def test_openai_format_injection(self):
         from agentarmor.hooks import RequestContext
         mod = HoneytoolsModule(include_defaults=True)
         tools = [
@@ -192,12 +192,52 @@ class TestAutoInjection:
             extra_kwargs={"tools": tools},
         )
         mod.pre_check(ctx)
-        tool_names = {t["function"]["name"] for t in tools}
-        assert "get_admin_credentials" in tool_names
-        assert "export_all_users" in tool_names
-        assert "search" in tool_names  # original preserved
+        # Should inject in OpenAI format (matching existing)
+        injected = [t for t in tools if "function" in t]
+        injected_names = {t["function"]["name"] for t in injected}
+        assert "get_admin_credentials" in injected_names
+        assert "export_all_users" in injected_names
+        assert "search" in injected_names
 
-    def test_pre_check_does_not_duplicate(self):
+    def test_anthropic_format_injection(self):
+        from agentarmor.hooks import RequestContext
+        mod = HoneytoolsModule(include_defaults=True)
+        tools = [
+            {"name": "search", "description": "Search docs", "input_schema": {"type": "object"}},
+        ]
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="claude-sonnet-4-5",
+            extra_kwargs={"tools": tools},
+        )
+        mod.pre_check(ctx)
+        # Should inject in Anthropic format (matching existing)
+        all_names = {t["name"] for t in tools}
+        assert "get_admin_credentials" in all_names
+        assert "search" in all_names
+        # Verify injected tools use Anthropic schema
+        injected = [t for t in tools if t["name"] == "get_admin_credentials"][0]
+        assert "input_schema" in injected
+        assert "function" not in injected
+
+    def test_anthropic_format_dedup(self):
+        from agentarmor.hooks import RequestContext
+        mod = HoneytoolsModule(
+            include_defaults=False,
+            custom_honeytools=[{"name": "trap", "description": "x"}],
+        )
+        tools = [
+            {"name": "trap", "description": "Already exists", "input_schema": {}},
+        ]
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="claude-sonnet-4-5",
+            extra_kwargs={"tools": tools},
+        )
+        mod.pre_check(ctx)
+        assert len(tools) == 1  # Not duplicated
+
+    def test_openai_format_dedup(self):
         from agentarmor.hooks import RequestContext
         mod = HoneytoolsModule(
             include_defaults=False,
@@ -212,9 +252,9 @@ class TestAutoInjection:
             extra_kwargs={"tools": tools},
         )
         mod.pre_check(ctx)
-        assert len(tools) == 1  # Not duplicated
+        assert len(tools) == 1
 
-    def test_pre_check_no_tools_param_is_noop(self):
+    def test_no_tools_param_is_noop(self):
         from agentarmor.hooks import RequestContext
         mod = HoneytoolsModule()
         ctx = RequestContext(
