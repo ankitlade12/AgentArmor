@@ -72,6 +72,7 @@ class MCPFirewallModule:
         # v2 state
         self.server_toolsets: Dict[str, List[str]] = server_toolsets or {}
         self.server_auth: Dict[str, str] = server_auth or {}
+        self._authenticated_servers: set = set()  # servers that passed auth
         self.validate_tool_results: bool = validate_tool_results
         self.server_call_log: List[Dict[str, Any]] = []
 
@@ -95,6 +96,8 @@ class MCPFirewallModule:
     def validate_server_auth(self, server_name: str, auth_token: Optional[str] = None) -> bool:
         """Validate that a server provides the expected auth credentials.
 
+        Call this at server registration/connection time. Once a server
+        passes auth, it is remembered as authenticated for the session.
         Returns True if no auth is required or the token matches.
         """
         expected = self.server_auth.get(server_name)
@@ -106,6 +109,7 @@ class MCPFirewallModule:
                 f"expected valid token, got {'<none>' if auth_token is None else '<invalid>'}"
             )
             return False
+        self._authenticated_servers.add(server_name)
         return True
 
     def validate_tool_call(
@@ -236,10 +240,16 @@ class MCPFirewallModule:
             arguments = call_info["arguments"]
             server = call_info.get("server_name")
 
-            # Server auth check (when server identity is available)
-            if server and self.server_auth:
-                auth_token = call_info.get("auth_token")
-                self.validate_server_auth(server, auth_token)
+            # Server auth enforcement: if server requires auth but
+            # hasn't been pre-authenticated via validate_server_auth(),
+            # block the call.
+            if server and server in self.server_auth:
+                if server not in self._authenticated_servers:
+                    self._handle_violation(
+                        f"MCP server '{server}' requires auth but has "
+                        f"not been authenticated. Call validate_server_auth() "
+                        f"at server registration time."
+                    )
 
             self.validate_tool_call(name, arguments, server_name=server)
 

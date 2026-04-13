@@ -521,7 +521,8 @@ class TestToolResultValidation:
 # ---------------------------------------------------------------------------
 
 class TestAuthEnforcedAtRuntime:
-    def test_post_filter_checks_server_auth(self):
+    def test_unauthenticated_server_blocked_at_runtime(self):
+        """Server requiring auth that hasn't called validate_server_auth() is blocked."""
         blocks = [
             _MCPToolUseBlock("file_read", {"path": "/tmp"}, server_name="private"),
         ]
@@ -534,7 +535,25 @@ class TestAuthEnforcedAtRuntime:
         )
         fw.post_filter(ctx)
         assert fw.blocked_calls >= 1
-        assert any("Auth mismatch" in v for v in fw.violations)
+        assert any("requires auth" in v for v in fw.violations)
+
+    def test_pre_authenticated_server_passes(self):
+        """Server that passed validate_server_auth() is allowed."""
+        blocks = [
+            _MCPToolUseBlock("file_read", {"path": "/tmp"}, server_name="private"),
+        ]
+        raw = _AnthropicResponse(blocks)
+        ctx = _make_response_ctx(raw_response=raw)
+
+        fw = MCPFirewallModule(
+            server_auth={"private": "Bearer secret"},
+            on_violation="block",
+        )
+        # Pre-authenticate the server
+        fw.validate_server_auth("private", "Bearer secret")
+        # Should NOT raise
+        fw.post_filter(ctx)
+        assert fw.blocked_calls == 0
 
 
 # ---------------------------------------------------------------------------
