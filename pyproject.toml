@@ -27,8 +27,35 @@ toxicity = ["detoxify>=0.5.0"]
 semantic_drift = ["sentence-transformers>=2.2.0"]
 benchmarks = ["datasets>=2.14.0"]
 all = ["openai>=1.0.0", "anthropic>=0.25.0", "scikit-learn>=1.3.0", "google-genai>=1.0.0", "detoxify>=0.5.0", "sentence-transformers>=2.2.0"]
-test = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0"]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "openai>=1.0.0",
+    "anthropic>=0.25.0",
+    "scikit-learn>=1.3.0",
+    "google-genai>=1.0.0",
+]
 docs = ["sphinx>=7.0", "furo", "sphinx-copybutton"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+filterwarnings = [
+    # Suppress AgentArmor's own expected warn-mode UserWarnings in tests
+    "ignore::UserWarning:agentarmor",
+    "ignore:\\[AgentArmor\\]:UserWarning",
+    # Suppress sklearn convergence/future warnings
+    "ignore::sklearn.exceptions.ConvergenceWarning",
+    "ignore::FutureWarning:sklearn",
+    # Suppress google-genai type alias deprecation
+    "ignore:.*_UnionGenericAlias.*:DeprecationWarning",
+    # Suppress google-auth DeprecationWarning and FutureWarning
+    "ignore::DeprecationWarning:google",
+    "ignore::FutureWarning:google",
+    # Suppress urllib3 DeprecationWarning and NotOpenSSLWarning
+    "ignore::DeprecationWarning:urllib3",
+    "ignore:.*NotOpenSSLWarning.*:UserWarning",
+    "ignore::urllib3.exceptions.NotOpenSSLWarning",
+]
 
 [project.urls]
 Homepage = "https://agentarmor.dev"
