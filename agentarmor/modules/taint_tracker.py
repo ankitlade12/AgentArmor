@@ -25,7 +25,8 @@ v1 limitations:
 
 import re
 import threading
-from typing import Any, Dict, List, Optional, Set
+from collections import deque
+from typing import Any, Deque, Dict, List, Optional, Set
 
 from ..hooks import RequestContext, ResponseContext
 
@@ -83,6 +84,8 @@ class TaintTrackerModule:
         auto_detect_pii: bool = True,
         on_violation: str = "block",
         track_rag: bool = True,
+        max_tainted_items: int = 1000,
+        min_taint_length: int = 10,
     ):
         """
         Args:
@@ -92,14 +95,20 @@ class TaintTrackerModule:
             auto_detect_pii: Automatically scan messages for PII patterns.
             on_violation: "block" raises TaintViolation, "warn" logs warning.
             track_rag: Auto-label system/context messages as 'rag'.
+            max_tainted_items: Cap on stored TaintedData entries (FIFO).
+                Oldest entries are evicted when the cap is hit. Default 1000.
+            min_taint_length: Minimum text length (in chars) to track as taint.
+                Short strings like "hi" or "ok" produce substring-match false
+                positives; default 10 skips them. Set to 0 to track all.
         """
         self.sink_policies = sink_policies or {}
         self.auto_detect_pii = auto_detect_pii
         self.on_violation = on_violation
         self.track_rag = track_rag
+        self.min_taint_length = min_taint_length
 
         self._lock = threading.Lock()
-        self._tainted_strings: List[TaintedData] = []
+        self._tainted_strings: Deque[TaintedData] = deque(maxlen=max_tainted_items)
         self.violations: List[Dict[str, Any]] = []
         self.stats = {
             "requests_scanned": 0,
@@ -126,6 +135,10 @@ class TaintTrackerModule:
             role = msg.get("role", "")
             content = msg.get("content", "")
             if not isinstance(content, str) or not content.strip():
+                continue
+            # Skip short strings — substring match on 3-char content like
+            # "hi" produces false positives against any similar tool arg.
+            if len(content) < self.min_taint_length:
                 continue
 
             labels: Set[str] = set()
@@ -181,7 +194,13 @@ class TaintTrackerModule:
 
     def register_taint(self, text: str, labels: Set[str],
                        source: str = "manual") -> None:
-        """Manually register tainted data (e.g. from a tool output)."""
+        """Manually register tainted data (e.g. from a tool output).
+
+        Short strings (< min_taint_length) are skipped to avoid
+        substring-match false positives downstream.
+        """
+        if not text or len(text) < self.min_taint_length:
+            return
         td = TaintedData(text=text, labels=labels, source=source)
         with self._lock:
             self._tainted_strings.append(td)
@@ -332,6 +351,7 @@ class TaintTrackerModule:
 
         try:
             if provider == "openai":
+                # Chat Completions format
                 for choice in getattr(raw_response, "choices", []):
                     msg = getattr(choice, "message", None)
                     for tc in getattr(msg, "tool_calls", []) or []:
@@ -344,6 +364,22 @@ class TaintTrackerModule:
                                 args = json.loads(args_str) if isinstance(args_str, str) else args_str or {}
                             except (json.JSONDecodeError, TypeError):
                                 args = {}
+                            calls.append({"name": name, "arguments": args})
+                # Responses API format: output[*].type == "function_call"
+                for item in getattr(raw_response, "output", []) or []:
+                    if getattr(item, "type", "") == "function_call":
+                        import json
+                        name = getattr(item, "name", "")
+                        args_raw = getattr(item, "arguments", "{}")
+                        try:
+                            args = (
+                                json.loads(args_raw)
+                                if isinstance(args_raw, str)
+                                else (args_raw or {})
+                            )
+                        except (json.JSONDecodeError, TypeError):
+                            args = {}
+                        if name:
                             calls.append({"name": name, "arguments": args})
             elif provider == "anthropic":
                 for block in getattr(raw_response, "content", []):

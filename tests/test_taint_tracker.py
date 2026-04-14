@@ -101,17 +101,17 @@ class TestPreCheck:
 
     def test_accumulates_taint_across_requests(self):
         mod = TaintTrackerModule()
-        ctx1 = _make_req_ctx([{"role": "user", "content": "first"}])
+        ctx1 = _make_req_ctx([{"role": "user", "content": "first question here"}])
         mod.pre_check(ctx1)
         assert len(mod._tainted_strings) == 1
 
-        ctx2 = _make_req_ctx([{"role": "user", "content": "second"}])
+        ctx2 = _make_req_ctx([{"role": "user", "content": "second question here"}])
         mod.pre_check(ctx2)
         assert len(mod._tainted_strings) == 2
 
     def test_reset_clears_taint(self):
         mod = TaintTrackerModule()
-        ctx = _make_req_ctx([{"role": "user", "content": "first"}])
+        ctx = _make_req_ctx([{"role": "user", "content": "first question here"}])
         mod.pre_check(ctx)
         assert len(mod._tainted_strings) == 1
         mod.reset()
@@ -319,3 +319,119 @@ class TestInitIntegration:
     def test_taint_tracker_bool(self):
         core = agentarmor.init(taint_tracker=True)
         assert "taint_tracker" in core.modules
+
+
+# ---------------------------------------------------------------------------
+# Review-added: bounded state, min-length filter, Responses API coverage
+# ---------------------------------------------------------------------------
+
+class TestBoundedState:
+    def test_taint_state_caps_at_max_tainted_items(self):
+        """Long-running sessions must not leak memory."""
+        mod = TaintTrackerModule(max_tainted_items=5)
+        for i in range(20):
+            ctx = _make_req_ctx([
+                {"role": "user", "content": f"unique user message number {i}"},
+            ])
+            mod.pre_check(ctx)
+        assert len(mod._tainted_strings) == 5
+        # FIFO — oldest are evicted, newest kept.
+        kept = [td.text for td in mod._tainted_strings]
+        assert "unique user message number 19" in kept
+        assert "unique user message number 0" not in kept
+
+
+class TestMinTaintLength:
+    def test_short_user_input_is_not_tracked(self):
+        """Substring-match on 2-char content would false-positive everywhere."""
+        mod = TaintTrackerModule()
+        ctx = _make_req_ctx([{"role": "user", "content": "hi"}])
+        mod.pre_check(ctx)
+        assert len(mod._tainted_strings) == 0
+
+    def test_short_register_taint_is_dropped(self):
+        mod = TaintTrackerModule()
+        mod.register_taint("ok", {"tool_output"}, source="tool")
+        assert len(mod._tainted_strings) == 0
+
+    def test_min_taint_length_configurable(self):
+        """Users can opt back into tracking short strings."""
+        mod = TaintTrackerModule(min_taint_length=0)
+        ctx = _make_req_ctx([{"role": "user", "content": "hi"}])
+        mod.pre_check(ctx)
+        assert len(mod._tainted_strings) == 1
+
+    def test_short_string_does_not_false_positive_against_tool_arg(self):
+        """The original FP scenario: short tainted 'hi' would match any
+        tool arg containing 'hi' as a substring. min_taint_length stops
+        this at the source."""
+        mod = TaintTrackerModule(
+            sink_policies={"send_email": ["user_input"]},
+            on_violation="block",
+        )
+        # User types "hi" — should not be tracked at all.
+        ctx = _make_req_ctx([{"role": "user", "content": "hi"}])
+        mod.pre_check(ctx)
+
+        # Model calls send_email with body containing "hi" substring.
+        # Without min_taint_length, this would trigger a violation.
+        tc = _TCMock("send_email", '{"body": "this is a normal message"}')
+        raw = _OpenAIResp([tc])
+        res_ctx = _make_res_ctx(raw_response=raw, provider="openai")
+
+        # Must not raise.
+        result = mod.post_filter(res_ctx)
+        assert result is res_ctx
+
+
+class TestResponsesAPICoverage:
+    """Taint tracker must extract tool calls from the OpenAI Responses API
+    surface, not just Chat Completions."""
+
+    def _make_responses_function_call(self, name, arguments_json):
+        item = MagicMock()
+        item.type = "function_call"
+        item.name = name
+        item.arguments = arguments_json
+        return item
+
+    def _make_responses_raw(self, items):
+        raw = MagicMock()
+        raw.output = items
+        # No choices attribute to ensure we're hitting the Responses path only
+        del raw.choices
+        return raw
+
+    def test_extracts_function_call_from_responses_output(self):
+        mod = TaintTrackerModule(
+            sink_policies={"send_email": ["pii"]},
+            on_violation="block",
+        )
+        ctx = _make_req_ctx([{"role": "user", "content": "My SSN is 123-45-6789"}])
+        mod.pre_check(ctx)
+
+        fc = self._make_responses_function_call(
+            "send_email", '{"body": "Your SSN is 123-45-6789"}'
+        )
+        raw = self._make_responses_raw([fc])
+        res_ctx = _make_res_ctx(raw_response=raw, provider="openai")
+
+        with pytest.raises(TaintViolation, match="pii"):
+            mod.post_filter(res_ctx)
+
+    def test_responses_api_clean_args_pass(self):
+        mod = TaintTrackerModule(
+            sink_policies={"send_email": ["pii"]},
+            on_violation="block",
+        )
+        ctx = _make_req_ctx([{"role": "user", "content": "send a friendly greeting"}])
+        mod.pre_check(ctx)
+
+        fc = self._make_responses_function_call(
+            "send_email", '{"body": "hello there"}'
+        )
+        raw = self._make_responses_raw([fc])
+        res_ctx = _make_res_ctx(raw_response=raw, provider="openai")
+
+        # Must not raise.
+        assert mod.post_filter(res_ctx) is res_ctx
