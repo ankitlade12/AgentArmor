@@ -161,6 +161,44 @@ class TestOpenAIResponses:
         finally:
             Responses.create = original
 
+    @pytest.mark.asyncio
+    async def test_async(self):
+        from openai.resources.responses import AsyncResponses
+
+        content_block = MagicMock()
+        content_block.type = "output_text"
+        content_block.text = "responses_async_ok"
+        item = MagicMock()
+        item.type = "message"
+        item.content = [content_block]
+        resp = MagicMock()
+        resp.output_text = "responses_async_ok"
+        resp.output = [item]
+        resp.usage = MagicMock(input_tokens=1, output_tokens=1)
+
+        original = AsyncResponses.create
+
+        async def mock(*a, **kw):
+            return resp
+
+        AsyncResponses.create = MagicMock(side_effect=mock)
+        try:
+            import openai as _openai
+            core = agentarmor.init()
+            called = []
+
+            @core.registry.register_after_response
+            def cb(ctx: ResponseContext):
+                called.append(ctx.text)
+                return ctx
+
+            await _openai.AsyncOpenAI(api_key="x").responses.create(
+                model="gpt-4o", input="async-hi",
+            )
+            assert called == ["responses_async_ok"]
+        finally:
+            AsyncResponses.create = original
+
 
 # ---------------------------------------------------------------------------
 # Anthropic Messages (sync + async)
@@ -266,6 +304,41 @@ class TestGeminiGenerateContent:
             assert called == ["gemini"]
         finally:
             genai_models.Models.generate_content = original
+
+    @pytest.mark.asyncio
+    async def test_async_hook_fires(self):
+        from google.genai import models as genai_models
+
+        fake_part = MagicMock()
+        fake_part.text = "gemini_async_ok"
+        fake_candidate = MagicMock()
+        fake_candidate.content.parts = [fake_part]
+        fake_response = MagicMock()
+        fake_response.text = "gemini_async_ok"
+        fake_response.candidates = [fake_candidate]
+        fake_response.usage_metadata = None
+
+        original = genai_models.AsyncModels.generate_content
+
+        async def mock(*a, **kw):
+            return fake_response
+
+        genai_models.AsyncModels.generate_content = MagicMock(side_effect=mock)
+        try:
+            core = agentarmor.init()
+            called = []
+
+            @core.registry.register_after_response
+            def cb(ctx: ResponseContext):
+                called.append(ctx.text)
+                return ctx
+
+            # Call the patched class method directly (avoids Client() auth issues)
+            instance = genai_models.AsyncModels.__new__(genai_models.AsyncModels)
+            await instance.generate_content(model="gemini-2.0-flash", contents="hi")
+            assert called == ["gemini_async_ok"]
+        finally:
+            genai_models.AsyncModels.generate_content = original
 
 
 # ---------------------------------------------------------------------------
