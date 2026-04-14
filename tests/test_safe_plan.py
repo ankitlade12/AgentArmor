@@ -298,3 +298,103 @@ class TestToolFirewallIntegration:
         exc = exc_info.value
         assert not hasattr(exc, "suggestions")
         assert "Safe alternatives" not in str(exc)
+
+
+# ---------------------------------------------------------------------------
+# Review-added: parity for HumanApprovalRequired + lazy-import sanity
+# ---------------------------------------------------------------------------
+
+class TestHumanApprovalRequiredParity:
+    """HumanApprovalRequired must expose .suggestion attribute, mirroring
+    HumanApprovalDenied. Without this, app code can't programmatically
+    extract suggestions for the 'pending approval' path."""
+
+    def _build_response_with_tool_call(self, tool_name, args_json='{}'):
+        from unittest.mock import MagicMock
+
+        fn = MagicMock()
+        fn.name = tool_name
+        fn.arguments = args_json
+        tc = MagicMock()
+        tc.function = fn
+        msg = MagicMock()
+        msg.tool_calls = [tc]
+        msg.content = None
+        choice = MagicMock()
+        choice.message = msg
+        raw = MagicMock()
+        raw.choices = [choice]
+        return raw
+
+    def test_pending_action_exposes_structured_suggestion(self):
+        from agentarmor.modules.hitl_gate import HITLGateModule
+        from agentarmor.exceptions import HumanApprovalRequired
+        from agentarmor.hooks import RequestContext, ResponseContext
+
+        # No auto_deny, no callback → "pending" decision
+        gate = HITLGateModule(
+            risk_map={"deploy_to_prod": "high"},
+            auto_deny_levels=[],  # don't auto-deny high
+            safe_plan={"tool_categories": {"deploy_to_prod": "shell_exec"}},
+        )
+
+        raw = self._build_response_with_tool_call(
+            "deploy_to_prod", '{"command": "kubectl apply"}'
+        )
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="", model="gpt-4o", provider="openai",
+            request=req, raw_response=raw,
+        )
+
+        with pytest.raises(HumanApprovalRequired) as exc_info:
+            gate.post_filter(ctx)
+
+        exc = exc_info.value
+        # Parity with HumanApprovalDenied: structured .suggestion attribute.
+        assert hasattr(exc, "suggestion"), (
+            "HumanApprovalRequired must expose .suggestion for parity with HumanApprovalDenied"
+        )
+        assert exc.suggestion.tool_name == "deploy_to_prod"
+        assert len(exc.suggestion.alternatives) >= 2
+        # Message text still includes the safe alternatives.
+        assert "Safe alternatives" in str(exc)
+
+    def test_pending_action_without_safe_plan_has_no_suggestion(self):
+        from agentarmor.modules.hitl_gate import HITLGateModule
+        from agentarmor.exceptions import HumanApprovalRequired
+        from agentarmor.hooks import RequestContext, ResponseContext
+
+        gate = HITLGateModule(
+            risk_map={"deploy_to_prod": "high"},
+            auto_deny_levels=[],
+        )
+
+        raw = self._build_response_with_tool_call("deploy_to_prod")
+        req = RequestContext(messages=[], model="gpt-4o")
+        ctx = ResponseContext(
+            text="", model="gpt-4o", provider="openai",
+            request=req, raw_response=raw,
+        )
+
+        with pytest.raises(HumanApprovalRequired) as exc_info:
+            gate.post_filter(ctx)
+
+        # No safe_plan configured → no .suggestion attribute, no alt text.
+        assert not hasattr(exc_info.value, "suggestion")
+        assert "Safe alternatives" not in str(exc_info.value)
+
+
+class TestLazyImport:
+    """hitl_gate must lazy-import safe_plan inside __init__ — matches
+    tool_firewall pattern and prevents future circular-import risk."""
+
+    def test_safe_plan_engine_not_bound_at_hitl_gate_module_level(self):
+        """SafePlanEngine must not be visible in hitl_gate's namespace —
+        that would mean it was eagerly imported at module load time."""
+        from agentarmor.modules import hitl_gate
+        assert not hasattr(hitl_gate, "SafePlanEngine"), (
+            "hitl_gate has SafePlanEngine bound at module level, meaning it's "
+            "eagerly imported. Move the import inside __init__ to match "
+            "tool_firewall's pattern and avoid circular-import risk."
+        )

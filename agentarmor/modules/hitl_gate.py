@@ -4,7 +4,6 @@ import threading
 from typing import Optional, List, Dict, Any, Callable
 from ..exceptions import HumanApprovalRequired, HumanApprovalDenied, HumanApprovalTimeout
 from ..hooks import ResponseContext
-from ..modules.safe_plan import SafePlanEngine
 
 
 class PolicyRule:
@@ -120,8 +119,12 @@ class HITLGateModule:
             for p in policies:
                 self.policies.append(PolicyRule(**p))
 
-        # Safe plan engine (optional)
+        # Safe plan engine (optional). Lazy-imported here to avoid any
+        # future circular-import risk (safe_plan.py is currently
+        # leaf-only, but matching tool_firewall.py's pattern keeps it
+        # safe to evolve either side independently).
         if safe_plan is not None:
+            from .safe_plan import SafePlanEngine
             sp_config = safe_plan if isinstance(safe_plan, dict) else {}
             self._safe_plan = SafePlanEngine(**sp_config)
         else:
@@ -200,14 +203,16 @@ class HITLGateModule:
                     f"(policy: {matched_rule.name}, risk: {matched_rule.risk_level}): "
                     f"{matched_rule.description}"
                 )
+                exc = HumanApprovalRequired(msg)
                 if self._safe_plan:
                     suggestion = self._safe_plan.suggest(
                         tool_name, arguments,
                         risk_level=matched_rule.risk_level,
                         policy_name=matched_rule.name,
                     )
-                    msg += "\n\n" + suggestion.to_message()
-                raise HumanApprovalRequired(msg)
+                    exc = HumanApprovalRequired(msg + "\n\n" + suggestion.to_message())
+                    exc.suggestion = suggestion  # parity with HumanApprovalDenied
+                raise exc
 
         return ctx
 
