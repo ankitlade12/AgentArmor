@@ -1,12 +1,19 @@
 """
-MCP (Model Context Protocol) Server Firewall --- secures agent-tool
-communication by validating MCP servers, enforcing per-tool policies,
-and scanning tool descriptions for injection attempts.
+MCP Policy Engine v2 --- secures agent-tool communication by validating
+MCP servers, enforcing per-tool policies, scanning tool descriptions for
+injection attempts, and extracting server identity from mcp_tool_use blocks.
+
+v2 additions over v1:
+- Server identity extraction from Anthropic mcp_tool_use content blocks
+- Per-server toolset allowlists (which tools may a given server expose)
+- Tool result validation (scan tool results for injection/exfiltration)
+- Auth-aware server configs (require auth tokens per server)
 """
 
 import re
 import warnings
-from typing import Any, Dict, List, Optional
+from collections import deque
+from typing import Any, Deque, Dict, List, Optional
 
 from ..exceptions import MCPViolation
 from ..hooks import ResponseContext
@@ -27,6 +34,11 @@ class MCPFirewallModule:
         scan_descriptions: bool = True,
         max_tool_calls_per_request: int = 10,
         on_violation: str = "block",
+        # v2 additions
+        server_toolsets: Optional[Dict[str, List[str]]] = None,
+        server_auth: Optional[Dict[str, str]] = None,
+        validate_tool_results: bool = False,
+        max_call_log: int = 500,
     ):
         """
         Args:
@@ -37,6 +49,13 @@ class MCPFirewallModule:
             scan_descriptions: Scan MCP tool descriptions for injection attempts.
             max_tool_calls_per_request: Max tool calls in a single agent turn.
             on_violation: "block" raises MCPViolation, "warn" logs a warning.
+            server_toolsets: Per-server tool allowlists, e.g.
+                {"filesystem-server": ["file_read", "file_write"]}.
+                If a server invokes a tool not in its allowlist, it's a violation.
+            server_auth: Required auth token per server, e.g.
+                {"private-server": "Bearer xyz"}. Validated via validate_server_auth().
+            validate_tool_results: If True, scan tool result text for injection patterns.
+            max_call_log: Cap on stored entries in server_call_log (FIFO). Default 500.
         """
         if on_violation not in ("block", "warn"):
             raise ValueError(
@@ -53,6 +72,13 @@ class MCPFirewallModule:
         self.scanned_tools: int = 0
         self.blocked_calls: int = 0
 
+        # v2 state
+        self.server_toolsets: Dict[str, List[str]] = server_toolsets or {}
+        self.server_auth: Dict[str, str] = server_auth or {}
+        self._authenticated_servers: set = set()  # servers that passed auth
+        self.validate_tool_results: bool = validate_tool_results
+        self.server_call_log: Deque[Dict[str, Any]] = deque(maxlen=max_call_log)
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -68,6 +94,25 @@ class MCPFirewallModule:
         if self.trusted_servers and server_name not in self.trusted_servers:
             self._handle_violation(f"Untrusted MCP server: {server_name}")
             return False
+        return True
+
+    def validate_server_auth(self, server_name: str, auth_token: Optional[str] = None) -> bool:
+        """Validate that a server provides the expected auth credentials.
+
+        Call this at server registration/connection time. Once a server
+        passes auth, it is remembered as authenticated for the session.
+        Returns True if no auth is required or the token matches.
+        """
+        expected = self.server_auth.get(server_name)
+        if expected is None:
+            return True  # No auth required for this server
+        if auth_token != expected:
+            self._handle_violation(
+                f"Auth mismatch for MCP server '{server_name}': "
+                f"expected valid token, got {'<none>' if auth_token is None else '<invalid>'}"
+            )
+            return False
+        self._authenticated_servers.add(server_name)
         return True
 
     def validate_tool_call(
@@ -87,6 +132,17 @@ class MCPFirewallModule:
             if not self.validate_server(server_name):
                 return False
 
+            # v2: Per-server toolset enforcement
+            if server_name in self.server_toolsets:
+                allowed_tools = self.server_toolsets[server_name]
+                if tool_name not in allowed_tools:
+                    self._handle_violation(
+                        f"Tool '{tool_name}' not in allowed toolset "
+                        f"for server '{server_name}'. "
+                        f"Allowed: {allowed_tools}"
+                    )
+                    return False
+
         # Tool-level policy check
         if not self._check_tool_policy(tool_name, arguments):
             self._handle_violation(
@@ -94,6 +150,32 @@ class MCPFirewallModule:
             )
             return False
 
+        # Log the call
+        self.server_call_log.append({
+            "tool": tool_name,
+            "server": server_name,
+            "args_keys": list(arguments.keys()),
+        })
+
+        return True
+
+    def validate_tool_result(self, tool_name: str, result_text: str,
+                             server_name: Optional[str] = None) -> bool:
+        """Scan a tool result for injection patterns or exfiltration signals.
+
+        Returns True if the result is clean, False if suspicious content found.
+        """
+        if not self.validate_tool_results:
+            return True
+
+        for pattern in _INJECTION_RE:
+            if pattern.search(result_text):
+                self._handle_violation(
+                    f"Injection detected in tool result from '{tool_name}'"
+                    f"{f' (server: {server_name})' if server_name else ''}: "
+                    f"{result_text[:80]}"
+                )
+                return False
         return True
 
     def scan_tool_description(self, tool_name: str, description: str) -> bool:
@@ -115,15 +197,79 @@ class MCPFirewallModule:
     # Hook
     # ------------------------------------------------------------------
 
-    def post_filter(self, ctx: ResponseContext) -> ResponseContext:
-        """After-response hook that inspects tool_use blocks and validates them.
+    def pre_check(self, ctx) -> Any:
+        """Before-request hook: scan tool_result messages for injection.
 
-        Note: server-level validation does not happen here because the MCP server
-        identity is not available in the response body. Use :meth:`validate_server`
-        at tool-registration time for server-level checks.
+        When validate_tool_results is enabled, scans the content of any
+        tool_result messages in the conversation for injection patterns.
+        This catches indirect prompt injection via poisoned tool outputs.
+
+        Handles both conventions:
+        - OpenAI Chat Completions: ``role == "tool"`` with string content.
+        - Anthropic: ``role == "user"`` with content = list of parts that
+          may include ``{"type": "tool_result", "content": ...}`` blocks.
+        """
+        if not self.validate_tool_results:
+            return ctx
+        for msg in ctx.messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+
+            # OpenAI Chat Completions format
+            if role == "tool" and isinstance(content, str) and content.strip():
+                tool_id = msg.get("tool_call_id", "unknown")
+                self.validate_tool_result(
+                    tool_name=tool_id, result_text=content,
+                )
+                continue
+
+            # Anthropic format: user message with tool_result parts
+            if role == "user" and isinstance(content, list):
+                for part in content:
+                    if not isinstance(part, dict):
+                        continue
+                    if part.get("type") != "tool_result":
+                        continue
+                    tool_id = part.get("tool_use_id", "unknown")
+                    result_text = self._anthropic_tool_result_text(part.get("content"))
+                    if result_text and result_text.strip():
+                        self.validate_tool_result(
+                            tool_name=tool_id, result_text=result_text,
+                        )
+        return ctx
+
+    @staticmethod
+    def _anthropic_tool_result_text(content: Any) -> str:
+        """Flatten an Anthropic tool_result ``content`` field into plain text.
+
+        The value can be a string, a list of text parts, or absent.
+        """
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text = item.get("text", "")
+                    if text:
+                        parts.append(text)
+                elif isinstance(item, str):
+                    parts.append(item)
+            return " ".join(parts)
+        return ""
+
+    def post_filter(self, ctx: ResponseContext) -> ResponseContext:
+        """After-response hook: inspects tool_use and mcp_tool_use blocks.
+
+        Enforces: max tool calls, per-tool policies, server identity,
+        server auth (when server_name is present), and tool result
+        scanning on the response text.
         """
         tool_calls = self._extract_tool_calls(ctx)
         if not tool_calls:
+            # Even without tool calls, scan response text for tool results
+            if self.validate_tool_results and ctx.text:
+                self.validate_tool_result("response_text", ctx.text)
             return ctx
 
         # Enforce max tool calls per request
@@ -133,10 +279,23 @@ class MCPFirewallModule:
                 f"(max {self.max_tool_calls_per_request})"
             )
 
-        # Delegate to validate_tool_call so scanned_tools & policies are
-        # applied consistently and do not double-count with direct API calls.
-        for name, arguments in tool_calls:
-            self.validate_tool_call(name, arguments)
+        for call_info in tool_calls:
+            name = call_info["name"]
+            arguments = call_info["arguments"]
+            server = call_info.get("server_name")
+
+            # Server auth enforcement: if server requires auth but
+            # hasn't been pre-authenticated via validate_server_auth(),
+            # block the call.
+            if server and server in self.server_auth:
+                if server not in self._authenticated_servers:
+                    self._handle_violation(
+                        f"MCP server '{server}' requires auth but has "
+                        f"not been authenticated. Call validate_server_auth() "
+                        f"at server registration time."
+                    )
+
+            self.validate_tool_call(name, arguments, server_name=server)
 
         return ctx
 
@@ -192,12 +351,46 @@ class MCPFirewallModule:
         return True
 
     @staticmethod
-    def _extract_tool_calls(ctx: ResponseContext) -> List[tuple]:
-        """Returns a list of (tool_name, arguments) tuples from the raw response."""
-        calls: List[tuple] = []
+    def _extract_tool_calls(ctx: ResponseContext) -> List[Dict[str, Any]]:
+        """Returns a list of dicts with name, arguments, and optional server_name."""
+        calls: List[Dict[str, Any]] = []
         raw = ctx.raw_response
         if raw is None:
             return calls
+
+        # Anthropic format: look for both tool_use and mcp_tool_use blocks
+        try:
+            content = getattr(raw, "content", None)
+            if isinstance(content, list):
+                for block in content:
+                    block_type = getattr(block, "type", None)
+
+                    # Standard tool_use
+                    if block_type == "tool_use":
+                        name = getattr(block, "name", None)
+                        args = getattr(block, "input", {}) or {}
+                        if name:
+                            calls.append({
+                                "name": name,
+                                "arguments": args,
+                            })
+
+                    # v2: mcp_tool_use — carries server_name
+                    elif block_type == "mcp_tool_use":
+                        name = getattr(block, "name", None)
+                        args = getattr(block, "input", {}) or {}
+                        server = getattr(block, "server_name", None)
+                        if name:
+                            calls.append({
+                                "name": name,
+                                "arguments": args,
+                                "server_name": server,
+                            })
+
+                if calls:
+                    return calls
+        except (AttributeError, TypeError):
+            pass
 
         # OpenAI format: response.choices[0].message.tool_calls
         try:
@@ -216,23 +409,10 @@ class MCPFirewallModule:
                             args = _json.loads(args_str) if isinstance(args_str, str) else args_str or {}
                         except (ValueError, TypeError):
                             args = {}
-                        calls.append((name, args))
+                        calls.append({"name": name, "arguments": args})
                 if calls:
                     return calls
         except (AttributeError, IndexError, TypeError):
-            pass
-
-        # Anthropic format: response.content -- list of blocks with type=="tool_use"
-        try:
-            content = getattr(raw, "content", None)
-            if isinstance(content, list):
-                for block in content:
-                    if getattr(block, "type", None) == "tool_use":
-                        name = getattr(block, "name", None)
-                        args = getattr(block, "input", {}) or {}
-                        if name:
-                            calls.append((name, args))
-        except (AttributeError, TypeError):
             pass
 
         return calls
@@ -248,4 +428,7 @@ class MCPFirewallModule:
             "violations": self.violations[-10:],
             "trusted_servers": list(self.trusted_servers),
             "blocked_servers": list(self.blocked_servers),
+            "server_toolsets": {k: list(v) for k, v in self.server_toolsets.items()},
+            "server_call_log_size": len(self.server_call_log),
+            "validate_tool_results": self.validate_tool_results,
         }

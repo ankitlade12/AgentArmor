@@ -141,6 +141,18 @@ def validate_mcp_tool(tool_name: str, arguments: dict, server_name=None) -> bool
         return core.modules["mcp_firewall"].validate_tool_call(tool_name, arguments, server_name)
     return True
 
+def authenticate_mcp_server(server_name: str, auth_token: str) -> bool:
+    """Pre-authenticate an MCP server for the active session.
+
+    Call this at server registration/connection time. Once authenticated,
+    the server is allowed to make tool calls through the MCP firewall.
+    Returns True if auth succeeds, False if token doesn't match.
+    """
+    core = get_core()
+    if core and "mcp_firewall" in core.modules:
+        return core.modules["mcp_firewall"].validate_server_auth(server_name, auth_token)
+    return True
+
 def init_from_config(path=None, **overrides) -> ArmorCore:
     """
     Initializes AgentArmor from a config file (.agentarmor.yml / .json).
@@ -185,6 +197,7 @@ __all__ = [
     "MCPViolation",
     "validate_mcp_server",
     "validate_mcp_tool",
+    "authenticate_mcp_server",
     "InsecureCodeDetected",
     "HallucinationDetected",
     "ReasoningViolation",
