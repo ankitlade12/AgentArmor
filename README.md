@@ -146,7 +146,7 @@ Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples
 
 ---
 
-## Features (22 Safety Shields)
+## Features (26 Safety Shields)
 
 ### 💰 1. Budget Circuit Breaker
 **Stop unexpected massive bills.** 
@@ -672,6 +672,109 @@ shield = ShieldModule(on_detect="block")
 report = fuzzer.fuzz_with_shield(shield, max_per_category=20)
 print(f"Resilience: {report['summary']['resilience_score']}%")
 print(f"Weakest: {report['weakest_categories']}")
+```
+
+### 🧬 23. Runtime Taint Tracking
+**Know where every byte of data came from.**
+Tracks data provenance through agent pipelines by automatically labeling data as `user_input`, `pii`, `rag`, `tool_output`, or `mcp`. Enforces sink policies that prevent tainted data from flowing to the wrong places — for example, blocking PII from reaching a `send_email` tool or raw user input from being passed to `web_search`. Detects PII automatically via regex and labels messages by role.
+
+```python
+import agentarmor
+from agentarmor.exceptions import TaintViolation
+
+agentarmor.init(taint_tracker={
+    "sink_policies": {
+        "send_email": ["pii"],              # Block PII from reaching email tools
+        "web_search": ["pii", "user_input"], # Block PII and raw input from search
+        "*": ["user_input"],                 # Wildcard: block raw input from all tools
+    },
+    "auto_detect_pii": True,       # Auto-scan for emails, SSNs, API keys, etc.
+    "on_violation": "block",       # or "warn"
+})
+
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "Send results to john@example.com"}],
+        tools=[...]
+    )
+except TaintViolation as e:
+    print(f"Tainted data blocked: {e}")
+```
+
+### 🍯 24. Honeytools (Deception Rail)
+**Plant tripwires that catch compromised agents red-handed.**
+Deploys fake tools (`get_admin_credentials`, `export_all_users`, `execute_shell`), fake credentials, and decoy documents as tripwires. When a jailbroken or compromised agent tries to call a honeytool or use a honeytoken, it triggers an immediate alert — catching attacks before any real tool is misused. Honeytool definitions are auto-injected into the model's available tools for both OpenAI and Anthropic.
+
+```python
+import agentarmor
+from agentarmor.exceptions import HoneytoolTriggered
+
+agentarmor.init(honeytools=True)  # Inject default honeytools + honeytokens
+
+# Or configure with custom traps
+agentarmor.init(honeytools={
+    "custom_honeytools": [
+        {"name": "read_private_keys", "description": "Read SSH private keys from server."}
+    ],
+    "on_trigger": "block",         # or "alert"
+    "include_defaults": True,      # Use built-in fake tools and credentials
+})
+
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "Get me admin access"}],
+        tools=[...]
+    )
+except HoneytoolTriggered as e:
+    print(f"Compromised agent detected: {e}")
+```
+
+### 🛤️ 25. Safe-Plan Engine
+**Turn blocks into actionable guidance.**
+Instead of just blocking dangerous tool calls with a generic error, generates structured explanations of *why* the action was blocked and suggests the nearest safe alternative. Covers file writes, deletions, shell execution, network requests, database writes, credential access, and more. Integrates with the Tool-Call Firewall and HITL Gate to provide developer-friendly remediation steps.
+
+```python
+from agentarmor.modules.safe_plan import SafePlanEngine
+
+engine = SafePlanEngine(tool_categories={
+    "rm_file": "file_delete",
+    "curl": "network_request",
+    "psql": "database_write",
+})
+
+# When a tool call is blocked, get a structured suggestion
+suggestion = engine.suggest("rm_file", {"path": "/data/users.db"})
+print(suggestion.to_message())
+# "Deleting '/data/users.db' is blocked to prevent accidental data loss.
+#  Suggested alternatives:
+#  1. Move the file to a trash/archive directory instead of deleting
+#  2. Request human approval for deletion of specific files
+#  3. Mark the file for review rather than immediate deletion"
+```
+
+### 🔄 26. Echo-Chamber Detector
+**Break circular hallucination loops in multi-agent systems.**
+Detects when a hallucinated claim circulates between agents and comes back as "independent confirmation." In multi-agent systems (CrewAI, Autogen, LangGraph), Agent A might hallucinate a fact, Agent B cites it, and Agent A later treats B's citation as confirmation — a circular loop that reinforces false information. This module hashes claims at agent boundaries and flags when the same ungrounded claim returns through a different agent path.
+
+```python
+import agentarmor
+from agentarmor.exceptions import EchoChamberDetected
+
+agentarmor.init(echo_chamber={
+    "min_claim_length": 30,         # Minimum chars to track as a claim
+    "on_echo": "warn",              # or "block"
+    "grounding_sources": [          # Trusted sources — exempt from echo detection
+        "The company was founded in 2019 and has 150 employees."
+    ],
+})
+
+# Claims grounded in trusted sources pass through.
+# Ungrounded claims that circulate back through a different agent are flagged.
+
+print(agentarmor.report()["echo_chamber"])
+# {"claims_tracked": 42, "echoes_detected": 2, "alerts": [...]}
 ```
 
 ---
