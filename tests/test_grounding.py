@@ -309,6 +309,65 @@ def test_report_accuracy():
     assert report["min_score"] <= report["average_grounding_score"]
 
 
+# ---------------------------------------------------------------------------
+# Benchmark proof: threshold 0.35 reduces FPs on paraphrases
+# ---------------------------------------------------------------------------
+
+def test_paraphrased_content_not_flagged():
+    """Paraphrased responses should NOT be flagged as hallucinated.
+
+    This is the core scenario the 0.35 threshold + stemmed weights fix:
+    a response that restates source facts in different words should score
+    above threshold, not be a false positive.
+    """
+    source = (
+        "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars "
+        "in Paris, France. It was constructed from 1887 to 1889 as the centerpiece "
+        "of the 1889 World's Fair. Named after engineer Gustave Eiffel, whose "
+        "company designed and built the tower. It is 330 metres tall."
+    )
+    module = GroundingGuardModule(
+        sources=[source],
+        threshold=0.3,
+        on_detect="block",
+        extract_from_messages=False,
+    )
+    # Paraphrased version — same facts, different words
+    paraphrased = (
+        "Located in Paris on the Champ de Mars, the Eiffel Tower is an iron "
+        "lattice structure standing 330 meters high. Gustave Eiffel's engineering "
+        "firm constructed it between 1887 and 1889 for the World's Fair."
+    )
+    ctx = _make_res_ctx(paraphrased)
+    result = module.post_filter(ctx)
+    assert result is ctx  # Should NOT raise
+    assert module.hallucinations_detected == 0
+    assert module.scores[-1] >= 0.3  # Must be above threshold
+
+
+def test_actual_hallucination_still_detected():
+    """Completely fabricated content should still be caught."""
+    source = (
+        "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars "
+        "in Paris, France. It was constructed from 1887 to 1889."
+    )
+    module = GroundingGuardModule(
+        sources=[source],
+        threshold=0.3,
+        on_detect="warn",
+        extract_from_messages=False,
+    )
+    hallucinated = (
+        "The Great Pyramid of Giza was built by aliens using advanced "
+        "quantum teleportation technology in 3000 BC. Scientists recently "
+        "discovered a hidden chamber containing a fusion reactor."
+    )
+    ctx = _make_res_ctx(hallucinated)
+    module.post_filter(ctx)
+    assert module.scores[-1] < 0.3  # Must be below threshold
+    assert module.hallucinations_detected == 1
+
+
 def test_report_empty():
     module = GroundingGuardModule(extract_from_messages=False)
     report = module.report()
@@ -316,3 +375,74 @@ def test_report_empty():
     assert report["hallucinations_detected"] == 0
     assert report["average_grounding_score"] == 0.0
     assert report["min_score"] is None
+
+
+# ---------------------------------------------------------------------------
+# Review-added: regression guards for the rebalanced scorer
+# ---------------------------------------------------------------------------
+
+def test_subtle_hallucination_sub_scores_remain_discriminating():
+    """Even though the aggregate score may pass for shared-vocabulary
+    hallucinations (a TF-IDF limitation), the numbers sub-score must
+    still catch wrong factual numbers. This pins the fact-level signal
+    so a future weight rebalance can't silently disable it."""
+    source = (
+        "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars "
+        "in Paris, France. It was constructed from 1887 to 1889. It is 330 metres tall."
+    )
+    subtle_wrong = (
+        "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars "
+        "in Paris, France. It was constructed from 1920 to 1925, and stands 500 metres tall."
+    )
+    module = GroundingGuardModule(
+        sources=[source],
+        threshold=0.3,
+        on_detect="warn",
+        extract_from_messages=False,
+        check_numbers=True,
+    )
+    numbers_score = module._verify_numbers(subtle_wrong, source.lower())
+    # All 3 numbers in the hallucination (1920, 1925, 500) are absent from source.
+    assert numbers_score == 0.0, (
+        f"numbers sub-score must reject wrong factual numbers, got {numbers_score}"
+    )
+
+
+def test_fallback_path_without_tfidf():
+    """When sklearn/TF-IDF is unavailable, the scorer must use the
+    second (stemmed-heavy) weights dict and still discriminate
+    paraphrases from fabrications."""
+    source = (
+        "The Great Wall of China was built over many centuries by different dynasties "
+        "to protect against northern invasions. It stretches more than 13,000 miles."
+    )
+    paraphrase = (
+        "Multiple Chinese dynasties constructed the Great Wall across many centuries "
+        "as protection against invaders from the north; its length exceeds 13,000 miles."
+    )
+    fabrication = (
+        "The Pyramids of Giza are solar panels built by ancient astronauts "
+        "to transmit power to Mars."
+    )
+
+    module = GroundingGuardModule(
+        sources=[source],
+        threshold=0.3,
+        on_detect="warn",
+        extract_from_messages=False,
+    )
+    # Force fallback path by disabling TF-IDF availability.
+    module._tfidf_available = False
+
+    paraphrase_score = module._compute_grounding_score(paraphrase, [source])
+    fabrication_score = module._compute_grounding_score(fabrication, [source])
+
+    # Paraphrase must score meaningfully higher than fabrication even without TF-IDF.
+    assert paraphrase_score > fabrication_score, (
+        f"fallback path failed to discriminate: paraphrase={paraphrase_score:.3f} "
+        f"vs fabrication={fabrication_score:.3f}"
+    )
+    # And must be above threshold (0.3) — the whole point of the stemmed boost.
+    assert paraphrase_score >= 0.3, (
+        f"paraphrase fell below threshold on fallback path: {paraphrase_score:.3f}"
+    )
