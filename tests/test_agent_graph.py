@@ -1,3 +1,4 @@
+import contextvars
 import pytest
 from agentarmor.modules.agent_graph import AgentGraphModule, AgentNode
 from agentarmor.exceptions import (
@@ -279,3 +280,136 @@ def test_no_graph_module_end_no_error():
         agentarmor.end_agent("test")
     finally:
         agentarmor.teardown()
+
+
+# --- v2: Trace IDs ---
+
+def test_trace_id_auto_generated():
+    module = AgentGraphModule()
+    node = module.spawn_agent("root")
+    assert node.trace_id is not None
+    assert len(node.trace_id) == 12
+
+
+def test_trace_id_inherited_from_parent():
+    module = AgentGraphModule()
+    root = module.spawn_agent("root")
+    child = module.spawn_agent("child", parent_id="root")
+    assert child.trace_id == f"{root.trace_id}/child"
+
+
+def test_trace_id_in_report():
+    module = AgentGraphModule()
+    module.spawn_agent("root")
+    report = module.report()
+    assert "trace_id" in report["agents"][0]
+
+
+# --- v2: Policy inheritance ---
+
+def test_child_inherits_parent_policies():
+    module = AgentGraphModule()
+    module.spawn_agent("root", policies={"shield": True, "filter": ["pii"]})
+    child = module.spawn_agent("child", parent_id="root")
+    assert child.policies["shield"] is True
+    assert child.policies["filter"] == ["pii"]
+
+
+def test_child_overrides_parent_policies():
+    module = AgentGraphModule()
+    module.spawn_agent("root", policies={"shield": True, "filter": ["pii"]})
+    child = module.spawn_agent(
+        "child", parent_id="root", policies={"shield": False},
+    )
+    assert child.policies["shield"] is False
+    assert child.policies["filter"] == ["pii"]
+
+
+def test_default_policies_applied():
+    module = AgentGraphModule(default_policies={"budget": 10.0})
+    node = module.spawn_agent("root")
+    assert node.policies["budget"] == 10.0
+
+
+def test_parent_policies_override_defaults():
+    module = AgentGraphModule(default_policies={"budget": 10.0})
+    module.spawn_agent("root", policies={"budget": 5.0})
+    child = module.spawn_agent("child", parent_id="root")
+    assert child.policies["budget"] == 5.0
+
+
+# --- v2: Async-safe contextvars ---
+
+def test_contextvars_active_agent():
+    """Active agent uses contextvars, not shared state."""
+    module = AgentGraphModule()
+    module.spawn_agent("root")
+    assert module.active_agent_id == "root"
+    module.spawn_agent("child", parent_id="root")
+    assert module.active_agent_id == "child"
+    module.end_agent("child")
+    assert module.active_agent_id == "root"
+
+
+@pytest.mark.asyncio
+async def test_parallel_agents_in_async_tasks():
+    """Two concurrent async tasks get independent active agents."""
+    import asyncio
+
+    module = AgentGraphModule()
+    module.spawn_agent("root")
+
+    results = {}
+
+    async def task_a():
+        module.spawn_agent("agent_a", parent_id="root")
+        await asyncio.sleep(0.01)
+        results["a"] = module.active_agent_id
+
+    async def task_b():
+        module.spawn_agent("agent_b", parent_id="root")
+        await asyncio.sleep(0.01)
+        results["b"] = module.active_agent_id
+
+    # Copy context so each task gets its own contextvars
+    ctx_a = contextvars.copy_context()
+    ctx_b = contextvars.copy_context()
+
+    await asyncio.gather(
+        asyncio.ensure_future(ctx_a.run(task_a)),
+        asyncio.ensure_future(ctx_b.run(task_b)),
+    )
+
+    assert results["a"] == "agent_a"
+    assert results["b"] == "agent_b"
+
+
+# --- v2: Backwards-compat for removed constructor kwargs ---
+
+def test_deprecated_inherit_firewall_emits_warning_and_maps_to_policies():
+    with pytest.warns(DeprecationWarning, match="inherit_firewall"):
+        module = AgentGraphModule(inherit_firewall=True)
+    assert module.default_policies.get("firewall") is True
+
+
+def test_deprecated_inherit_shield_emits_warning_and_maps_to_policies():
+    with pytest.warns(DeprecationWarning, match="inherit_shield"):
+        module = AgentGraphModule(inherit_shield=False)
+    assert module.default_policies.get("shield") is False
+
+
+def test_deprecated_flags_do_not_clobber_explicit_default_policies():
+    """Explicit default_policies value wins over legacy flag."""
+    with pytest.warns(DeprecationWarning):
+        module = AgentGraphModule(
+            default_policies={"shield": True},
+            inherit_shield=False,
+        )
+    # setdefault() keeps the explicit value set by default_policies
+    assert module.default_policies["shield"] is True
+
+
+def test_unknown_kwargs_still_raise_type_error():
+    """Accepting deprecated flags must not mask typos in other kwargs."""
+    with pytest.raises(TypeError, match="totally_made_up_param"):
+        AgentGraphModule(totally_made_up_param=True)

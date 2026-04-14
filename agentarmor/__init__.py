@@ -87,12 +87,13 @@ def remaining() -> Optional[float]:
     return None
 
 def spawn_agent(agent_id: str, parent_id: Optional[str] = None,
-                budget_limit: Optional[float] = None):
+                budget_limit: Optional[float] = None,
+                policies: Optional[dict] = None):
     """Register a sub-agent in the current ArmorCore's agent graph."""
     core = get_core()
     if core and "agent_graph" in core.modules:
         node = core.modules["agent_graph"].spawn_agent(
-            agent_id, parent_id, budget_limit
+            agent_id, parent_id, budget_limit, policies=policies,
         )
         _active_agent.set(agent_id)
         return node
