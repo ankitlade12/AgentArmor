@@ -536,17 +536,6 @@ class ArmorCore:
         return messages
 
     @staticmethod
-    def _messages_to_responses_input(messages: list) -> Any:
-        """Convert normalized messages back to Responses API input format.
-
-        Deprecated: use _split_responses_messages instead for proper
-        instructions round-tripping. Kept for backwards compatibility.
-        """
-        if len(messages) == 1 and messages[0].get("role") == "user":
-            return messages[0].get("content", "")
-        return messages
-
-    @staticmethod
     def _split_responses_messages(messages: list, had_instructions: bool) -> tuple:
         """Split normalized messages back into (instructions, input).
 
