@@ -29,9 +29,10 @@ from .modules.compliance_reporter import ComplianceReporterModule
 from .modules.semantic_drift import SemanticDriftModule
 from .modules.taint_tracker import TaintTrackerModule
 from .modules.honeytools import HoneytoolsModule
+from .modules.echo_chamber import EchoChamberModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -225,6 +226,14 @@ class ArmorCore:
             if "honeytools" in self.modules:
                 self.registry.register_before_request(self.modules["honeytools"].pre_check)
                 self.registry.register_after_response(self.modules["honeytools"].post_filter)
+        if echo_chamber is not False and echo_chamber is not None:
+            if isinstance(echo_chamber, dict):
+                self.modules["echo_chamber"] = EchoChamberModule(**echo_chamber)
+            elif isinstance(echo_chamber, bool) and echo_chamber:
+                self.modules["echo_chamber"] = EchoChamberModule()
+            if "echo_chamber" in self.modules:
+                self.registry.register_before_request(self.modules["echo_chamber"].pre_check)
+                self.registry.register_after_response(self.modules["echo_chamber"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
