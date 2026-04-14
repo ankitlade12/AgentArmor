@@ -79,7 +79,8 @@ class HITLGateModule:
                  auto_deny_levels: Optional[List[str]] = None,
                  timeout_seconds: float = 300.0,
                  on_timeout: str = "deny",
-                 default_risk: str = "low"):
+                 default_risk: str = "low",
+                 safe_plan: Optional[Dict[str, Any]] = None):
         """
         Args:
             policies: List of policy rule dicts with keys: name, tool_names, risk_level, description, arg_patterns
@@ -90,6 +91,8 @@ class HITLGateModule:
             timeout_seconds: How long to wait for approval
             on_timeout: 'deny' or 'approve' when timeout expires
             default_risk: The default risk level assigned to a tool if it has no mapping.
+            safe_plan: Config for SafePlanEngine. When set, blocked actions include
+                structured safe alternatives. Keys: tool_categories, custom_alternatives.
         """
         self._lock = threading.Lock()
         self.timeout_seconds = timeout_seconds
@@ -115,6 +118,17 @@ class HITLGateModule:
         if policies:
             for p in policies:
                 self.policies.append(PolicyRule(**p))
+
+        # Safe plan engine (optional). Lazy-imported here to avoid any
+        # future circular-import risk (safe_plan.py is currently
+        # leaf-only, but matching tool_firewall.py's pattern keeps it
+        # safe to evolve either side independently).
+        if safe_plan is not None:
+            from .safe_plan import SafePlanEngine
+            sp_config = safe_plan if isinstance(safe_plan, dict) else {}
+            self._safe_plan = SafePlanEngine(**sp_config)
+        else:
+            self._safe_plan = None
 
         self.audit_log: List[Dict[str, Any]] = []
         self.stats = {
@@ -164,21 +178,41 @@ class HITLGateModule:
                 self.audit_log.append(request.to_dict())
 
             if decision == "denied":
-                raise HumanApprovalDenied(
+                msg = (
                     f"Action '{tool_name}' denied by policy '{matched_rule.name}' "
                     f"(risk: {matched_rule.risk_level}): {matched_rule.description}"
                 )
+                exc = HumanApprovalDenied(msg)
+                if self._safe_plan:
+                    suggestion = self._safe_plan.suggest(
+                        tool_name, arguments,
+                        risk_level=matched_rule.risk_level,
+                        policy_name=matched_rule.name,
+                    )
+                    exc = HumanApprovalDenied(msg + "\n\n" + suggestion.to_message())
+                    exc.suggestion = suggestion  # structured data
+                raise exc
             elif decision == "timeout":
                 raise HumanApprovalTimeout(
                     f"Approval timed out for '{tool_name}' "
                     f"(policy: {matched_rule.name}, risk: {matched_rule.risk_level})"
                 )
             elif decision == "pending":
-                raise HumanApprovalRequired(
+                msg = (
                     f"Action '{tool_name}' requires human approval "
                     f"(policy: {matched_rule.name}, risk: {matched_rule.risk_level}): "
                     f"{matched_rule.description}"
                 )
+                exc = HumanApprovalRequired(msg)
+                if self._safe_plan:
+                    suggestion = self._safe_plan.suggest(
+                        tool_name, arguments,
+                        risk_level=matched_rule.risk_level,
+                        policy_name=matched_rule.name,
+                    )
+                    exc = HumanApprovalRequired(msg + "\n\n" + suggestion.to_message())
+                    exc.suggestion = suggestion  # parity with HumanApprovalDenied
+                raise exc
 
         return ctx
 
