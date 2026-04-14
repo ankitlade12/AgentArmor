@@ -17,7 +17,8 @@ import hashlib
 import re
 import threading
 import time
-from typing import Any, Dict, List, Optional, Set
+from collections import OrderedDict, deque
+from typing import Any, Deque, Dict, List, Optional, Set
 
 from ..hooks import ResponseContext
 
@@ -93,6 +94,7 @@ class EchoChamberModule:
         on_echo: str = "warn",
         grounding_sources: Optional[List[str]] = None,
         max_claims: int = 500,
+        max_alerts: int = 500,
     ):
         """
         Args:
@@ -102,6 +104,7 @@ class EchoChamberModule:
             grounding_sources: List of trusted source texts. Claims that
                 appear in these sources are marked as grounded and exempt.
             max_claims: Max claims to track (oldest evicted when exceeded).
+            max_alerts: Cap on stored alert entries (FIFO). Default 500.
         """
         self.min_claim_length = min_claim_length
         self.on_echo = on_echo
@@ -109,8 +112,9 @@ class EchoChamberModule:
         self._grounding_source_set: set = set(self.grounding_sources)
         self.max_claims = max_claims
         self._lock = threading.Lock()
-        self._claims: Dict[str, Claim] = {}  # hash -> Claim
-        self.alerts: List[EchoChamberAlert] = []
+        # OrderedDict gives us O(1) LRU eviction via popitem(last=False).
+        self._claims: "OrderedDict[str, Claim]" = OrderedDict()
+        self.alerts: Deque[EchoChamberAlert] = deque(maxlen=max_alerts)
         self.stats = {
             "claims_tracked": 0,
             "echoes_detected": 0,
@@ -156,17 +160,12 @@ class EchoChamberModule:
 
                     existing.seen_by.add(agent_id)
                 else:
-                    # New claim
+                    # New claim — append to OrderedDict so insertion order
+                    # is the LRU order; popitem(last=False) is O(1).
                     self._claims[claim.hash] = claim
                     self.stats["claims_tracked"] += 1
-
-                    # Evict oldest if over limit
                     if len(self._claims) > self.max_claims:
-                        oldest_hash = min(
-                            self._claims,
-                            key=lambda h: self._claims[h].timestamp,
-                        )
-                        del self._claims[oldest_hash]
+                        self._claims.popitem(last=False)
 
         # Handle alerts
         for alert in new_alerts:
@@ -185,7 +184,14 @@ class EchoChamberModule:
 
         Reads the active agent ID from contextvars (set by agent_graph)
         and feeds the response text through register_claims(). Falls back
-        to using the model name as agent ID when no agent graph is active.
+        to using the model name as the agent ID when no agent_graph is
+        active. We deliberately do NOT include a per-request hash in the
+        fallback ID — that would tag each call from the same model as a
+        different "agent" and produce spurious self-echoes when one model
+        legitimately repeats its own claim across requests. The price is
+        that two parallel callers on the same model in a non-agent_graph
+        setup will share an ID; if you need per-caller distinction,
+        enable agent_graph.
         """
         if not ctx.text or not ctx.text.strip():
             return ctx
@@ -198,12 +204,7 @@ class EchoChamberModule:
             agent_id = None
 
         if agent_id is None:
-            # Use model + request hash to distinguish separate callers on
-            # the same model (avoids collapsing parallel agents into one ID)
-            req_hash = hashlib.md5(
-                str(ctx.request.messages).encode()
-            ).hexdigest()[:8]
-            agent_id = f"model:{ctx.model}:{req_hash}"
+            agent_id = f"model:{ctx.model}"
 
         self.register_claims(agent_id, ctx.text)
         return ctx
@@ -285,5 +286,5 @@ class EchoChamberModule:
             return {
                 "stats": dict(self.stats),
                 "active_claims": len(self._claims),
-                "alerts": [a.to_dict() for a in self.alerts[-10:]],
+                "alerts": [a.to_dict() for a in list(self.alerts)[-10:]],
             }

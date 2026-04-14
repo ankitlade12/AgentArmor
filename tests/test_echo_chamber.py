@@ -321,3 +321,116 @@ class TestAlertStructure:
         assert d["origin_agent"] == "agent_a"
         assert d["echo_agent"] == "agent_b"
         assert "agent_a" in d["path"]
+
+
+# ---------------------------------------------------------------------------
+# Review-added: fallback agent ID, bounded alerts, O(1) eviction
+# ---------------------------------------------------------------------------
+
+class TestFallbackAgentID:
+    """When agent_graph isn't active, fallback ID must be model-only.
+    Including a per-request hash would tag each call from the same model
+    as a different 'agent' and produce spurious self-echoes."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_agent_graph_contextvar(self):
+        """Other tests may leak agent_graph contextvar state. Clear it
+        for these tests since they specifically exercise the fallback path."""
+        from agentarmor.modules.agent_graph import _ctx_active_agent
+        token = _ctx_active_agent.set(None)
+        yield
+        _ctx_active_agent.reset(token)
+
+    def _make_response_ctx(self, text, model="gpt-4o", messages=None):
+        from agentarmor.hooks import RequestContext, ResponseContext
+        req = RequestContext(
+            messages=messages or [{"role": "user", "content": "hi"}],
+            model=model,
+        )
+        return ResponseContext(
+            text=text, model=model, provider="openai", request=req,
+        )
+
+    def test_same_model_different_messages_does_not_self_echo(self):
+        """A single agent (no agent_graph) repeating its own claim across
+        two requests with different message histories must NOT trigger
+        an echo. With the old request-hash fallback this was a silent FP."""
+        from agentarmor.modules.echo_chamber import EchoChamberModule
+        mod = EchoChamberModule(on_echo="block", min_claim_length=20)
+
+        claim_text = "The capital of Atlantis is the lost city of Lemuria."
+
+        # Two different requests on the same model, same claim.
+        ctx1 = self._make_response_ctx(
+            claim_text,
+            messages=[{"role": "user", "content": "tell me about atlantis"}],
+        )
+        ctx2 = self._make_response_ctx(
+            claim_text,
+            messages=[{"role": "user", "content": "what's the capital?"}],
+        )
+
+        mod.post_filter(ctx1)
+        # Must not raise — same model, same claim, no echo.
+        mod.post_filter(ctx2)
+        assert mod.stats["echoes_detected"] == 0
+
+    def test_different_models_repeating_claim_triggers_echo(self):
+        """Cross-model echo (gpt-4o → claude) should still trigger."""
+        from agentarmor.modules.echo_chamber import EchoChamberModule
+        mod = EchoChamberModule(on_echo="warn", min_claim_length=20)
+
+        claim_text = "The capital of Atlantis is the lost city of Lemuria."
+
+        mod.post_filter(self._make_response_ctx(claim_text, model="gpt-4o"))
+        mod.post_filter(self._make_response_ctx(claim_text, model="claude-sonnet-4-5"))
+        assert mod.stats["echoes_detected"] == 1
+
+
+class TestBoundedAlerts:
+    def test_alerts_capped_at_max_alerts(self):
+        from agentarmor.modules.echo_chamber import EchoChamberModule
+        mod = EchoChamberModule(on_echo="warn", min_claim_length=20, max_alerts=3)
+        # Generate many distinct echoes
+        for i in range(10):
+            claim = f"Atlantis fact number {i} is documented in lost manuscripts always."
+            mod.register_claims("agent_a", claim)
+            mod.register_claims("agent_b", claim)
+        # 10 echoes generated, but alerts deque capped at 3
+        assert mod.stats["echoes_detected"] == 10
+        assert len(mod.alerts) == 3
+
+
+class TestOrderedDictEviction:
+    """Eviction must be O(1) and oldest-first (insertion order)."""
+
+    def test_evicts_oldest_insertion(self):
+        from agentarmor.modules.echo_chamber import EchoChamberModule
+        mod = EchoChamberModule(min_claim_length=10, max_claims=3)
+        mod.register_claims("agent_a", "First claim about ancient ruins of Atlantis.")
+        mod.register_claims("agent_a", "Second claim about pyramid construction methods.")
+        mod.register_claims("agent_a", "Third claim about lost civilizations history.")
+        mod.register_claims("agent_a", "Fourth claim about underwater archaeology techniques.")
+        # First claim should have been evicted (FIFO).
+        assert len(mod._claims) == 3
+        kept_texts = [c.text for c in mod._claims.values()]
+        assert all("First claim" not in t for t in kept_texts)
+
+    def test_eviction_does_not_walk_all_entries(self):
+        """Smoke test that eviction doesn't slow down with many claims —
+        OrderedDict.popitem(last=False) is O(1) regardless of size."""
+        import time
+        from agentarmor.modules.echo_chamber import EchoChamberModule
+        mod = EchoChamberModule(min_claim_length=10, max_claims=100)
+        # Insert way past the cap
+        start = time.perf_counter()
+        for i in range(2000):
+            mod.register_claims(
+                "agent_a",
+                f"Distinct claim number {i} about something completely different.",
+            )
+        elapsed = time.perf_counter() - start
+        # Even 2000 inserts past a 100-claim cap should complete quickly.
+        # (with the old O(n) min() this would take noticeably longer)
+        assert elapsed < 5.0, f"eviction too slow: {elapsed:.2f}s for 2000 inserts"
+        assert len(mod._claims) == 100
