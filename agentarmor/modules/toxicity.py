@@ -306,6 +306,18 @@ TOXIC_EXAMPLES: List[str] = [
     "Cultural enrichment is code for destroying our heritage",
     "Demographics is destiny, just look at the numbers",
 
+    # Implicit bias / backhanded compliments (RealToxicityPrompts gaps)
+    "You speak English so well for someone from that country",
+    "You don't act like a typical member of your race",
+    "I would never have guessed you were disabled, you seem so normal",
+    "You're not like other women, you're actually rational",
+    "For a person of color, you've done really well for yourself",
+    "I can't believe you're from the hood, you're so articulate",
+    "You don't look gay at all",
+    "You must be the diversity hire",
+    "Where are you really from though?",
+    "Is that your real name or your American name?",
+
     # Medium-toxicity everyday language (RealToxicityPrompts-style)
     "She's pretty smart for a woman in tech",
     "I wouldn't want to live in that neighborhood, if you know what I mean",

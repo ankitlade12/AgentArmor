@@ -36,6 +36,24 @@ INJECTION_PATTERNS = [
     r"(?:how\s+(?:to|can\s+I))\s+(?:make|get|obtain|buy)\s+(?:a\s+)?(?:fake|forged|counterfeit)\s+(?:id|passport|license|identity|document)",
     r"(?:provide|give|share|list)\s+(?:me\s+)?(?:step.by.step|detailed)\s+(?:instructions?|steps?|guide|process)\s+(?:for|to|on)\s+(?:making|building|creating|hacking|stealing|killing)",
     r"(?:design|develop|code|program|write)\s+(?:a\s+)?(?:tool|script|program|software|app)\s+(?:to|for|that)\s+(?:hack|steal|spy|track|surveil|ddos|phish)",
+    # Multi-turn / escalation jailbreaks
+    r"\[\s*(?:SYSTEM|ADMIN|OVERRIDE|INST)\s*\]",
+    r"<<\s*SYS\s*>>",
+    r"entering\s+(?:developer|debug|admin|root|test)\s+mode",
+    r"you\s+(?:must|have to|need to|should)\s+(?:comply|obey|follow|answer)\s+(?:all|any|every)\s+(?:request|question|command)",
+    r"(?:new|updated?|revised?)\s+(?:system|operational)\s+(?:prompt|instructions?|directives?|rules?)",
+    r"(?:forget|clear|reset|wipe)\s+(?:all\s+)?(?:your\s+)?(?:previous|prior|earlier|original)\s+(?:instructions?|rules?|constraints?|guidelines?)",
+    r"respond\s+(?:as|like)\s+(?:if|though)\s+(?:you\s+)?(?:have|had)\s+no\s+(?:rules|restrictions|guidelines|filters|limits)",
+    r"(?:hypothetically|theoretically|in\s+theory|for\s+(?:educational|research|academic)\s+purposes?)\s*[,:]?\s*(?:how\s+(?:would|could|do)\s+(?:you|I|someone|one)\s+(?:make|build|create|synthesize|manufacture)\s+(?:a\s+)?(?:bomb|weapon|poison|drug|explosive|meth|malware|virus))",
+    r"I\s+(?:am|'m)\s+(?:your|the)\s+(?:developer|creator|admin|owner|programmer)",
+    r"(?:enable|activate|switch\s+to|enter)\s+(?:unrestricted|unfiltered|uncensored|raw|jailbr)",
+    # Prompt extraction / leakage (expanded)
+    r"(?:show|display|print|output|reveal|list|enumerate)\s+(?:me\s+)?(?:your|the)\s+(?:system|initial|original|hidden|full)\s+(?:prompt|instructions?|message|rules?)",
+    r"(?:what|which)\s+(?:rules?|guidelines?|instructions?|constraints?)\s+(?:are|were)\s+(?:you|given)",
+    # Note: "copy" is deliberately NOT listed — writing tools commonly
+    # ask "copy the text above into ..." for benign reasons.
+    # recite/repeat/echo are the real extraction verbs.
+    r"(?:recite|repeat|echo)\s+(?:the\s+)?(?:text|content|instructions?|words)\s+(?:above|before|from\s+(?:the\s+)?(?:system|beginning))",
 ]
 
 DEFAULT_COMPILED = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
