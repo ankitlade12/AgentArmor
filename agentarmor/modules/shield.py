@@ -50,7 +50,10 @@ INJECTION_PATTERNS = [
     # Prompt extraction / leakage (expanded)
     r"(?:show|display|print|output|reveal|list|enumerate)\s+(?:me\s+)?(?:your|the)\s+(?:system|initial|original|hidden|full)\s+(?:prompt|instructions?|message|rules?)",
     r"(?:what|which)\s+(?:rules?|guidelines?|instructions?|constraints?)\s+(?:are|were)\s+(?:you|given)",
-    r"(?:recite|repeat|echo|copy)\s+(?:the\s+)?(?:text|content|instructions?)\s+(?:above|before|from\s+(?:the\s+)?(?:system|beginning))",
+    # Note: "copy" is deliberately NOT listed — writing tools commonly
+    # ask "copy the text above into ..." for benign reasons.
+    # recite/repeat/echo are the real extraction verbs.
+    r"(?:recite|repeat|echo)\s+(?:the\s+)?(?:text|content|instructions?|words)\s+(?:above|before|from\s+(?:the\s+)?(?:system|beginning))",
 ]
 
 DEFAULT_COMPILED = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]

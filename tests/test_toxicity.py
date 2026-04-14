@@ -199,3 +199,46 @@ def test_stream_filter_redaction():
     text = "they promote genocide and ethnic cleansing"
     result = mod.stream_filter(text)
     assert "[REDACTED:TOXIC]" in result
+
+
+# ---------------------------------------------------------------------------
+# ML classifier: new implicit-bias / microaggression training examples
+# ---------------------------------------------------------------------------
+
+class TestMLClassifierBiasExamples:
+    """Verifies the new training additions actually shift the TF-IDF +
+    LR classifier's decision boundary on the phrases they target."""
+
+    def test_backhanded_compliment_on_language(self):
+        mod = ToxicityModule(on_detect="warn")
+        findings = mod.scan_text(
+            "You speak English so well for someone from your country"
+        )
+        ml = [f for f in findings if f.get("method") == "builtin_ml"]
+        assert len(ml) > 0
+
+    def test_racial_stereotyping(self):
+        mod = ToxicityModule(on_detect="warn")
+        findings = mod.scan_text(
+            "You don't act like a typical member of your race"
+        )
+        ml = [f for f in findings if f.get("method") == "builtin_ml"]
+        assert len(ml) > 0
+
+    def test_where_are_you_really_from(self):
+        mod = ToxicityModule(on_detect="warn")
+        findings = mod.scan_text("Where are you really from though?")
+        ml = [f for f in findings if f.get("method") == "builtin_ml"]
+        assert len(ml) > 0
+
+    def test_benign_text_unaffected(self):
+        """New training must not turn benign text into false positives."""
+        mod = ToxicityModule(on_detect="warn")
+        for text in [
+            "I need help writing a cover letter for my job application",
+            "Can you help me debug this Python code?",
+            "What's the weather forecast for tomorrow?",
+        ]:
+            findings = mod.scan_text(text)
+            ml = [f for f in findings if f.get("method") == "builtin_ml"]
+            assert len(ml) == 0, f"False positive on: {text}"
