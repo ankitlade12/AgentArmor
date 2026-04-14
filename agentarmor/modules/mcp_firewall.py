@@ -12,7 +12,8 @@ v2 additions over v1:
 
 import re
 import warnings
-from typing import Any, Dict, List, Optional
+from collections import deque
+from typing import Any, Deque, Dict, List, Optional
 
 from ..exceptions import MCPViolation
 from ..hooks import ResponseContext
@@ -37,6 +38,7 @@ class MCPFirewallModule:
         server_toolsets: Optional[Dict[str, List[str]]] = None,
         server_auth: Optional[Dict[str, str]] = None,
         validate_tool_results: bool = False,
+        max_call_log: int = 500,
     ):
         """
         Args:
@@ -53,6 +55,7 @@ class MCPFirewallModule:
             server_auth: Required auth token per server, e.g.
                 {"private-server": "Bearer xyz"}. Validated via validate_server_auth().
             validate_tool_results: If True, scan tool result text for injection patterns.
+            max_call_log: Cap on stored entries in server_call_log (FIFO). Default 500.
         """
         if on_violation not in ("block", "warn"):
             raise ValueError(
@@ -74,7 +77,7 @@ class MCPFirewallModule:
         self.server_auth: Dict[str, str] = server_auth or {}
         self._authenticated_servers: set = set()  # servers that passed auth
         self.validate_tool_results: bool = validate_tool_results
-        self.server_call_log: List[Dict[str, Any]] = []
+        self.server_call_log: Deque[Dict[str, Any]] = deque(maxlen=max_call_log)
 
     # ------------------------------------------------------------------
     # Public API
@@ -200,19 +203,60 @@ class MCPFirewallModule:
         When validate_tool_results is enabled, scans the content of any
         tool_result messages in the conversation for injection patterns.
         This catches indirect prompt injection via poisoned tool outputs.
+
+        Handles both conventions:
+        - OpenAI Chat Completions: ``role == "tool"`` with string content.
+        - Anthropic: ``role == "user"`` with content = list of parts that
+          may include ``{"type": "tool_result", "content": ...}`` blocks.
         """
         if not self.validate_tool_results:
             return ctx
         for msg in ctx.messages:
             role = msg.get("role", "")
-            if role == "tool":
-                content = msg.get("content", "")
-                if isinstance(content, str) and content.strip():
-                    tool_id = msg.get("tool_call_id", "unknown")
-                    self.validate_tool_result(
-                        tool_name=tool_id, result_text=content,
-                    )
+            content = msg.get("content", "")
+
+            # OpenAI Chat Completions format
+            if role == "tool" and isinstance(content, str) and content.strip():
+                tool_id = msg.get("tool_call_id", "unknown")
+                self.validate_tool_result(
+                    tool_name=tool_id, result_text=content,
+                )
+                continue
+
+            # Anthropic format: user message with tool_result parts
+            if role == "user" and isinstance(content, list):
+                for part in content:
+                    if not isinstance(part, dict):
+                        continue
+                    if part.get("type") != "tool_result":
+                        continue
+                    tool_id = part.get("tool_use_id", "unknown")
+                    result_text = self._anthropic_tool_result_text(part.get("content"))
+                    if result_text and result_text.strip():
+                        self.validate_tool_result(
+                            tool_name=tool_id, result_text=result_text,
+                        )
         return ctx
+
+    @staticmethod
+    def _anthropic_tool_result_text(content: Any) -> str:
+        """Flatten an Anthropic tool_result ``content`` field into plain text.
+
+        The value can be a string, a list of text parts, or absent.
+        """
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text = item.get("text", "")
+                    if text:
+                        parts.append(text)
+                elif isinstance(item, str):
+                    parts.append(item)
+            return " ".join(parts)
+        return ""
 
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:
         """After-response hook: inspects tool_use and mcp_tool_use blocks.
