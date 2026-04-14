@@ -375,3 +375,74 @@ def test_report_empty():
     assert report["hallucinations_detected"] == 0
     assert report["average_grounding_score"] == 0.0
     assert report["min_score"] is None
+
+
+# ---------------------------------------------------------------------------
+# Review-added: regression guards for the rebalanced scorer
+# ---------------------------------------------------------------------------
+
+def test_subtle_hallucination_sub_scores_remain_discriminating():
+    """Even though the aggregate score may pass for shared-vocabulary
+    hallucinations (a TF-IDF limitation), the numbers sub-score must
+    still catch wrong factual numbers. This pins the fact-level signal
+    so a future weight rebalance can't silently disable it."""
+    source = (
+        "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars "
+        "in Paris, France. It was constructed from 1887 to 1889. It is 330 metres tall."
+    )
+    subtle_wrong = (
+        "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars "
+        "in Paris, France. It was constructed from 1920 to 1925, and stands 500 metres tall."
+    )
+    module = GroundingGuardModule(
+        sources=[source],
+        threshold=0.3,
+        on_detect="warn",
+        extract_from_messages=False,
+        check_numbers=True,
+    )
+    numbers_score = module._verify_numbers(subtle_wrong, source.lower())
+    # All 3 numbers in the hallucination (1920, 1925, 500) are absent from source.
+    assert numbers_score == 0.0, (
+        f"numbers sub-score must reject wrong factual numbers, got {numbers_score}"
+    )
+
+
+def test_fallback_path_without_tfidf():
+    """When sklearn/TF-IDF is unavailable, the scorer must use the
+    second (stemmed-heavy) weights dict and still discriminate
+    paraphrases from fabrications."""
+    source = (
+        "The Great Wall of China was built over many centuries by different dynasties "
+        "to protect against northern invasions. It stretches more than 13,000 miles."
+    )
+    paraphrase = (
+        "Multiple Chinese dynasties constructed the Great Wall across many centuries "
+        "as protection against invaders from the north; its length exceeds 13,000 miles."
+    )
+    fabrication = (
+        "The Pyramids of Giza are solar panels built by ancient astronauts "
+        "to transmit power to Mars."
+    )
+
+    module = GroundingGuardModule(
+        sources=[source],
+        threshold=0.3,
+        on_detect="warn",
+        extract_from_messages=False,
+    )
+    # Force fallback path by disabling TF-IDF availability.
+    module._tfidf_available = False
+
+    paraphrase_score = module._compute_grounding_score(paraphrase, [source])
+    fabrication_score = module._compute_grounding_score(fabrication, [source])
+
+    # Paraphrase must score meaningfully higher than fabrication even without TF-IDF.
+    assert paraphrase_score > fabrication_score, (
+        f"fallback path failed to discriminate: paraphrase={paraphrase_score:.3f} "
+        f"vs fabrication={fabrication_score:.3f}"
+    )
+    # And must be above threshold (0.3) — the whole point of the stemmed boost.
+    assert paraphrase_score >= 0.3, (
+        f"paraphrase fell below threshold on fallback path: {paraphrase_score:.3f}"
+    )
