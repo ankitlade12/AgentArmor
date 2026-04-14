@@ -382,3 +382,34 @@ async def test_parallel_agents_in_async_tasks():
 
     assert results["a"] == "agent_a"
     assert results["b"] == "agent_b"
+
+
+# --- v2: Backwards-compat for removed constructor kwargs ---
+
+def test_deprecated_inherit_firewall_emits_warning_and_maps_to_policies():
+    with pytest.warns(DeprecationWarning, match="inherit_firewall"):
+        module = AgentGraphModule(inherit_firewall=True)
+    assert module.default_policies.get("firewall") is True
+
+
+def test_deprecated_inherit_shield_emits_warning_and_maps_to_policies():
+    with pytest.warns(DeprecationWarning, match="inherit_shield"):
+        module = AgentGraphModule(inherit_shield=False)
+    assert module.default_policies.get("shield") is False
+
+
+def test_deprecated_flags_do_not_clobber_explicit_default_policies():
+    """Explicit default_policies value wins over legacy flag."""
+    with pytest.warns(DeprecationWarning):
+        module = AgentGraphModule(
+            default_policies={"shield": True},
+            inherit_shield=False,
+        )
+    # setdefault() keeps the explicit value set by default_policies
+    assert module.default_policies["shield"] is True
+
+
+def test_unknown_kwargs_still_raise_type_error():
+    """Accepting deprecated flags must not mask typos in other kwargs."""
+    with pytest.raises(TypeError, match="totally_made_up_param"):
+        AgentGraphModule(totally_made_up_param=True)

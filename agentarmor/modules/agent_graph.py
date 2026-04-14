@@ -2,7 +2,8 @@ import contextvars
 import threading
 import time
 import uuid
-from typing import Dict, List, Optional
+import warnings
+from typing import Any, Dict, List, Optional
 
 from ..exceptions import AgentDepthExceeded, AgentLimitExceeded, AgentBudgetExhausted
 from ..hooks import RequestContext, ResponseContext
@@ -74,13 +75,36 @@ class AgentGraphModule:
 
     def __init__(self, max_depth: int = 5, inherit_budget: bool = True,
                  max_total_agents: int = 50,
-                 default_policies: Optional[Dict] = None):
+                 default_policies: Optional[Dict] = None,
+                 **deprecated_kwargs: Any):
         self.max_depth = max_depth
         self.inherit_budget = inherit_budget
         self.max_total_agents = max_total_agents
-        self.default_policies = default_policies or {}
+        self.default_policies = dict(default_policies or {})
         self._agents: Dict[str, AgentNode] = {}
         self._lock = threading.Lock()
+
+        # Deprecated flags — mapped into default_policies for back-compat.
+        # Will be removed in a future release.
+        _legacy_flag_to_policy = {
+            "inherit_firewall": "firewall",
+            "inherit_shield": "shield",
+        }
+        for legacy, policy_key in _legacy_flag_to_policy.items():
+            if legacy in deprecated_kwargs:
+                warnings.warn(
+                    f"{legacy}= is deprecated; pass default_policies={{'{policy_key}': <bool>}} instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.default_policies.setdefault(policy_key, deprecated_kwargs.pop(legacy))
+
+        if deprecated_kwargs:
+            # Unknown kwargs — surface the error rather than silently ignore.
+            unexpected = ", ".join(deprecated_kwargs)
+            raise TypeError(
+                f"AgentGraphModule got unexpected keyword arguments: {unexpected}"
+            )
 
     def spawn_agent(self, agent_id: str, parent_id: Optional[str] = None,
                     budget_limit: Optional[float] = None,
