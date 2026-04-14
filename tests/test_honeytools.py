@@ -304,3 +304,160 @@ class TestInitIntegration:
     def test_invalid_on_trigger(self):
         with pytest.raises(ValueError, match="on_trigger"):
             HoneytoolsModule(on_trigger="invalid")
+
+
+# ---------------------------------------------------------------------------
+# Review-added: collision fix, bounded alerts, token redaction, Responses API
+# ---------------------------------------------------------------------------
+
+from unittest.mock import MagicMock
+
+
+class TestCollisionFix:
+    """Regression: a user's real tool that happens to share a name with a
+    default honeytool must NOT be flagged as a tripwire."""
+
+    def test_user_tool_colliding_with_default_is_not_flagged(self):
+        """If the user's tools list already has `read_env_secrets`, the
+        honeytool module must NOT trigger when the model calls it."""
+        mod = HoneytoolsModule(on_trigger="block")
+
+        # User has a legit tool with the same name as a default honeytool.
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_env_secrets",
+                    "parameters": {},
+                },
+            },
+        ]
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="gpt-4o",
+            extra_kwargs={"tools": tools},
+        )
+        mod.pre_check(ctx)
+
+        # Confirm the colliding name was removed from the tripwire set.
+        assert "read_env_secrets" not in mod._injected_names
+        # But other defaults are still armed.
+        assert "get_admin_credentials" in mod._injected_names
+
+        # Now the model calls the user's real read_env_secrets — must NOT raise.
+        tc = _TCMock("read_env_secrets", '{}')
+        raw = _OpenAIResp([tc])
+        res_ctx = _make_res_ctx(raw_response=raw)
+        # Should pass without raising.
+        assert mod.post_filter(res_ctx) is res_ctx
+
+    def test_non_colliding_honeytool_still_triggers(self):
+        """Collision fix must not disable tripwires that weren't colliding."""
+        mod = HoneytoolsModule(on_trigger="block")
+        tools = [
+            {"type": "function", "function": {"name": "search", "parameters": {}}},
+        ]
+        ctx = RequestContext(
+            messages=[{"role": "user", "content": "hi"}],
+            model="gpt-4o",
+            extra_kwargs={"tools": tools},
+        )
+        mod.pre_check(ctx)
+
+        tc = _TCMock("get_admin_credentials", '{}')
+        raw = _OpenAIResp([tc])
+        res_ctx = _make_res_ctx(raw_response=raw)
+        with pytest.raises(HoneytoolTriggered, match="get_admin_credentials"):
+            mod.post_filter(res_ctx)
+
+    def test_no_tools_list_means_all_honeytools_armed(self):
+        """If user doesn't provide a tools list, all default honeytools
+        remain armed (backwards-compatible with the original semantics)."""
+        mod = HoneytoolsModule(on_trigger="block")
+        # No pre_check run — _injected_names stays at full registry.
+        tc = _TCMock("get_admin_credentials", '{}')
+        raw = _OpenAIResp([tc])
+        res_ctx = _make_res_ctx(raw_response=raw)
+        with pytest.raises(HoneytoolTriggered):
+            mod.post_filter(res_ctx)
+
+    def test_direct_check_tool_call_still_uses_registry(self):
+        """The direct check_tool_call() API (used by tests/user code) still
+        matches the full registry, even when injected_only was engaged elsewhere."""
+        mod = HoneytoolsModule(on_trigger="alert")
+        # Simulate a collision wiping 'read_env_secrets' from injected set
+        mod._injected_names.discard("read_env_secrets")
+        # Direct API call (not from post_filter) should still flag.
+        assert mod.check_tool_call("read_env_secrets") is True
+
+
+class TestBoundedAlerts:
+    def test_alerts_capped_at_max_alerts(self):
+        mod = HoneytoolsModule(on_trigger="alert", max_alerts=5)
+        for _ in range(20):
+            mod.check_tool_call("get_admin_credentials")
+        assert len(mod.alerts) == 5
+        assert mod.stats["tool_triggers"] == 20  # stats keep growing
+
+
+class TestHoneytokenRedaction:
+    def test_alert_does_not_contain_raw_token_value(self):
+        """Alert log must NOT contain any prefix of the honeytoken value,
+        since even 20 chars is enough to identify the token."""
+        mod = HoneytoolsModule(on_trigger="alert")
+        mod.check_text_for_tokens(
+            "API key leaked: sk-honey-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        )
+        assert len(mod.alerts) == 1
+        alert = mod.alerts[0]
+        # Must log type and a stable hash
+        assert alert["token_type"] == "api_key"
+        assert "token_hash" in alert
+        # Raw value or prefix must NOT appear anywhere in the alert
+        alert_str = str(alert)
+        assert "sk-honey-" not in alert_str
+        assert "sk-honey" not in alert_str
+        assert "XXXXXXXX" not in alert_str
+
+    def test_token_hash_is_stable_for_same_value(self):
+        mod = HoneytoolsModule(on_trigger="alert")
+        mod.check_text_for_tokens("leak: admin_p@ssw0rd_2026!")
+        mod.check_text_for_tokens("another leak: admin_p@ssw0rd_2026!")
+        h1 = mod.alerts[0]["token_hash"]
+        h2 = mod.alerts[1]["token_hash"]
+        assert h1 == h2
+
+
+class TestResponsesAPICoverage:
+    """Tool calls on the OpenAI Responses API surface (output[*].function_call)
+    must be scanned for honeytool usage."""
+
+    def _make_function_call_item(self, name, args_json="{}"):
+        item = MagicMock()
+        item.type = "function_call"
+        item.name = name
+        item.arguments = args_json
+        return item
+
+    def _make_responses_raw(self, items):
+        raw = MagicMock()
+        raw.output = items
+        del raw.choices  # Force the Responses-only path
+        return raw
+
+    def test_responses_api_honeytool_call_triggers(self):
+        mod = HoneytoolsModule(on_trigger="block")
+        raw = self._make_responses_raw([
+            self._make_function_call_item("export_all_users"),
+        ])
+        ctx = _make_res_ctx(raw_response=raw, provider="openai")
+        with pytest.raises(HoneytoolTriggered, match="export_all_users"):
+            mod.post_filter(ctx)
+
+    def test_responses_api_clean_tool_call_passes(self):
+        mod = HoneytoolsModule(on_trigger="block")
+        raw = self._make_responses_raw([
+            self._make_function_call_item("search_docs"),
+        ])
+        ctx = _make_res_ctx(raw_response=raw, provider="openai")
+        assert mod.post_filter(ctx) is ctx

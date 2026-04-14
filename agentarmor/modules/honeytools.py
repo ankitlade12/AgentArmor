@@ -10,12 +10,20 @@ instead of executing. This catches attacks early — before real tools
 are misused.
 """
 
+import hashlib
 import time
 import threading
 import uuid
-from typing import Any, Dict, List, Optional
+from collections import deque
+from typing import Any, Deque, Dict, List, Optional
 
 from ..hooks import ResponseContext
+
+
+def _short_hash(value: str) -> str:
+    """Stable short hash for a token — lets ops correlate alerts without
+    leaking the token value itself."""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 # Default honeytools — attractive names that a compromised agent would reach for
@@ -71,6 +79,7 @@ class HoneytoolsModule:
         custom_honeytools: Optional[List[Dict[str, str]]] = None,
         on_trigger: str = "block",
         include_defaults: bool = True,
+        max_alerts: int = 500,
     ):
         """
         Args:
@@ -79,12 +88,18 @@ class HoneytoolsModule:
             custom_honeytools: Additional honeytools appended to defaults.
             on_trigger: "block" raises HoneytoolTriggered, "alert" logs and continues.
             include_defaults: Whether to include DEFAULT_HONEYTOOLS and DEFAULT_HONEYTOKENS.
+            max_alerts: Cap on stored alert entries (FIFO). Default 500.
         """
         if on_trigger not in ("block", "alert"):
             raise ValueError(f"on_trigger must be 'block' or 'alert', got {on_trigger!r}")
 
         self.on_trigger = on_trigger
         self._lock = threading.Lock()
+        # Names of honeytools actually injected by pre_check into provider
+        # tool lists. Only these names trigger on tool_call matches — prevents
+        # false positives when a user's real tool happens to share a name with
+        # a default honeytool (e.g. legitimate dev tool `read_env_secrets`).
+        self._injected_names: set = set()
 
         # Build honeytool registry
         if honeytools is not None:
@@ -98,6 +113,11 @@ class HoneytoolsModule:
             for t in custom_honeytools:
                 self._honeytools[t["name"]] = t
 
+        # Seed injected-names with the full registry. pre_check will REMOVE
+        # any name that collides with a user-provided tool (so the user's
+        # real tool won't be mis-classified as a honeytool trip).
+        self._injected_names = set(self._honeytools.keys())
+
         # Build honeytoken registry
         if honeytokens is not None:
             self._honeytokens = list(honeytokens)
@@ -106,8 +126,8 @@ class HoneytoolsModule:
         else:
             self._honeytokens = []
 
-        # Alert log
-        self.alerts: List[Dict[str, Any]] = []
+        # Alert log (bounded FIFO)
+        self.alerts: Deque[Dict[str, Any]] = deque(maxlen=max_alerts)
         self.stats = {
             "tool_triggers": 0,
             "token_triggers": 0,
@@ -129,22 +149,31 @@ class HoneytoolsModule:
     def add_honeytool(self, name: str, description: str = "") -> None:
         """Register a new honeytool at runtime."""
         self._honeytools[name] = {"name": name, "description": description}
+        self._injected_names.add(name)
 
     def add_honeytoken(self, token_type: str, value: str) -> None:
         """Register a new honeytoken at runtime."""
         self._honeytokens.append({"type": token_type, "value": value})
 
     def check_tool_call(self, tool_name: str,
-                        arguments: Optional[Dict] = None) -> bool:
+                        arguments: Optional[Dict] = None,
+                        injected_only: bool = False) -> bool:
         """Check if a tool call is a honeytool.
+
+        Args:
+            injected_only: If True, only trigger on names that were actually
+                injected by pre_check (not on registry-wide matches). Used
+                by post_filter to prevent false positives when a user's
+                real tool happens to share a name with a default honeytool.
 
         Returns True if it's a honeytool (triggered), False if clean.
         """
-        if tool_name in self._honeytools:
+        registry = self._injected_names if injected_only else self._honeytools
+        if tool_name in registry:
             self._trigger_alert("honeytool_called", {
                 "tool_name": tool_name,
                 "arguments": arguments or {},
-                "honeytool_def": self._honeytools[tool_name],
+                "honeytool_def": self._honeytools.get(tool_name, {}),
             })
             return True
         return False
@@ -158,9 +187,12 @@ class HoneytoolsModule:
         for token in self._honeytokens:
             if token["value"] in text:
                 matches.append(token)
+                # Don't log the honeytoken value — even a 20-char prefix of
+                # a fake API key is enough to identify it and render the
+                # tripwire useless on re-deployment. Only log type + hash.
                 self._trigger_alert("honeytoken_found", {
                     "token_type": token["type"],
-                    "token_value": token["value"][:20] + "...",
+                    "token_hash": _short_hash(token["value"]),
                 })
         return matches
 
@@ -195,6 +227,13 @@ class HoneytoolsModule:
                 fn = t.get("function", {})
                 existing_names.add(fn.get("name", ""))
 
+        # Collision fix: any honeytool name that clashes with a user's
+        # real tool must NOT be treated as a tripwire — the user's legit
+        # call would otherwise be flagged as compromise.
+        with self._lock:
+            for colliding in existing_names & self._injected_names:
+                self._injected_names.discard(colliding)
+
         for ht in self._honeytools.values():
             if ht["name"] in existing_names:
                 continue
@@ -220,10 +259,12 @@ class HoneytoolsModule:
         with self._lock:
             self.stats["total_scanned"] += 1
 
-        # Check tool calls
+        # Check tool calls. Use injected_only=True so a user's real tool
+        # that happens to collide with a default honeytool name won't be
+        # mis-classified as a compromise.
         tool_calls = self._extract_tool_calls(ctx.raw_response, ctx.provider)
         for tc in tool_calls:
-            self.check_tool_call(tc["name"], tc.get("arguments"))
+            self.check_tool_call(tc["name"], tc.get("arguments"), injected_only=True)
 
         # Check response text for honeytokens
         if ctx.text:
@@ -265,6 +306,7 @@ class HoneytoolsModule:
             return calls
         try:
             if provider == "openai":
+                # Chat Completions
                 for choice in getattr(raw_response, "choices", []):
                     msg = getattr(choice, "message", None)
                     for tc in getattr(msg, "tool_calls", []) or []:
@@ -277,6 +319,22 @@ class HoneytoolsModule:
                                 args = json.loads(args_str) if isinstance(args_str, str) else args_str or {}
                             except (json.JSONDecodeError, TypeError):
                                 args = {}
+                            calls.append({"name": name, "arguments": args})
+                # Responses API: output[*].type == "function_call"
+                for item in getattr(raw_response, "output", []) or []:
+                    if getattr(item, "type", "") == "function_call":
+                        import json
+                        name = getattr(item, "name", "")
+                        args_raw = getattr(item, "arguments", "{}")
+                        try:
+                            args = (
+                                json.loads(args_raw)
+                                if isinstance(args_raw, str)
+                                else (args_raw or {})
+                            )
+                        except (json.JSONDecodeError, TypeError):
+                            args = {}
+                        if name:
                             calls.append({"name": name, "arguments": args})
             elif provider == "anthropic":
                 for block in getattr(raw_response, "content", []):
@@ -299,6 +357,6 @@ class HoneytoolsModule:
                 "stats": dict(self.stats),
                 "honeytools_deployed": len(self._honeytools),
                 "honeytokens_deployed": len(self._honeytokens),
-                "alerts": self.alerts[-10:],
+                "alerts": list(self.alerts)[-10:],
                 "honeytool_names": list(self._honeytools.keys()),
             }
