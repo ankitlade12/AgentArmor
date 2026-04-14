@@ -27,9 +27,10 @@ from .modules.exfiltration_guard import ExfiltrationGuardModule
 from .modules.privilege_escalation import PrivilegeEscalationModule
 from .modules.compliance_reporter import ComplianceReporterModule
 from .modules.semantic_drift import SemanticDriftModule
+from .modules.taint_tracker import TaintTrackerModule
 
 class ArmorCore:
-    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, **kwargs):
+    def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, **kwargs):
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
@@ -207,6 +208,14 @@ class ArmorCore:
                 self.modules["semantic_drift"] = SemanticDriftModule()
             if "semantic_drift" in self.modules:
                 self.registry.register_before_request(self.modules["semantic_drift"].pre_check)
+        if taint_tracker is not False and taint_tracker is not None:
+            if isinstance(taint_tracker, dict):
+                self.modules["taint_tracker"] = TaintTrackerModule(**taint_tracker)
+            elif isinstance(taint_tracker, bool) and taint_tracker:
+                self.modules["taint_tracker"] = TaintTrackerModule()
+            if "taint_tracker" in self.modules:
+                self.registry.register_before_request(self.modules["taint_tracker"].pre_check)
+                self.registry.register_after_response(self.modules["taint_tracker"].post_filter)
 
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
