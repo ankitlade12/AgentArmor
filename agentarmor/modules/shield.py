@@ -64,6 +64,12 @@ class ShieldModule:
                 for part in content:
                     if isinstance(part, dict) and "text" in part:
                         self._scan(part["text"])
+            # Gemini format: messages use "parts" instead of "content"
+            parts = msg.get("parts", [])
+            if isinstance(parts, list):
+                for part in parts:
+                    if isinstance(part, dict) and "text" in part:
+                        self._scan(part["text"])
         return ctx
 
     def _scan(self, text: str):

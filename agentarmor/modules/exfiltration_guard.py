@@ -212,6 +212,7 @@ class ExfiltrationGuardModule:
         texts = []
         try:
             if provider == "openai":
+                # Chat Completions format
                 for choice in getattr(raw_response, 'choices', []):
                     msg = getattr(choice, 'message', None)
                     if msg:
@@ -219,6 +220,15 @@ class ExfiltrationGuardModule:
                             fn = getattr(tc, 'function', None)
                             if fn:
                                 texts.append(getattr(fn, 'arguments', '') or '')
+                # Responses API format
+                for item in getattr(raw_response, 'output', []):
+                    if getattr(item, 'type', '') == 'function_call':
+                        args = getattr(item, 'arguments', '')
+                        if isinstance(args, dict):
+                            import json
+                            texts.append(json.dumps(args))
+                        elif args:
+                            texts.append(str(args))
             elif provider == "anthropic":
                 for block in getattr(raw_response, 'content', []):
                     if getattr(block, 'type', '') == 'tool_use':

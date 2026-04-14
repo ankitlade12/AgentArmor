@@ -76,7 +76,7 @@ class ToolFirewallModule:
         if raw is None:
             return names
 
-        # OpenAI format: response.choices[0].message.tool_calls
+        # OpenAI Chat Completions: choices[0].message.tool_calls
         try:
             tool_calls = getattr(
                 getattr(raw.choices[0], "message", None), "tool_calls", None
@@ -89,6 +89,18 @@ class ToolFirewallModule:
                 if names:
                     return names
         except (AttributeError, IndexError, TypeError):
+            pass
+
+        # OpenAI Responses API: output[*] with type="function_call"
+        try:
+            for item in getattr(raw, "output", []):
+                if getattr(item, "type", "") == "function_call":
+                    name = getattr(item, "name", None)
+                    if name:
+                        names.append(name)
+            if names:
+                return names
+        except (AttributeError, TypeError):
             pass
 
         # Anthropic format: response.content — list of blocks with type=="tool_use"
@@ -136,6 +148,21 @@ class ToolFirewallModule:
                     not in lower_set
                 ]
         except (AttributeError, IndexError, TypeError):
+            pass
+
+        # OpenAI Responses API format: output[*] with type="function_call"
+        try:
+            output = getattr(raw, "output", None)
+            if isinstance(output, list):
+                raw.output = [
+                    item
+                    for item in output
+                    if not (
+                        getattr(item, "type", "") == "function_call"
+                        and getattr(item, "name", "").lower() in lower_set
+                    )
+                ]
+        except (AttributeError, TypeError):
             pass
 
         # Anthropic format

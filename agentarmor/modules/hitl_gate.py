@@ -242,6 +242,7 @@ class HITLGateModule:
         tool_calls = []
         try:
             if provider == "openai":
+                # Chat Completions format
                 for choice in getattr(raw_response, 'choices', []):
                     msg = getattr(choice, 'message', None)
                     if msg:
@@ -256,6 +257,17 @@ class HITLGateModule:
                                 except (json.JSONDecodeError, TypeError):
                                     args = {}
                                 tool_calls.append({"name": name, "arguments": args})
+                # Responses API format
+                for item in getattr(raw_response, 'output', []):
+                    if getattr(item, 'type', '') == 'function_call':
+                        import json
+                        name = getattr(item, 'name', '')
+                        args_raw = getattr(item, 'arguments', '{}')
+                        try:
+                            args = json.loads(args_raw) if isinstance(args_raw, str) else args_raw or {}
+                        except (json.JSONDecodeError, TypeError):
+                            args = {}
+                        tool_calls.append({"name": name, "arguments": args})
             elif provider == "anthropic":
                 for block in getattr(raw_response, 'content', []):
                     if getattr(block, 'type', '') == 'tool_use':
