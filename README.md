@@ -926,6 +926,7 @@ Because AgentArmor monkey-patches the underlying `openai`, `anthropic`, and `goo
 - **Agno / Phidata**
 - **Autogen**
 - **SmolAgents**
+- **Google Gemini** (via `google-genai`)
 - Custom raw SDK scripts
 
 ---
