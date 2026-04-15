@@ -105,3 +105,11 @@ class PrivilegeEscalationDetected(Exception):
 class SemanticDriftDetected(Exception):
     """Raised when conversation semantic drift exceeds the configured threshold."""
     pass
+
+
+class ConfigurationError(ValueError):
+    """Raised when init() is called with invalid configuration under strict mode.
+
+    Subclasses ValueError so existing except-ValueError handlers still catch it.
+    """
+    pass

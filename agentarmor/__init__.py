@@ -15,12 +15,14 @@ from .exceptions import (
     DataExfiltrationDetected,
     PrivilegeEscalationDetected,
     SemanticDriftDetected,
+    ConfigurationError,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 from .modules.taint_tracker import TaintViolation
 from .modules.honeytools import HoneytoolTriggered
 from .modules.safe_plan import SafePlanEngine, SafePlanSuggestion
 from .modules.echo_chamber import EchoChamberDetected
+from .demo import demo_attacks, DemoReport
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar(
@@ -30,11 +32,24 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "_agentarmor_agent", default=None
 )
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, **kwargs) -> ArmorCore:
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, strict=False, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
+
+    Args:
+        strict: When True, unknown kwargs raise ConfigurationError with a
+            "did you mean ...?" suggestion. Default False emits a UserWarning
+            and continues (preserves backwards compatibility). Use strict=True
+            in production code to catch typos like ``unicode_sheild=True`` that
+            would otherwise be silently ignored.
     """
+    from ._strict import validate_kwargs
+    # Validate the EXTRA kwargs the caller passed beyond what init's signature
+    # absorbed. The named params above are all known; only **kwargs leftovers
+    # could carry typos.
+    validate_kwargs(kwargs.keys(), strict=strict)
+
     core = ArmorCore(
         budget=budget,
         shield=shield,
@@ -222,5 +237,7 @@ __all__ = [
     "SafePlanEngine",
     "SafePlanSuggestion",
     "EchoChamberDetected",
+    "ConfigurationError",
     "compliance_report",
+    "demo_attacks",
 ]
