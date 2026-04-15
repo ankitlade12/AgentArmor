@@ -33,6 +33,12 @@ from .modules.echo_chamber import EchoChamberModule
 
 class ArmorCore:
     def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, **kwargs):
+        # Direct ArmorCore() construction also runs kwarg validation in
+        # warn-only mode. This catches typos for users who bypass init().
+        # Strict-mode escalation is owned by init().
+        from ._strict import validate_kwargs
+        validate_kwargs(kwargs.keys(), strict=False)
+
         self.modules: Dict[str, Any] = {}
         self.registry = global_registry.clone()
         
