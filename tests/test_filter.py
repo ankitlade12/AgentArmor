@@ -39,3 +39,60 @@ def test_safe_text():
     cleaned = module.stream_filter(text)
     assert cleaned == text
     assert module.redactions == 0
+
+
+def test_redact_does_not_mutate_redactions_count():
+    module = FilterModule(rules=["pii"])
+    text_with_pii = "email me at user@example.com or call 555-123-4567"
+
+    initial_count = module.redactions
+    redacted = module.redact(text_with_pii)
+
+    assert module.redactions == initial_count
+    assert "user@example.com" not in redacted
+    assert "555-123-4567" not in redacted
+    assert "[REDACTED:EMAIL]" in redacted
+    assert "[REDACTED:PHONE]" in redacted
+
+
+def test_redact_repeatable_no_state_drift():
+    module = FilterModule(rules=["pii"])
+    text = "email user@example.com again"
+
+    first = module.redact(text)
+    second = module.redact(text)
+    third = module.redact(text)
+
+    assert first == second == third
+    assert module.redactions == 0
+
+
+def test_scan_still_counts_progressively():
+    module = FilterModule(rules=["pii"])
+    text = "user@example.com and admin@test.com"
+
+    redacted = module._scan(text)
+
+    assert module.redactions == 2
+    assert "user@example.com" not in redacted
+    assert "admin@test.com" not in redacted
+
+
+def test_redact_safe_text_unchanged():
+    module = FilterModule(rules=["pii", "secrets"])
+    text = "Nothing sensitive here at all."
+
+    redacted = module.redact(text)
+
+    assert redacted == text
+    assert module.redactions == 0
+
+
+def test_redact_no_patterns_active():
+    module = FilterModule(rules=[])
+    text = "user@example.com — should pass through with no rules"
+
+    redacted = module.redact(text)
+
+    assert redacted == text
+    assert module.redactions == 0
