@@ -113,3 +113,43 @@ class ConfigurationError(ValueError):
     Subclasses ValueError so existing except-ValueError handlers still catch it.
     """
     pass
+
+
+# Registry of "shield blocked" exceptions used by Explain Mode v2 to classify
+# hook outcomes. A hook raising one of these records decision="blocked" in the
+# trace; any other Exception records decision="error".
+#
+# HookError and PatchError are intentionally excluded — they represent
+# infrastructure errors, not shield decisions. ConfigurationError is excluded
+# because it fires at init() time, never inside a hook execution.
+#
+# If you add a new shield exception class above, add it to this tuple. The
+# explain-mode audit script (scripts/audit_hook_modules.py) verifies the
+# tuple stays in sync with declared classes.
+SHIELD_EXCEPTIONS = (
+    BudgetExhausted,
+    RateLimitExceeded,
+    InjectionDetected,
+    FilterViolation,
+    ContextOverflow,
+    LatencyThresholdExceeded,
+    CanaryLeakDetected,
+    ToolCallBlocked,
+    DuplicateRequest,
+    MLInjectionDetected,
+    AgentDepthExceeded,
+    AgentLimitExceeded,
+    AgentBudgetExhausted,
+    MCPViolation,
+    InsecureCodeDetected,
+    HallucinationDetected,
+    ReasoningViolation,
+    ToxicContentDetected,
+    UnicodeInjectionDetected,
+    HumanApprovalRequired,
+    HumanApprovalDenied,
+    HumanApprovalTimeout,
+    DataExfiltrationDetected,
+    PrivilegeEscalationDetected,
+    SemanticDriftDetected,
+)

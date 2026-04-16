@@ -16,6 +16,7 @@ from .exceptions import (
     PrivilegeEscalationDetected,
     SemanticDriftDetected,
     ConfigurationError,
+    SHIELD_EXCEPTIONS,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 from .modules.taint_tracker import TaintViolation
@@ -23,6 +24,20 @@ from .modules.honeytools import HoneytoolTriggered
 from .modules.safe_plan import SafePlanEngine, SafePlanSuggestion
 from .modules.echo_chamber import EchoChamberDetected
 from .demo import demo_attacks, DemoReport
+from .trace import (
+    Trace,
+    TraceEvent,
+    TraceJSONEncoder,
+    ExplainModeWarning,
+    record_decision,
+    last_trace,
+    last_trace_status,
+    find_trace,
+    clear_last_trace,
+)
+from ._run_in_executor import run_in_executor
+from . import trace as _trace_module
+from . import _audit, _watchdog
 
 # Thread-safe and async-safe context variable for the active Engine/Core instance
 _active_core: contextvars.ContextVar[Optional[ArmorCore]] = contextvars.ContextVar(
@@ -32,7 +47,10 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "_agentarmor_agent", default=None
 )
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, strict=False, **kwargs) -> ArmorCore:
+_explain_startup_warned = False
+
+
+def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, explain=False, explain_redact=True, explain_max_detail_bytes=65536, explain_max_active_traces=10000, explain_max_trace_age_seconds=300, strict=False, **kwargs) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -43,11 +61,21 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
             and continues (preserves backwards compatibility). Use strict=True
             in production code to catch typos like ``unicode_sheild=True`` that
             would otherwise be silently ignored.
+        explain: Enable Explain Mode v2. When True, agentarmor.last_trace()
+            returns a structured Trace of which shields ran and what each
+            decided. Off by default; near-zero overhead when off.
+        explain_redact: When True (default), trace event detail is PII-redacted
+            via the configured filter pipeline before storage. Set False ONLY
+            for local debugging — never in production telemetry.
+        explain_max_detail_bytes: Per-event detail size cap (default 64KB).
+            Over-cap values are replaced with a truncation marker.
+        explain_max_active_traces: Process-wide ceiling on concurrently-open
+            traces (default 10000). On overflow, oldest is force-closed and
+            ExplainModeWarning is emitted.
+        explain_max_trace_age_seconds: Watchdog timeout (default 300). Streams
+            held longer than this get force-closed with closed_reason='timeout'.
     """
     from ._strict import validate_kwargs
-    # Validate the EXTRA kwargs the caller passed beyond what init's signature
-    # absorbed. The named params above are all known; only **kwargs leftovers
-    # could carry typos.
     validate_kwargs(kwargs.keys(), strict=strict)
 
     core = ArmorCore(
@@ -79,11 +107,67 @@ def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, 
         taint_tracker=taint_tracker,
         honeytools=honeytools,
         echo_chamber=echo_chamber,
+        explain=explain,
+        explain_redact=explain_redact,
+        explain_max_detail_bytes=explain_max_detail_bytes,
+        explain_max_active_traces=explain_max_active_traces,
+        explain_max_trace_age_seconds=explain_max_trace_age_seconds,
         **kwargs
     )
     core.patch()
     _active_core.set(core)
+    _apply_explain_config(
+        core=core,
+        enabled=explain,
+        redact=explain_redact,
+        max_detail_bytes=explain_max_detail_bytes,
+        max_active_traces=explain_max_active_traces,
+        max_trace_age_seconds=explain_max_trace_age_seconds,
+        filter_rules=filter or [],
+    )
     return core
+
+
+def _apply_explain_config(*, core, enabled, redact, max_detail_bytes,
+                          max_active_traces, max_trace_age_seconds, filter_rules):
+    """Apply explain settings to module-level state + start watchdog + warn once."""
+    cfg = _trace_module._config
+    cfg.enabled = bool(enabled)
+    cfg.redact = bool(redact)
+    cfg.max_detail_bytes = int(max_detail_bytes)
+    cfg.max_active_traces = int(max_active_traces)
+    cfg.max_trace_age_seconds = int(max_trace_age_seconds)
+    cfg.user_redactor = None
+
+    # Wire user PII filter as single source of truth (S-5)
+    if "pii" in filter_rules and "filter" in core.modules:
+        cfg.user_redactor = core.modules["filter"].redact
+
+    if not enabled:
+        return
+
+    # Start watchdog (idempotent) per S-12
+    _watchdog.start_watchdog(_trace_module.get_active_traces, max_trace_age_seconds)
+
+    # One-time startup warning listing silent modules per S-11
+    global _explain_startup_warned
+    if not _explain_startup_warned:
+        silent = _audit.get_uninstrumented_modules(core.registry)
+        if silent:
+            import warnings
+            warnings.warn(
+                (
+                    f"explain mode enabled; these {len(silent)} modules do not call "
+                    f"record_decision and will not surface detail in traces "
+                    f"(they will run silently and appear only in Trace.silent_modules): "
+                    f"{', '.join(silent)}. "
+                    "(silence with: warnings.filterwarnings('ignore', "
+                    "category=agentarmor.ExplainModeWarning))"
+                ),
+                ExplainModeWarning,
+                stacklevel=3,
+            )
+        _explain_startup_warned = True
 
 def get_core() -> Optional[ArmorCore]:
     """Returns the currently active ArmorCore instance in this context."""
@@ -240,4 +324,17 @@ __all__ = [
     "ConfigurationError",
     "compliance_report",
     "demo_attacks",
+    # Explain mode v2 public surface
+    "Trace",
+    "TraceEvent",
+    "TraceJSONEncoder",
+    "ExplainModeWarning",
+    "record_decision",
+    "last_trace",
+    "last_trace_status",
+    "find_trace",
+    "clear_last_trace",
+    "run_in_executor",
+    "SHIELD_EXCEPTIONS",
+    "DemoReport",
 ]

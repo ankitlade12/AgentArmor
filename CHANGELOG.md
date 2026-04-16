@@ -2,6 +2,27 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.4.0] - 2026-04-14
+
+### Added
+- **Explain Mode v2**: Off-by-default debuggability layer. `agentarmor.init(explain=True)` enables structured trace recording; `agentarmor.last_trace()` returns a `Trace` showing which shields ran, what each decided, and why. When a shield raises, the exception carries `e.trace`. Production-safe — PII-redacted by default, bounded memory (active-trace ceiling + watchdog timeout), schema-versioned (`Trace.schema_version=1`), picklable + JSON-serializable via `agentarmor.TraceJSONEncoder`.
+- **`agentarmor.find_trace(e)`**: Recovers `e.trace` across framework boundaries (FastAPI, Celery, Sentry) by walking `__cause__` chain.
+- **`agentarmor.last_trace_status()`**: Diagnostic accessor — answers "why is `last_trace()` returning None?" without requiring a re-run.
+- **`agentarmor.run_in_executor(executor, fn)`**: ThreadPoolExecutor helper that propagates explain-mode trace context to worker threads. Rejects ProcessPoolExecutor with `ExplainModeWarning`.
+- **`Trace.to_otel_attributes()`** and **`Trace.to_dict()`**: Adapters for OpenTelemetry / Sentry / generic telemetry pipelines.
+- **`agentarmor.SHIELD_EXCEPTIONS`**: Tuple registry of all 25 shield exception classes, used by Explain Mode for decision auto-classification.
+- **`FilterModule.redact()`**: New public stateless method extracted from the existing `_scan` for reuse by the trace recorder (single source of truth for PII redaction).
+- **`python -m agentarmor.bench --explain`**: Stdlib-only calibration script that reports per-hook overhead in three configurations.
+- **`scripts/audit_hook_modules.py`**: CI verifier that emits GitHub `::warning::` annotations for modules without `record_decision()` calls.
+
+### Strict-mode kwargs added
+- `explain`, `explain_redact`, `explain_max_detail_bytes`, `explain_max_active_traces`, `explain_max_trace_age_seconds` — all kwargs-only with safe defaults.
+
+### Backwards compatibility
+- All existing 742 tests pass unchanged.
+- No module behavior change unless they opt into `record_decision()`.
+- Users on v1.3 with `init(explain=True)` see a `UserWarning` (non-strict) or `ConfigurationError` (strict).
+
 ## [1.3.0] - 2026-04-13
 
 ### Added

@@ -55,13 +55,31 @@ class FilterModule:
             return self._scan(text)
         return text
 
-    def _scan(self, text: str) -> str:
+    def redact(self, text: str) -> str:
+        """Stateless: return a redacted copy of text. Does not touch self.redactions.
+
+        Public API. Used by the trace recorder (Explain Mode) so that what the LLM
+        sees and what the trace stores share a single redaction implementation.
+        """
+        if not isinstance(text, str) or not self.active_patterns:
+            return text
+        redacted, _ = self._redact_with_count(text)
+        return redacted
+
+    def _redact_with_count(self, text: str) -> tuple:
+        redacted = text
+        count = 0
         for name, pattern in self.active_patterns.items():
-            matches = pattern.findall(text)
+            matches = pattern.findall(redacted)
             if matches:
-                self.redactions += len(matches)
-                text = pattern.sub(f"[REDACTED:{name.upper()}]", text)
-        return text
+                count += len(matches)
+                redacted = pattern.sub(f"[REDACTED:{name.upper()}]", redacted)
+        return redacted, count
+
+    def _scan(self, text: str) -> str:
+        redacted, count = self._redact_with_count(text)
+        self.redactions += count
+        return redacted
 
     def report(self) -> dict:
         return {"total_redactions": self.redactions}
