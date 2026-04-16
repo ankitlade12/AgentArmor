@@ -331,17 +331,21 @@ class _TraceBuilder:
         self.closed_reason: Optional[str] = None
         self.context_id = uuid.uuid4().hex
         self.silent_modules: tuple = ()
-        # Track which modules have explicitly recorded so we know which
-        # auto-events to suppress (per S-11 — silent modules don't appear)
         self._explicit_decisions: dict = {}  # module -> Decision
         self._silent_modules: set = set()
         self._auto_blocked_override_pending: Optional[tuple] = None
-        # Register for the watchdog to find (S-27)
+        # Thread safety: protects events/decisions/silent_modules under
+        # concurrent hooks via run_in_executor (code red-team F1/F5).
+        self._lock = threading.Lock()
         with _registry_lock:
             _active_traces_registry.add(self)
 
     def record_explicit(self, module: str, decision: Decision, detail: Any) -> None:
         """Called by user-facing record_decision()."""
+        with self._lock:
+            return self._record_explicit_inner(module, decision, detail)
+
+    def _record_explicit_inner(self, module: str, decision: Decision, detail: Any) -> None:
         if module in self._explicit_decisions:
             warnings.warn(
                 (
@@ -369,16 +373,17 @@ class _TraceBuilder:
             latency_us=0,
         )
 
-    def note_silent_if_unrecorded(self, module: str, hook: HookType, latency_us: int) -> None:
+    def note_silent_if_unrecorded(self, module: str, hook: str, latency_us: int) -> None:
         """Track that a hook ran silently (no record_decision call, no exception).
 
         Per S-11, silent modules do NOT get a per-trace event — that's noise.
         Instead they're collected here and surfaced via Trace.silent_modules
         for opt-in introspection. Idempotent across hook types.
         """
-        if module in self._explicit_decisions:
-            return  # explicitly recorded; not silent
-        self._silent_modules.add(module)
+        with self._lock:
+            if module in self._explicit_decisions:
+                return
+            self._silent_modules.add(module)
 
     def auto_record(
         self,
@@ -390,6 +395,13 @@ class _TraceBuilder:
         latency_us: int,
     ) -> None:
         """Called by HookRegistry instrumentation for blocked / error / passed."""
+        with self._lock:
+            return self._auto_record_inner(
+                module=module, hook=hook, decision=decision,
+                detail=detail, latency_us=latency_us,
+            )
+
+    def _auto_record_inner(self, *, module, hook, decision, detail, latency_us):
         # If the hook explicitly recorded, the explicit record takes precedence
         # for "passed"/"modified"/"not_recorded". But auto-blocked/error always
         # wins (S-6 + S-7 resolution).
@@ -463,14 +475,21 @@ class _TraceBuilder:
         return detail
 
     def close(self, reason: str) -> Trace:
-        if self.ended_at_ns is None:
-            self.ended_at_ns = time.time_ns()
-            self.closed_reason = reason
-            with _registry_lock:
-                _active_traces_registry.discard(self)
+        with self._lock:
+            if self.ended_at_ns is None:
+                self.ended_at_ns = time.time_ns()
+                self.closed_reason = reason
+                with _registry_lock:
+                    _active_traces_registry.discard(self)
         return self.snapshot()
 
     def snapshot(self) -> Trace:
+        with self._lock:
+            events_copy = list(self.events)
+            blocked_by = self.blocked_by
+            closed_reason = self.closed_reason
+            ended_at_ns = self.ended_at_ns
+            silent = tuple(sorted(self._silent_modules))
         events = tuple(
             TraceEvent(
                 schema_version=e.schema_version,
@@ -481,17 +500,17 @@ class _TraceBuilder:
                 detail=_freeze(copy.deepcopy(e.detail)),
                 latency_us=e.latency_us,
             )
-            for e in self.events
+            for e in events_copy
         )
         return Trace(
             schema_version=self.schema_version,
             started_at_ns=self.started_at_ns,
-            ended_at_ns=self.ended_at_ns,
+            ended_at_ns=ended_at_ns,
             events=events,
-            blocked_by=self.blocked_by,
-            closed_reason=self.closed_reason,
+            blocked_by=blocked_by,
+            closed_reason=closed_reason,
             context_id=self.context_id,
-            silent_modules=tuple(sorted(self._silent_modules)),
+            silent_modules=silent,
         )
 
 
@@ -513,7 +532,7 @@ def _redact_recursive(value: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def record_decision(decision: Decision, detail: Optional[dict] = None) -> None:
+def record_decision(decision: Decision, detail: Optional[dict] = None, *, module: Optional[str] = None) -> None:
     """Record this hook's decision into the active trace.
 
     No-op when explain mode is off OR when called outside an active hook
@@ -546,11 +565,11 @@ def record_decision(decision: Decision, detail: Optional[dict] = None) -> None:
                 _background_warning_emitted = True
         return
 
-    # Derive caller module from the call frame
-    import sys
-    frame = sys._getframe(1)
-    module_path = frame.f_globals.get("__name__", "unknown")
-    module = module_path.rsplit(".", 1)[-1]
+    if module is None:
+        import sys
+        frame = sys._getframe(1)
+        module_path = frame.f_globals.get("__name__", "unknown")
+        module = module_path.rsplit(".", 1)[-1]
     builder.record_explicit(module, decision, detail)
 
 
@@ -678,13 +697,13 @@ class _ExplainSession:
         self.token = None
 
 
-def wrap_sync_stream(generator, session: _ExplainSession):
+def wrap_sync_stream(generator, session: Optional[_ExplainSession]):
     """Wrap a sync generator so the explain session closes when exhausted.
 
     Per S-12: explicit close (via for-loop completion or .close()) is the
     primary close mechanism; GC (__del__) is the last-resort safety net.
     """
-    if session.builder is None:
+    if session is None or session.builder is None:
         yield from generator
         return
     try:
@@ -697,9 +716,9 @@ def wrap_sync_stream(generator, session: _ExplainSession):
         session.close_streaming("stream_close")
 
 
-async def wrap_async_stream(generator, session: _ExplainSession):
+async def wrap_async_stream(generator, session: Optional[_ExplainSession]):
     """Wrap an async generator so the explain session closes when exhausted."""
-    if session.builder is None:
+    if session is None or session.builder is None:
         async for item in generator:
             yield item
         return

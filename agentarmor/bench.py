@@ -128,11 +128,14 @@ def _format_report(result: dict) -> str:
         f"  explain=False (zero-overhead) : {result['explain_off_us']:>8.3f} us/call  (+{delta_off_us:.3f}us absolute overhead)",
         f"  explain=True  (1KB detail)    : {result['explain_on_us']:>8.3f} us/call  (+{delta_on_us:.3f}us absolute overhead)",
         "",
-        "Note: percentages are misleading at sub-microsecond scales because the",
-        "control work is faster than the noise floor on most CI runners. Compare",
-        "absolute deltas against your real shield latency (typically 10-100us).",
         "",
-        "Apply a 2x margin for ARM / throttled containers / GIL contention.",
+        f"  Budget A (explain=False overhead <= 2us): {'PASS' if delta_off_us <= 2.0 else 'FAIL'}",
+        f"  Budget B (explain=True overhead <= 50us): {'PASS' if delta_on_us <= 50.0 else 'FAIL'}",
+        "",
+        "Note: compare absolute overhead against your real shield latency (typically",
+        "10-100us/hook). Apply 2x margin for ARM / throttled containers / GIL contention.",
+        "If FAIL: run on quieter hardware, increase -n for more stable results, or",
+        "reduce explain_max_detail_bytes to lower per-event overhead.",
     ]
     return "\n".join(lines)
 

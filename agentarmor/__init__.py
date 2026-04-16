@@ -16,6 +16,7 @@ from .exceptions import (
     PrivilegeEscalationDetected,
     SemanticDriftDetected,
     ConfigurationError,
+    SHIELD_EXCEPTIONS,
 )
 from .modules.cost_tags import set_tag, clear_tag, get_tag
 from .modules.taint_tracker import TaintViolation
@@ -334,4 +335,6 @@ __all__ = [
     "find_trace",
     "clear_last_trace",
     "run_in_executor",
+    "SHIELD_EXCEPTIONS",
+    "DemoReport",
 ]

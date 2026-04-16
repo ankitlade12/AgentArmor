@@ -2,7 +2,7 @@ import time
 from typing import Any, Callable, Dict
 
 from .hooks import RequestContext, ResponseContext, global_registry
-from .trace import _ExplainSession, wrap_async_stream, wrap_sync_stream
+from .trace import _ExplainSession, _config as _explain_config, wrap_async_stream, wrap_sync_stream
 from .modules.budget import BudgetModule
 from .modules.shield import ShieldModule
 from .modules.filter import FilterModule
@@ -358,7 +358,7 @@ class ArmorCore:
 
     def _wrap_sync(self, original_fn: Callable, provider: str):
         def wrapped(*args, **kwargs):
-            session = _ExplainSession()
+            session = _ExplainSession() if _explain_config.enabled else None
             try:
                 ctx = self._build_request_context(provider, args, kwargs)
                 ctx = self.registry.execute_before_request(ctx)
@@ -375,17 +375,17 @@ class ArmorCore:
                     )
 
                 result = self._handle_non_stream(response, provider, ctx, latency_ms)
-                session.close_normal()
+                if session: session.close_normal()
                 return result
             except BaseException as e:
-                session.attach_exception(e)
+                if session: session.attach_exception(e)
                 raise
 
         return wrapped
 
     def _wrap_async(self, original_fn: Callable, provider: str):
         async def wrapped(*args, **kwargs):
-            session = _ExplainSession()
+            session = _ExplainSession() if _explain_config.enabled else None
             try:
                 ctx = self._build_request_context(provider, args, kwargs)
                 ctx = self.registry.execute_before_request(ctx)
@@ -402,10 +402,10 @@ class ArmorCore:
                     )
 
                 result = self._handle_non_stream(response, provider, ctx, latency_ms)
-                session.close_normal()
+                if session: session.close_normal()
                 return result
             except BaseException as e:
-                session.attach_exception(e)
+                if session: session.attach_exception(e)
                 raise
 
         return wrapped
@@ -437,7 +437,7 @@ class ArmorCore:
 
     def _wrap_genai_sync(self, original_fn: Callable, is_stream: bool):
         def wrapped(*args, **kwargs):
-            session = _ExplainSession()
+            session = _ExplainSession() if _explain_config.enabled else None
             try:
                 model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
                 contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
@@ -465,17 +465,17 @@ class ArmorCore:
                     )
 
                 result = self._handle_non_stream(response, "gemini", ctx, latency_ms)
-                session.close_normal()
+                if session: session.close_normal()
                 return result
             except BaseException as e:
-                session.attach_exception(e)
+                if session: session.attach_exception(e)
                 raise
 
         return wrapped
 
     def _wrap_genai_async(self, original_fn: Callable, is_stream: bool):
         async def wrapped(*args, **kwargs):
-            session = _ExplainSession()
+            session = _ExplainSession() if _explain_config.enabled else None
             try:
                 model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
                 contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
@@ -503,10 +503,10 @@ class ArmorCore:
                     )
 
                 result = self._handle_non_stream(response, "gemini", ctx, latency_ms)
-                session.close_normal()
+                if session: session.close_normal()
                 return result
             except BaseException as e:
-                session.attach_exception(e)
+                if session: session.attach_exception(e)
                 raise
 
         return wrapped
@@ -517,7 +517,7 @@ class ArmorCore:
 
     def _wrap_responses_sync(self, original_fn: Callable):
         def wrapped(*args, **kwargs):
-            session = _ExplainSession()
+            session = _ExplainSession() if _explain_config.enabled else None
             try:
                 model = kwargs.get("model", "unknown")
                 input_val = kwargs.get("input", "")
@@ -550,17 +550,17 @@ class ArmorCore:
                     )
 
                 result = self._handle_responses_non_stream(response, ctx, latency_ms)
-                session.close_normal()
+                if session: session.close_normal()
                 return result
             except BaseException as e:
-                session.attach_exception(e)
+                if session: session.attach_exception(e)
                 raise
 
         return wrapped
 
     def _wrap_responses_async(self, original_fn: Callable):
         async def wrapped(*args, **kwargs):
-            session = _ExplainSession()
+            session = _ExplainSession() if _explain_config.enabled else None
             try:
                 model = kwargs.get("model", "unknown")
                 input_val = kwargs.get("input", "")
@@ -593,10 +593,10 @@ class ArmorCore:
                     )
 
                 result = self._handle_responses_non_stream(response, ctx, latency_ms)
-                session.close_normal()
+                if session: session.close_normal()
                 return result
             except BaseException as e:
-                session.attach_exception(e)
+                if session: session.attach_exception(e)
                 raise
 
         return wrapped
