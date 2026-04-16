@@ -2,6 +2,7 @@ import time
 from typing import Any, Callable, Dict
 
 from .hooks import RequestContext, ResponseContext, global_registry
+from .trace import _ExplainSession, wrap_async_stream, wrap_sync_stream
 from .modules.budget import BudgetModule
 from .modules.shield import ShieldModule
 from .modules.filter import FilterModule
@@ -357,35 +358,55 @@ class ArmorCore:
 
     def _wrap_sync(self, original_fn: Callable, provider: str):
         def wrapped(*args, **kwargs):
-            ctx = self._build_request_context(provider, args, kwargs)
-            ctx = self.registry.execute_before_request(ctx)
-            self._apply_request_context_to_kwargs(ctx, kwargs)
+            session = _ExplainSession()
+            try:
+                ctx = self._build_request_context(provider, args, kwargs)
+                ctx = self.registry.execute_before_request(ctx)
+                self._apply_request_context_to_kwargs(ctx, kwargs)
 
-            t0 = time.perf_counter()
-            response = original_fn(*args, **kwargs)
-            latency_ms = (time.perf_counter() - t0) * 1000
+                t0 = time.perf_counter()
+                response = original_fn(*args, **kwargs)
+                latency_ms = (time.perf_counter() - t0) * 1000
 
-            if ctx.stream:
-                return self._handle_stream_sync(response, provider, ctx, latency_ms)
+                if ctx.stream:
+                    return wrap_sync_stream(
+                        self._handle_stream_sync(response, provider, ctx, latency_ms),
+                        session,
+                    )
 
-            return self._handle_non_stream(response, provider, ctx, latency_ms)
+                result = self._handle_non_stream(response, provider, ctx, latency_ms)
+                session.close_normal()
+                return result
+            except BaseException as e:
+                session.attach_exception(e)
+                raise
 
         return wrapped
 
     def _wrap_async(self, original_fn: Callable, provider: str):
         async def wrapped(*args, **kwargs):
-            ctx = self._build_request_context(provider, args, kwargs)
-            ctx = self.registry.execute_before_request(ctx)
-            self._apply_request_context_to_kwargs(ctx, kwargs)
+            session = _ExplainSession()
+            try:
+                ctx = self._build_request_context(provider, args, kwargs)
+                ctx = self.registry.execute_before_request(ctx)
+                self._apply_request_context_to_kwargs(ctx, kwargs)
 
-            t0 = time.perf_counter()
-            response = await original_fn(*args, **kwargs)
-            latency_ms = (time.perf_counter() - t0) * 1000
+                t0 = time.perf_counter()
+                response = await original_fn(*args, **kwargs)
+                latency_ms = (time.perf_counter() - t0) * 1000
 
-            if ctx.stream:
-                return self._handle_stream_async(response, provider, ctx, latency_ms)
+                if ctx.stream:
+                    return wrap_async_stream(
+                        self._handle_stream_async(response, provider, ctx, latency_ms),
+                        session,
+                    )
 
-            return self._handle_non_stream(response, provider, ctx, latency_ms)
+                result = self._handle_non_stream(response, provider, ctx, latency_ms)
+                session.close_normal()
+                return result
+            except BaseException as e:
+                session.attach_exception(e)
+                raise
 
         return wrapped
 
@@ -416,57 +437,77 @@ class ArmorCore:
 
     def _wrap_genai_sync(self, original_fn: Callable, is_stream: bool):
         def wrapped(*args, **kwargs):
-            model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
-            contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
-            config = args[3] if len(args) > 3 else kwargs.get("config", None)
-            messages = self._gemini_contents_to_messages(contents)
+            session = _ExplainSession()
+            try:
+                model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
+                contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
+                config = args[3] if len(args) > 3 else kwargs.get("config", None)
+                messages = self._gemini_contents_to_messages(contents)
 
-            ctx = RequestContext(
-                messages=messages,
-                model=model_name,
-                temperature=getattr(config, 'temperature', None) if config else None,
-                max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
-                stream=is_stream,
-                extra_kwargs=kwargs,
-            )
-            ctx = self.registry.execute_before_request(ctx)
+                ctx = RequestContext(
+                    messages=messages,
+                    model=model_name,
+                    temperature=getattr(config, 'temperature', None) if config else None,
+                    max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
+                    stream=is_stream,
+                    extra_kwargs=kwargs,
+                )
+                ctx = self.registry.execute_before_request(ctx)
 
-            t0 = time.perf_counter()
-            response = original_fn(*args, **kwargs)
-            latency_ms = (time.perf_counter() - t0) * 1000
+                t0 = time.perf_counter()
+                response = original_fn(*args, **kwargs)
+                latency_ms = (time.perf_counter() - t0) * 1000
 
-            if is_stream:
-                return self._handle_stream_sync(response, "gemini", ctx, latency_ms)
+                if is_stream:
+                    return wrap_sync_stream(
+                        self._handle_stream_sync(response, "gemini", ctx, latency_ms),
+                        session,
+                    )
 
-            return self._handle_non_stream(response, "gemini", ctx, latency_ms)
+                result = self._handle_non_stream(response, "gemini", ctx, latency_ms)
+                session.close_normal()
+                return result
+            except BaseException as e:
+                session.attach_exception(e)
+                raise
 
         return wrapped
 
     def _wrap_genai_async(self, original_fn: Callable, is_stream: bool):
         async def wrapped(*args, **kwargs):
-            model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
-            contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
-            config = args[3] if len(args) > 3 else kwargs.get("config", None)
-            messages = self._gemini_contents_to_messages(contents)
+            session = _ExplainSession()
+            try:
+                model_name = args[1] if len(args) > 1 else kwargs.get("model", "unknown")
+                contents = args[2] if len(args) > 2 else kwargs.get("contents", None)
+                config = args[3] if len(args) > 3 else kwargs.get("config", None)
+                messages = self._gemini_contents_to_messages(contents)
 
-            ctx = RequestContext(
-                messages=messages,
-                model=model_name,
-                temperature=getattr(config, 'temperature', None) if config else None,
-                max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
-                stream=is_stream,
-                extra_kwargs=kwargs,
-            )
-            ctx = self.registry.execute_before_request(ctx)
+                ctx = RequestContext(
+                    messages=messages,
+                    model=model_name,
+                    temperature=getattr(config, 'temperature', None) if config else None,
+                    max_tokens=getattr(config, 'max_output_tokens', None) if config else None,
+                    stream=is_stream,
+                    extra_kwargs=kwargs,
+                )
+                ctx = self.registry.execute_before_request(ctx)
 
-            t0 = time.perf_counter()
-            response = await original_fn(*args, **kwargs)
-            latency_ms = (time.perf_counter() - t0) * 1000
+                t0 = time.perf_counter()
+                response = await original_fn(*args, **kwargs)
+                latency_ms = (time.perf_counter() - t0) * 1000
 
-            if is_stream:
-                return self._handle_stream_async(response, "gemini", ctx, latency_ms)
+                if is_stream:
+                    return wrap_async_stream(
+                        self._handle_stream_async(response, "gemini", ctx, latency_ms),
+                        session,
+                    )
 
-            return self._handle_non_stream(response, "gemini", ctx, latency_ms)
+                result = self._handle_non_stream(response, "gemini", ctx, latency_ms)
+                session.close_normal()
+                return result
+            except BaseException as e:
+                session.attach_exception(e)
+                raise
 
         return wrapped
 
@@ -476,68 +517,87 @@ class ArmorCore:
 
     def _wrap_responses_sync(self, original_fn: Callable):
         def wrapped(*args, **kwargs):
-            model = kwargs.get("model", "unknown")
-            input_val = kwargs.get("input", "")
-            had_instructions = "instructions" in kwargs
-            instructions = kwargs.get("instructions", None)
-            messages = self._responses_input_to_messages(input_val, instructions)
+            session = _ExplainSession()
+            try:
+                model = kwargs.get("model", "unknown")
+                input_val = kwargs.get("input", "")
+                had_instructions = "instructions" in kwargs
+                instructions = kwargs.get("instructions", None)
+                messages = self._responses_input_to_messages(input_val, instructions)
 
-            ctx = RequestContext(
-                messages=messages,
-                model=model,
-                stream=kwargs.get("stream", False),
-                extra_kwargs=kwargs,
-            )
-            ctx = self.registry.execute_before_request(ctx)
-            # Round-trip: split messages back into instructions + input
-            new_instructions, new_input = self._split_responses_messages(
-                ctx.messages, had_instructions,
-            )
-            kwargs["input"] = new_input
-            if had_instructions:
-                kwargs["instructions"] = new_instructions
+                ctx = RequestContext(
+                    messages=messages,
+                    model=model,
+                    stream=kwargs.get("stream", False),
+                    extra_kwargs=kwargs,
+                )
+                ctx = self.registry.execute_before_request(ctx)
+                new_instructions, new_input = self._split_responses_messages(
+                    ctx.messages, had_instructions,
+                )
+                kwargs["input"] = new_input
+                if had_instructions:
+                    kwargs["instructions"] = new_instructions
 
-            t0 = time.perf_counter()
-            response = original_fn(*args, **kwargs)
-            latency_ms = (time.perf_counter() - t0) * 1000
+                t0 = time.perf_counter()
+                response = original_fn(*args, **kwargs)
+                latency_ms = (time.perf_counter() - t0) * 1000
 
-            if kwargs.get("stream", False):
-                return self._handle_responses_stream_sync(response, ctx, latency_ms)
+                if kwargs.get("stream", False):
+                    return wrap_sync_stream(
+                        self._handle_responses_stream_sync(response, ctx, latency_ms),
+                        session,
+                    )
 
-            return self._handle_responses_non_stream(response, ctx, latency_ms)
+                result = self._handle_responses_non_stream(response, ctx, latency_ms)
+                session.close_normal()
+                return result
+            except BaseException as e:
+                session.attach_exception(e)
+                raise
 
         return wrapped
 
     def _wrap_responses_async(self, original_fn: Callable):
         async def wrapped(*args, **kwargs):
-            model = kwargs.get("model", "unknown")
-            input_val = kwargs.get("input", "")
-            had_instructions = "instructions" in kwargs
-            instructions = kwargs.get("instructions", None)
-            messages = self._responses_input_to_messages(input_val, instructions)
+            session = _ExplainSession()
+            try:
+                model = kwargs.get("model", "unknown")
+                input_val = kwargs.get("input", "")
+                had_instructions = "instructions" in kwargs
+                instructions = kwargs.get("instructions", None)
+                messages = self._responses_input_to_messages(input_val, instructions)
 
-            ctx = RequestContext(
-                messages=messages,
-                model=model,
-                stream=kwargs.get("stream", False),
-                extra_kwargs=kwargs,
-            )
-            ctx = self.registry.execute_before_request(ctx)
-            new_instructions, new_input = self._split_responses_messages(
-                ctx.messages, had_instructions,
-            )
-            kwargs["input"] = new_input
-            if had_instructions:
-                kwargs["instructions"] = new_instructions
+                ctx = RequestContext(
+                    messages=messages,
+                    model=model,
+                    stream=kwargs.get("stream", False),
+                    extra_kwargs=kwargs,
+                )
+                ctx = self.registry.execute_before_request(ctx)
+                new_instructions, new_input = self._split_responses_messages(
+                    ctx.messages, had_instructions,
+                )
+                kwargs["input"] = new_input
+                if had_instructions:
+                    kwargs["instructions"] = new_instructions
 
-            t0 = time.perf_counter()
-            response = await original_fn(*args, **kwargs)
-            latency_ms = (time.perf_counter() - t0) * 1000
+                t0 = time.perf_counter()
+                response = await original_fn(*args, **kwargs)
+                latency_ms = (time.perf_counter() - t0) * 1000
 
-            if kwargs.get("stream", False):
-                return self._handle_responses_stream_async(response, ctx, latency_ms)
+                if kwargs.get("stream", False):
+                    return wrap_async_stream(
+                        self._handle_responses_stream_async(response, ctx, latency_ms),
+                        session,
+                    )
 
-            return self._handle_responses_non_stream(response, ctx, latency_ms)
+                result = self._handle_responses_non_stream(response, ctx, latency_ms)
+                session.close_normal()
+                return result
+            except BaseException as e:
+                session.attach_exception(e)
+                raise
 
         return wrapped
 

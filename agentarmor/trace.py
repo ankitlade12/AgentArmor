@@ -608,3 +608,106 @@ def clear_last_trace() -> None:
         _active_trace.set(None)
     else:
         _last_completed_trace.set(None)
+
+
+# ---------------------------------------------------------------------------
+# Internal: lifecycle helpers used by core.py patched wrappers (S-3, S-12, S-16)
+# ---------------------------------------------------------------------------
+
+
+class _ExplainSession:
+    """Per-request trace lifecycle used by core.py patched wrappers.
+
+    Opens a trace at construction (if explain enabled), provides close hooks
+    for normal completion + exception attachment + streaming-defer.
+    """
+
+    def __init__(self):
+        self.builder: Optional[_TraceBuilder] = None
+        self.token = None
+        self._closed = False
+        if _config.enabled:
+            self.builder = _TraceBuilder()
+            self.token = _active_trace.set(self.builder)
+
+    def attach_exception(self, e: BaseException) -> None:
+        if self.builder is None or self._closed:
+            return
+        from .exceptions import SHIELD_EXCEPTIONS
+        reason = "blocked" if isinstance(e, SHIELD_EXCEPTIONS) else "error"
+        if isinstance(e, SHIELD_EXCEPTIONS) and self.builder.blocked_by is None:
+            # Fallback: if no hook recorded the block (e.g. user-raised after
+            # hooks completed), credit the exception's class name as blocker.
+            self.builder.blocked_by = type(e).__name__
+        snap = self.builder.close(reason)
+        _last_completed_trace.set(snap)
+        try:
+            e.trace = snap
+        except (AttributeError, TypeError):
+            # Exception class uses __slots__ without a 'trace' slot; user can
+            # still call agentarmor.find_trace(e) -> last_trace() fallback.
+            pass
+        self._reset_token()
+        self._closed = True
+
+    def close_normal(self) -> None:
+        if self.builder is None or self._closed:
+            return
+        snap = self.builder.close("after_response")
+        _last_completed_trace.set(snap)
+        self._reset_token()
+        self._closed = True
+
+    def close_streaming(self, reason: str = "stream_close") -> None:
+        if self.builder is None or self._closed:
+            return
+        snap = self.builder.close(reason)
+        _last_completed_trace.set(snap)
+        self._reset_token()
+        self._closed = True
+
+    def _reset_token(self) -> None:
+        if self.token is None:
+            return
+        try:
+            _active_trace.reset(self.token)
+        except ValueError:
+            # Token created in different context (e.g. via copy_context) —
+            # just clear via set instead of reset
+            _active_trace.set(None)
+        self.token = None
+
+
+def wrap_sync_stream(generator, session: _ExplainSession):
+    """Wrap a sync generator so the explain session closes when exhausted.
+
+    Per S-12: explicit close (via for-loop completion or .close()) is the
+    primary close mechanism; GC (__del__) is the last-resort safety net.
+    """
+    if session.builder is None:
+        yield from generator
+        return
+    try:
+        for item in generator:
+            yield item
+    except BaseException as e:
+        session.attach_exception(e)
+        raise
+    finally:
+        session.close_streaming("stream_close")
+
+
+async def wrap_async_stream(generator, session: _ExplainSession):
+    """Wrap an async generator so the explain session closes when exhausted."""
+    if session.builder is None:
+        async for item in generator:
+            yield item
+        return
+    try:
+        async for item in generator:
+            yield item
+    except BaseException as e:
+        session.attach_exception(e)
+        raise
+    finally:
+        session.close_streaming("stream_close")
