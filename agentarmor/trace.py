@@ -334,6 +334,7 @@ class _TraceBuilder:
         # Track which modules have explicitly recorded so we know which
         # auto-events to suppress (per S-11 — silent modules don't appear)
         self._explicit_decisions: dict = {}  # module -> Decision
+        self._silent_modules: set = set()
         self._auto_blocked_override_pending: Optional[tuple] = None
         # Register for the watchdog to find (S-27)
         with _registry_lock:
@@ -367,6 +368,17 @@ class _TraceBuilder:
             module=module, hook="before_request", decision=decision, detail=normalized,
             latency_us=0,
         )
+
+    def note_silent_if_unrecorded(self, module: str, hook: HookType, latency_us: int) -> None:
+        """Track that a hook ran silently (no record_decision call, no exception).
+
+        Per S-11, silent modules do NOT get a per-trace event — that's noise.
+        Instead they're collected here and surfaced via Trace.silent_modules
+        for opt-in introspection. Idempotent across hook types.
+        """
+        if module in self._explicit_decisions:
+            return  # explicitly recorded; not silent
+        self._silent_modules.add(module)
 
     def auto_record(
         self,
@@ -479,7 +491,7 @@ class _TraceBuilder:
             blocked_by=self.blocked_by,
             closed_reason=self.closed_reason,
             context_id=self.context_id,
-            silent_modules=tuple(self.silent_modules),
+            silent_modules=tuple(sorted(self._silent_modules)),
         )
 
 
