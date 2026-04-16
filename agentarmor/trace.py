@@ -23,9 +23,11 @@ import dataclasses
 import datetime
 import decimal
 import json
+import threading
 import time
 import uuid
 import warnings
+import weakref
 from contextvars import ContextVar
 from types import MappingProxyType
 from typing import Any, Literal, Optional
@@ -299,6 +301,18 @@ _last_completed_trace: ContextVar[Optional[Trace]] = ContextVar(
 )
 _background_warning_emitted = False
 
+# Process-wide registry of in-flight TraceBuilders used by the watchdog
+# (S-27) to iterate stale traces. WeakSet so closed/dropped builders are GC'd
+# without explicit unregister.
+_active_traces_registry: "weakref.WeakSet" = weakref.WeakSet()
+_registry_lock = threading.Lock()
+
+
+def get_active_traces() -> tuple:
+    """Snapshot of currently-open _TraceBuilder instances. Used by the watchdog."""
+    with _registry_lock:
+        return tuple(_active_traces_registry)
+
 
 # ---------------------------------------------------------------------------
 # Internal: TraceBuilder (mutable accumulator)
@@ -321,6 +335,9 @@ class _TraceBuilder:
         # auto-events to suppress (per S-11 — silent modules don't appear)
         self._explicit_decisions: dict = {}  # module -> Decision
         self._auto_blocked_override_pending: Optional[tuple] = None
+        # Register for the watchdog to find (S-27)
+        with _registry_lock:
+            _active_traces_registry.add(self)
 
     def record_explicit(self, module: str, decision: Decision, detail: Any) -> None:
         """Called by user-facing record_decision()."""
@@ -437,6 +454,8 @@ class _TraceBuilder:
         if self.ended_at_ns is None:
             self.ended_at_ns = time.time_ns()
             self.closed_reason = reason
+            with _registry_lock:
+                _active_traces_registry.discard(self)
         return self.snapshot()
 
     def snapshot(self) -> Trace:
