@@ -146,9 +146,51 @@ Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples
 | `agentarmor.spawn_agent(id, parent_id, budget)` | Register a sub-agent with inherited safety constraints. |
 | `agentarmor.end_agent(id)` | End a sub-agent and roll up its stats to its parent. |
 | `agentarmor.compliance_report(framework)` | Generate a SOC2/HIPAA/GDPR compliance report. |
+| `agentarmor.init(strict=True)` | (v1.3) Raise `ConfigurationError` on typo'd kwargs with "did you mean?" suggestions. |
+| `agentarmor.demo_attacks()` | (v1.3) Run ~21 synthetic attacks through active config locally; reports per-module block rates. |
 | `agentarmor.last_trace()` | (v1.4) Returns the most recent Explain Mode trace. |
 | `agentarmor.find_trace(e)` | (v1.4) Recover trace from a wrapped exception. |
 | `agentarmor.last_trace_status()` | (v1.4) Diagnostic — answers "why is `last_trace()` None?". |
+
+---
+
+## Strict Mode (v1.3+)
+
+Catches typo'd kwargs at `init()` time so misconfigured shields don't silently do nothing.
+
+```python
+import agentarmor
+
+# Typo: "unicode_sheild" instead of "unicode_shield"
+agentarmor.init(strict=True, unicode_sheild=True)
+# raises ConfigurationError: unknown kwarg 'unicode_sheild'. Did you mean 'unicode_shield'?
+```
+
+Without `strict=True` (the default), typo'd kwargs emit a one-time `UserWarning` and continue — preserving backwards compatibility. Use `strict=True` in production to catch silent misconfigurations.
+
+Strict mode also hard-rejects case-typos on the `strict` kwarg itself (`Strict=True`, `STRICT=True`) because silently dropping those would defeat the entire validation.
+
+---
+
+## Demo Attacks (v1.3+)
+
+Instantly see your shields working against ~21 hand-curated synthetic attacks — no LLM calls, no API keys needed.
+
+```python
+import agentarmor
+
+agentarmor.init(shield=True, filter=["pii"], toxicity=True)
+report = agentarmor.demo_attacks()
+print(report)
+# AgentArmor — Attack Demo Results
+# ================================
+# shield (prompt injection):    18/20 blocked  (90%)
+# filter (PII):                 5/5  blocked  (100%)
+# toxicity:                     12/15 blocked  (80%)
+# OVERALL:                      35/40 blocked  (87.5%)
+```
+
+`demo_attacks()` runs each sample through your active `before_request` hooks locally and reports per-module block rates. It snapshots and restores module state so it won't pollute your `report()`. This is a smoke test, NOT a security evaluation — see the [benchmarks](benchmarks/README.md) for measured F1/precision/recall against industry datasets.
 
 ---
 
