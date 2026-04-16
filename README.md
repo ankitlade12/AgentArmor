@@ -146,6 +146,90 @@ Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples
 | `agentarmor.spawn_agent(id, parent_id, budget)` | Register a sub-agent with inherited safety constraints. |
 | `agentarmor.end_agent(id)` | End a sub-agent and roll up its stats to its parent. |
 | `agentarmor.compliance_report(framework)` | Generate a SOC2/HIPAA/GDPR compliance report. |
+| `agentarmor.last_trace()` | (v1.4) Returns the most recent Explain Mode trace. |
+| `agentarmor.find_trace(e)` | (v1.4) Recover trace from a wrapped exception. |
+| `agentarmor.last_trace_status()` | (v1.4) Diagnostic — answers "why is `last_trace()` None?". |
+
+---
+
+## Explain Mode (v1.4+)
+
+When a shield blocks (or modifies) an LLM call, `agentarmor.last_trace()` shows you which shields ran, what each decided, and why. Off by default; near-zero overhead when off; production-safe (PII-redacted by default).
+
+```python
+import agentarmor
+
+agentarmor.init(shield=True, filter=["pii"], explain=True)
+
+# Your existing OpenAI / Anthropic / Gemini code, no changes
+client.chat.completions.create(...)
+
+trace = agentarmor.last_trace()
+print(trace.blocked_by)         # "shield" — module that fired (or None)
+print(trace.events)              # list of (module, decision, detail, latency_us)
+print(trace.silent_modules)      # modules that ran without recording detail
+print(trace.closed_reason)       # "after_response" | "blocked" | "stream_close" | "timeout"
+```
+
+When a shield raises, the exception carries the trace:
+
+```python
+try:
+    client.chat.completions.create(...)
+except agentarmor.InjectionDetected as e:
+    print(e.trace.blocked_by)    # "shield"
+    print(e.trace.events[0].detail)  # {"exception_type": "...", "message": "..."}
+```
+
+If a framework wraps your exception (FastAPI, Celery, Sentry), recover the trace via `find_trace`:
+
+```python
+except Exception as e:
+    trace = agentarmor.find_trace(e) or agentarmor.last_trace()
+```
+
+### Module detail coverage
+
+Most shields report only `decision` (passed/blocked/error) at v1.4 — they appear in `Trace.silent_modules` rather than `Trace.events`. Modules opt into richer detail over time by calling `agentarmor.record_decision()` from their hook bodies. Run `python scripts/audit_hook_modules.py --json` to see which modules currently record detail.
+
+### Performance
+
+Measured on Linux x86_64 / Python 3.11 / GitHub Actions runners:
+- `explain=False`: <1µs added per hook (zero-overhead path)
+- `explain=True` with 1KB detail dict: ~10–30µs added per hook
+
+Apply a 2× margin for ARM, throttled containers, or GIL-contended workloads. Run `python -m agentarmor.bench --explain` to calibrate locally on your hardware.
+
+### OpenTelemetry integration
+
+```python
+trace = agentarmor.last_trace()
+with tracer.start_as_current_span("llm_call") as span:
+    if trace:
+        span.set_attributes(trace.to_otel_attributes())
+```
+
+### Security note: redaction
+
+`init(explain=True)` PII-redacts trace detail by default. **Do not set `explain_redact=False` in production telemetry** — it disables redaction for local debugging only.
+
+### Troubleshooting `last_trace()` returns None
+
+Check `agentarmor.last_trace_status()` — it answers:
+- `explain_enabled`: did you pass `explain=True`?
+- `active_trace_open`: is a request still in flight?
+- `last_close_reason`: did a previous trace close as `timeout` or `cleared`?
+- `events_recorded`: did any shield record detail?
+
+Common causes:
+1. `explain` not enabled in `init()`.
+2. Trace was cleared via `clear_last_trace()` or evicted by the active-traces ceiling.
+3. Streaming response wasn't iterated to completion (use `with`/`async with`).
+4. Worker thread doesn't share contextvars — use `agentarmor.run_in_executor(executor, fn)` instead of `executor.submit(fn)`.
+
+### Version compatibility
+
+Explain mode requires `agentarmor>=1.4.0`. Users on v1.3 passing `explain=True` get either silent ignore (default) or `ConfigurationError` (with `strict=True`). Strict mode is recommended in production.
 
 ---
 
