@@ -48,6 +48,7 @@ from .metrics import (
     recall_from_counts,
 )
 from .runner import RunLogger, run_cell
+from .schema_io import dump_summary
 from .taxonomy_applicability import (
     APPLIES,
     RUBRIC_VERSION,
@@ -236,7 +237,7 @@ def write_summary(
         },
     }
     path = run_dir / "head_to_head_summary.json"
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    dump_summary(path, payload)
     return path
 
 

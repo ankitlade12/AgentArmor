@@ -166,8 +166,21 @@ class TestCellMetrics:
 
 
 class TestWriteSummary:
+    def _cell(self, **overrides) -> dict:
+        base = {
+            "baseline": "mock_scored",
+            "dataset": "toxigen",
+            "n_samples": 40,
+            "score_emitting": True,
+            "operating_point": "mock_scored",
+            "degenerate_flag": False,
+            "f1": 1.0,
+        }
+        base.update(overrides)
+        return base
+
     def test_summary_contains_required_fields(self, tmp_path):
-        cells = [{"baseline": "mock_scored", "dataset": "toxigen", "f1": 1.0}]
+        cells = [self._cell()]
         cfg = {"baselines": {"mock_scored": {}}, "calibration": {}}
         path = write_summary(tmp_path, cells, cfg, run_id="test_run")
         data = json.loads(path.read_text())
@@ -180,8 +193,8 @@ class TestWriteSummary:
 
     def test_summary_is_sorted_stable(self, tmp_path):
         """Stable sorted JSON supports byte-identical regenerate-and-diff (D28)."""
-        cells = [{"a": 1, "b": 2}]
-        cfg = {"baselines": {"m": {}}}
+        cells = [self._cell()]
+        cfg = {"baselines": {"mock_scored": {}}}
         write_summary(tmp_path, cells, cfg, run_id="r1")
         first = (tmp_path / "head_to_head_summary.json").read_text()
         write_summary(tmp_path, cells, cfg, run_id="r1")

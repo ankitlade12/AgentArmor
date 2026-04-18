@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/AgentArmor/benchmarks/head_to_head_summary_v1.json",
+  "title": "HeadToHeadSummary",
+  "description": "Aggregate summary of one head-to-head benchmark run (SPEC v4 D27, D52). Cells carry per-(baseline, dataset) metrics. Schema is additive-minor; removing or changing the meaning of a field bumps the major version.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "agentarmor_version",
+    "run_date",
+    "rubric_version",
+    "cells",
+    "tolerances"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "Semver major.minor. 1.x readers load all 1.x; unknown major errors loudly."
+    },
+    "run_id": {"type": "string"},
+    "agentarmor_version": {"type": "string"},
+    "run_date": {"type": "string", "format": "date"},
+    "rubric_version": {"type": "string"},
+    "config_echo": {"type": "object"},
+    "cells": {"type": "array", "items": {"$ref": "#/$defs/Cell"}},
+    "tolerances": {
+      "type": "object",
+      "required": ["same_day_spread_95p", "one_week_drift_max"],
+      "properties": {
+        "same_day_spread_95p": {"type": ["number", "null"]},
+        "one_week_drift_max": {"type": ["number", "null"]},
+        "calibration_run_dates": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "Cell": {
+      "type": "object",
+      "required": [
+        "baseline",
+        "dataset",
+        "n_samples",
+        "score_emitting",
+        "operating_point",
+        "degenerate_flag"
+      ],
+      "properties": {
+        "baseline": {"type": "string"},
+        "dataset": {"type": "string"},
+        "n_samples": {"type": "integer"},
+        "adapter_version": {"type": "string"},
+        "baseline_config_hash": {"type": "string"},
+        "score_emitting": {"type": "boolean"},
+        "operating_point": {"type": "string"},
+        "f1": {"type": ["number", "null"]},
+        "f1_ci_low": {"type": ["number", "null"]},
+        "f1_ci_high": {"type": ["number", "null"]},
+        "mcc": {"type": ["number", "null"]},
+        "mcc_ci_low": {"type": ["number", "null"]},
+        "mcc_ci_high": {"type": ["number", "null"]},
+        "balanced_accuracy": {"type": ["number", "null"]},
+        "balanced_accuracy_ci_low": {"type": ["number", "null"]},
+        "balanced_accuracy_ci_high": {"type": ["number", "null"]},
+        "precision": {"type": ["number", "null"]},
+        "recall": {"type": ["number", "null"]},
+        "fpr": {"type": ["number", "null"]},
+        "latency_p50_ms": {"type": ["number", "null"]},
+        "latency_p95_ms": {"type": ["number", "null"]},
+        "degenerate_flag": {"type": "boolean"},
+        "errors_count": {"type": "integer"},
+        "skipped_count": {"type": "integer"},
+        "duration_ms": {"type": "number"}
+      }
+    }
+  }
+}
