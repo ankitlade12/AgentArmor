@@ -233,11 +233,35 @@ def _historical_versions() -> str:
     )
 
 
+def _draft_banner_if_needed(cells: List[Dict[str, Any]]) -> Optional[str]:
+    """Emit a draft banner when the run covered only mock / infra baselines.
+
+    A reader who follows the README link from an in-progress state otherwise
+    sees empty tables with no explanation. This renders a one-paragraph
+    "DRAFT" notice until real vendor baselines are present.
+    """
+    real = {"llamaguard", "openai_moderation", "perspective"}
+    baselines = {c.get("baseline", "") for c in cells}
+    if baselines & real:
+        return None
+    return (
+        "> **DRAFT — infrastructure preview.** This document is regenerated "
+        "automatically from the most recent run. The current run exercised only "
+        "the mock baseline (CI fixture); real LlamaGuard / OpenAI Moderation / "
+        "Perspective numbers land after the first empirical-calibration cycle "
+        "(see [`RUNBOOK.md`](RUNBOOK.md) procedures 0 and 5). Tables below "
+        "show the schema a reader should expect; entries are `—` until "
+        "populated."
+    )
+
+
 def generate_markdown(summary: Dict[str, Any]) -> str:
     """Render the full markdown document from a summary JSON dict."""
     version = summary.get("agentarmor_version", "unknown")
     run_date = summary.get("run_date", "unknown")
     cells = summary.get("cells", [])
+
+    draft_banner = _draft_banner_if_needed(cells)
 
     parts = [
         GENERATED_MARKER,
@@ -246,6 +270,10 @@ def generate_markdown(summary: Dict[str, Any]) -> str:
         "",
         f"**Results as of: AgentArmor v{version}, run {run_date}**",
         "",
+    ]
+    if draft_banner is not None:
+        parts.extend([draft_banner, ""])
+    parts.extend([
         _headline_block(),
         "",
         _delta_strip(cells),
@@ -265,7 +293,7 @@ def generate_markdown(summary: Dict[str, Any]) -> str:
         "",
         _historical_versions(),
         "",
-    ]
+    ])
     return "\n".join(parts)
 
 

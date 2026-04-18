@@ -185,6 +185,27 @@ class TestMainCLI:
             main(["--summary", str(summary_path), "--output", str(output)])
 
 
+class TestDraftBanner:
+    def test_banner_shown_when_only_mock(self):
+        md = generate_markdown(_summary([_cell(baseline="mock_scored")]))
+        assert "DRAFT" in md
+        assert "infrastructure preview" in md
+
+    def test_banner_absent_when_real_baseline_present(self):
+        md = generate_markdown(_summary([_cell(baseline="llamaguard")]))
+        assert "DRAFT" not in md
+
+    def test_banner_absent_when_perspective_present(self):
+        md = generate_markdown(_summary([_cell(baseline="perspective")]))
+        assert "DRAFT" not in md
+
+    def test_banner_absent_for_empty_summary(self):
+        """No cells at all is different from 'only mock': the doc is structurally
+        empty; we still show the banner so the reader is not confused."""
+        md = generate_markdown(_summary([]))
+        assert "DRAFT" in md
+
+
 class TestMissingFieldHandling:
     def test_missing_optional_fields_render_as_dash(self):
         cell = _cell(f1=None, f1_ci_low=None, f1_ci_high=None, mcc=None, latency_p50_ms=None)
