@@ -38,6 +38,7 @@ class BaselineChecker(ABC):
     description: str = ""
     requires_api_key: Optional[str] = None
     default_threshold: float = 0.5
+    score_emitting: bool = True
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -57,6 +58,7 @@ class BaselineChecker(ABC):
                 return 1.0 if self._legacy_check(text) else 0.0
 
             cls.score = _bridge_score
+            cls.score_emitting = False
 
     @abstractmethod
     def score(self, text: str) -> float:
