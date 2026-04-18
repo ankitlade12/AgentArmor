@@ -96,6 +96,8 @@ pip install agentarmor[all]       # All providers + optional features
 
 Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples) spanning prompt injection, toxicity, hallucination, data exfiltration, and unicode attacks. Full results at [`benchmarks/README.md`](benchmarks/README.md).
 
+**Head-to-head comparison** — AgentArmor vs LlamaGuard 3, OpenAI Moderation, and Perspective API across six datasets with bootstrap F1 CIs, balance-aware metrics (MCC + balanced-accuracy on imbalanced sets), per-dataset operating-point naming, and honest loss annotations: [`BENCHMARKS_HEAD_TO_HEAD.md`](BENCHMARKS_HEAD_TO_HEAD.md). Methodology in [`tasks/head-to-head-report/SPEC.md`](tasks/head-to-head-report/SPEC.md); operations in [`RUNBOOK.md`](RUNBOOK.md).
+
 ### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
 
 | Benchmark | Samples | Precision | Recall | F1 | FP Rate |
