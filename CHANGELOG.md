@@ -2,6 +2,34 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [Unreleased] — head-to-head benchmark comparison infrastructure
+
+### Added
+
+- **Head-to-head runner** (`benchmarks.run_head_to_head`): sequential, resumable comparison of AgentArmor against LlamaGuard 3 (local via `llama-cpp-python`), OpenAI Moderation, and Perspective API across six industry datasets. Per-sample verdicts, bootstrap F1 / MCC / balanced-accuracy with per-metric degenerate guards, adapter + config drift detection on resume, `run.jsonl` structured event log.
+- **Taxonomy rubric** (`benchmarks.taxonomy_applicability`): binary (baseline, dataset) applicability verdicts with prose rationale and per-dataset OpenAI Moderation category projections. `ensure_complete()` CI-gate. Rubric owner declared in `CODEOWNERS`.
+- **`BaselineChecker` ABC migration**: adds `score(text) -> float`; `check(text)` becomes the default thresholded view. Legacy subclasses get a `DeprecationWarning` + auto-bridge. Perspective, OpenAI Moderation, and LlamaGuard all migrate to score-native implementations.
+- **`benchmarks/config.yaml`** with secret allow-list rejecting `*_API_KEY` / `*_TOKEN` / `*_SECRET` fields; fail-fast startup key check.
+- **JSON summary schema** (`benchmarks/schemas/head_to_head_summary_v1.json`) + `benchmarks.schema_io` loader enforcing additive-minor semver with a loud error on unknown major versions.
+- **Deterministic markdown generator** (`benchmarks.generate_head_to_head_doc`): GENERATED marker + byte-identical regeneration, version+date banner, per-dataset delta strip, operating-point legend, `does_not_apply` appendix, PR-curve exclusions note.
+- **Vendor canary** (`benchmarks.canary_check`) with 20 committed neutral samples and an abort-on-delta pre-publish check.
+- **Run-log analyzer** (`scripts/analyze_run_log.py`): summary by cell × phase, `--errors-only` filter, `--cell` drill-down.
+- **Operations runbook** (`RUNBOOK.md`) with 7 numbered procedures covering first-time setup, key rotation, llama-cpp-python failure, bootstrap divergence, resume, publishing, rollback, and canary failure.
+- **Publish script** (`scripts/publish_head_to_head.sh`): regenerate + banner update + diff preview + tagged commit; does not push.
+- **Mock baselines** (`MockBaselineScored`, `MockBaselineFailing` with five failure modes) for CI smoke and snapshot fixtures.
+
+### Pinned
+
+- NumPy pinned to `>=1.26,<2.0` for bootstrap determinism (SPEC v4 D45).
+- PyYAML `>=6.0,<7.0` for config loader.
+- Optional `head_to_head_llamaguard` extra pulls `llama-cpp-python>=0.2.0,<0.4.0`.
+
+### Policy
+
+- **No paper-number fallback**: a failing baseline yields a blank cell with a note, never a prior-paper-cited number.
+- **`raw_response: null`** in committed per-sample JSONL; `--keep-raw-responses` opt-in writes to a gitignored local file only.
+- Publish URL for `BENCHMARKS_HEAD_TO_HEAD.md` is stable; historical versions referenced by `git tag`, not file-rename.
+
 ## [1.4.0] - 2026-04-14
 
 ### Added
