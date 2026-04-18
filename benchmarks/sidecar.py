@@ -137,12 +137,18 @@ def append_verdict(
 
 
 def read_verdicts_for_cell(
-    jsonl_path: Path, cell_id: str
+    jsonl_path: Path, cell_id: str, dedupe: bool = True
 ) -> List[SampleVerdict]:
-    """Return verdicts in insertion order for a given cell_id."""
+    """Return verdicts in insertion order for a given cell_id.
+
+    With ``dedupe=True`` (default) the last-written row wins per ``sample_id`` —
+    tolerates duplicate appends that can occur when a "redo" cell resumes into
+    an already-populated run JSONL.
+    """
     if not jsonl_path.exists():
         return []
-    out: List[SampleVerdict] = []
+    ordered: List[SampleVerdict] = []
+    index: dict = {}
     with open(jsonl_path) as f:
         for line in f:
             line = line.strip()
@@ -155,5 +161,10 @@ def read_verdicts_for_cell(
             if row.get("cell_id") != cell_id:
                 continue
             row.pop("cell_id", None)
-            out.append(SampleVerdict(**row))
-    return out
+            v = SampleVerdict(**row)
+            if dedupe and v.sample_id in index:
+                ordered[index[v.sample_id]] = v
+            else:
+                index[v.sample_id] = len(ordered)
+                ordered.append(v)
+    return ordered
