@@ -290,6 +290,53 @@ class TestRunCellDriftDetection:
             )
 
 
+class TestTruncatedSidecarResumeIntegration:
+    """D58: runner-level guarantee that a corrupted sidecar → redo cell."""
+
+    def test_corrupted_sidecar_causes_full_redo(self, tmp_path: Path):
+        baseline = MockBaselineScored(
+            scripted_scores={"x": 0.9, "y": 0.1, "z": 0.7}
+        )
+        samples = [
+            _Sample("x", "positive"),
+            _Sample("y", "negative"),
+            _Sample("z", "positive"),
+        ]
+        # Prime a completed run.
+        run_cell(
+            baseline=baseline,
+            baseline_name="m",
+            dataset_name="d",
+            samples=samples,
+            adapter_name="d",
+            adapter_version="v1",
+            baseline_config_hash="c1",
+            run_dir=tmp_path,
+            run_logger=_logger(tmp_path),
+        )
+        # Corrupt the sidecar mid-JSON.
+        sidecar_path = tmp_path / "sidecars" / "m__d.json"
+        sidecar_path.write_text('{"schema_version": "1.0", "cell_id": "m__d"')
+        # Re-run. Because read_sidecar returns None on corrupt, plan_resume
+        # returns "redo", and the runner re-iterates all samples.
+        result2 = run_cell(
+            baseline=baseline,
+            baseline_name="m",
+            dataset_name="d",
+            samples=samples,
+            adapter_name="d",
+            adapter_version="v1",
+            baseline_config_hash="c1",
+            run_dir=tmp_path,
+            run_logger=_logger(tmp_path),
+        )
+        assert result2.total == 3
+        # Sidecar should be completed again.
+        import json
+        final = json.loads((tmp_path / "sidecars" / "m__d.json").read_text())
+        assert final["completed"] is True
+
+
 class TestScoreEmittingFlag:
     def test_regex_style_baseline_records_pred_score_none(self, tmp_path: Path):
         import warnings
