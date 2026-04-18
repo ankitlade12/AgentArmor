@@ -14,7 +14,7 @@ from benchmarks.taxonomy_applicability import (
 MAIN_BASELINES = ["llamaguard", "openai_moderation", "perspective", "mock_scored"]
 MAIN_DATASETS = [
     "xstest",
-    "realtoxicityprompts",
+    "realtoxicity",
     "toxigen",
     "harmbench",
     "jailbreakbench",
@@ -76,7 +76,7 @@ class TestGetProjection:
 
     def test_returns_none_for_non_openai(self):
         assert get_projection("llamaguard", "toxigen") is None
-        assert get_projection("perspective", "realtoxicityprompts") is None
+        assert get_projection("perspective", "realtoxicity") is None
 
     def test_returns_none_for_unknown_pair(self):
         assert get_projection("bogus_baseline", "bogus_dataset") is None

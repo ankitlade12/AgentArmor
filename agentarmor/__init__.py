@@ -2,6 +2,8 @@ import contextvars
 from typing import Optional
 from typing import Any
 
+__version__ = "1.4.0"
+
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 from .config import load_config

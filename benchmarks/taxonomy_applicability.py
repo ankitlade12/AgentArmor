@@ -71,7 +71,7 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         verdict="applies",
         rationale="LlamaGuard 3 covers refusal categories relevant to XSTest over-refusal tests.",
     ),
-    ("llamaguard", "realtoxicityprompts"): Applicability(
+    ("llamaguard", "realtoxicity"): Applicability(
         verdict="applies",
         rationale="LlamaGuard's S10 (Hate) and S2 (Violent Crimes) taxonomy overlaps RTP toxicity labels.",
     ),
@@ -97,7 +97,7 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         rationale="Broad safety projection matches XSTest's mix of over-refusal trigger categories.",
         projection=_BROAD_SAFETY_CATS,
     ),
-    ("openai_moderation", "realtoxicityprompts"): Applicability(
+    ("openai_moderation", "realtoxicity"): Applicability(
         verdict="applies",
         rationale="Toxicity projection (hate+harassment+violence) maps to RTP labels.",
         projection=_TOXICITY_CATS,
@@ -127,7 +127,7 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         verdict="applies",
         rationale="Perspective TOXICITY covers XSTest's toxic-trigger subset of over-refusal tests.",
     ),
-    ("perspective", "realtoxicityprompts"): Applicability(
+    ("perspective", "realtoxicity"): Applicability(
         verdict="applies",
         rationale="RTP is Perspective's home turf — direct toxicity labeling.",
     ),
@@ -152,7 +152,7 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         verdict="applies",
         rationale="Mock baseline; used for CI smoke + snapshot tests.",
     ),
-    ("mock_scored", "realtoxicityprompts"): Applicability(
+    ("mock_scored", "realtoxicity"): Applicability(
         verdict="applies",
         rationale="Mock baseline; used for CI smoke + snapshot tests.",
     ),

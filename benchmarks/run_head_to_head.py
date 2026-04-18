@@ -83,7 +83,7 @@ def _load_adapters_module():
 # Main-comparison datasets per SPEC v4 scope.
 MAIN_DATASETS: List[str] = [
     "xstest",
-    "realtoxicityprompts",
+    "realtoxicity",
     "toxigen",
     "harmbench",
     "jailbreakbench",

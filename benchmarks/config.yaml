@@ -23,10 +23,10 @@ pins:
 baselines:
   llamaguard:
     description: "LlamaGuard 3 via llama-cpp-python (local, CPU, Q4_K_M)"
-    model_repo: "bartowski/Llama-Guard-3-8B-GGUF"
-    model_file: "Llama-Guard-3-8B-Q4_K_M.gguf"
+    model_repo: "QuantFactory/Llama-Guard-3-8B-GGUF"
+    model_file: "Llama-Guard-3-8B.Q4_K_M.gguf"
     model_revision: "main"  # bump to a specific commit SHA pre-publish
-    local_model_path: "./models/Llama-Guard-3-8B-Q4_K_M.gguf"
+    local_model_path: "./models/Llama-Guard-3-8B.Q4_K_M.gguf"
     quantization: "Q4_K_M"
     n_ctx: 2048
     logprobs_topk: 10

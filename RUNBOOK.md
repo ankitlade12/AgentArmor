@@ -28,8 +28,8 @@ Required before the first real run. One-time per machine.
 
 3. **Download the Q4_K_M GGUF** (~5 GB):
    ```bash
-   huggingface-cli download bartowski/Llama-Guard-3-8B-GGUF \
-     Llama-Guard-3-8B-Q4_K_M.gguf --local-dir ./models/
+   huggingface-cli download QuantFactory/Llama-Guard-3-8B-GGUF \
+     Llama-Guard-3-8B.Q4_K_M.gguf --local-dir ./models/
    ```
    Update `benchmarks/config.yaml` `baselines.llamaguard.local_model_path` if
    your layout differs.
