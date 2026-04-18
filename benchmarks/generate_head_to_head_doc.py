@@ -62,13 +62,16 @@ def _cells_by_dataset(cells: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, A
 
 def _headline_block() -> str:
     return (
-        "This document compares AgentArmor against three established safety/toxicity "
-        "classifiers — LlamaGuard 3 (local, Q4_K_M), OpenAI Moderation, and Perspective API "
-        "— across six industry datasets with per-sample verdicts and bootstrap confidence "
-        "intervals. We publish per-dataset numbers only: no overall-winner claim, and we "
-        "annotate every cell where AgentArmor loses or ties within CI. Reproduction: set "
-        "the API keys listed in RUNBOOK.md and run "
-        "`python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>`."
+        "This document compares AgentArmor against two established safety classifiers — "
+        "LlamaGuard 3 (local, Q4_K_M via llama-cpp-python) and OpenAI Moderation "
+        "(omni-moderation-latest) — across six industry datasets with per-sample verdicts "
+        "and bootstrap confidence intervals. Perspective API was considered but excluded "
+        "from v1: Google/Jigsaw announced sunset with API EOL 2026-12-31, which would "
+        "leave any published comparison non-reproducible within months. We publish "
+        "per-dataset numbers only: no overall-winner claim, and we annotate every cell "
+        "where AgentArmor loses or ties within CI. Reproduction: set `OPENAI_API_KEY` and "
+        "run `python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>` "
+        "(see [`RUNBOOK.md`](RUNBOOK.md) Procedure 0)."
     )
 
 

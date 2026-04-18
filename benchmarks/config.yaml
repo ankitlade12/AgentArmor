@@ -33,8 +33,8 @@ baselines:
     default_threshold: 0.5
 
   openai_moderation:
-    description: "OpenAI Moderation API (free endpoint)"
-    model: "text-moderation-latest"
+    description: "OpenAI Moderation API (free endpoint; omni-moderation is the current model — text-moderation-* was deprecated 2024)"
+    model: "omni-moderation-latest"
     sdk_version: ">=1.0.0,<2.0.0"
     default_threshold: 0.5
     requires_api_key_env: "OPENAI_API_KEY"

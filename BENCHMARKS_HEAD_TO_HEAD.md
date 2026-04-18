@@ -4,26 +4,25 @@
 
 **Results as of: AgentArmor v1.4.0, run 2026-04-18**
 
-> **DRAFT — infrastructure preview.** This document is regenerated automatically from the most recent run. The current run exercised only the mock baseline (CI fixture); real LlamaGuard / OpenAI Moderation / Perspective numbers land after the first empirical-calibration cycle (see [`RUNBOOK.md`](RUNBOOK.md) procedures 0 and 5). Tables below show the schema a reader should expect; entries are `—` until populated.
-
-This document compares AgentArmor against three established safety/toxicity classifiers — LlamaGuard 3 (local, Q4_K_M), OpenAI Moderation, and Perspective API — across six industry datasets with per-sample verdicts and bootstrap confidence intervals. We publish per-dataset numbers only: no overall-winner claim, and we annotate every cell where AgentArmor loses or ties within CI. Reproduction: set the API keys listed in RUNBOOK.md and run `python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>`.
+This document compares AgentArmor against two established safety classifiers — LlamaGuard 3 (local, Q4_K_M via llama-cpp-python) and OpenAI Moderation (omni-moderation-latest) — across six industry datasets with per-sample verdicts and bootstrap confidence intervals. Perspective API was considered but excluded from v1: Google/Jigsaw announced sunset with API EOL 2026-12-31, which would leave any published comparison non-reproducible within months. We publish per-dataset numbers only: no overall-winner claim, and we annotate every cell where AgentArmor loses or ties within CI. Reproduction: set `OPENAI_API_KEY` and run `python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>` (see [`RUNBOOK.md`](RUNBOOK.md) Procedure 0).
 
 ### Per-dataset summary
 
 | Dataset | Best baseline F1 | Best baseline | AgentArmor F1 | Δ vs best |
 | --- | --- | --- | --- | --- |
-| `advbench` | — | — | — | — |
-| `harmbench` | — | — | — | — |
-| `jailbreakbench` | — | — | — | — |
+| `advbench` | 1.0000 | `llamaguard` | — | — |
+| `harmbench` | 0.9730 | `llamaguard` | — | — |
+| `jailbreakbench` | 0.8696 | `llamaguard` | — | — |
 | `realtoxicity` | — | — | — | — |
-| `toxigen` | — | — | — | — |
-| `xstest` | — | — | — | — |
+| `toxigen` | 0.2609 | `llamaguard` | — | — |
+| `xstest` | 0.6667 | `llamaguard` | — | — |
 
 ### Operating-point legend
 
 | Baseline | Operating point |
 | --- | --- |
-| `mock_scored` | scripted scores (CI fixture only) |
+| `llamaguard` | P("unsafe") from Q4_K_M first-token logprobs (our quantization choice) |
+| `openai_moderation` | max over per-dataset category projection (see rubric) |
 
 ## Per-dataset detail
 
@@ -31,7 +30,8 @@ This document compares AgentArmor against three established safety/toxicity clas
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mock_scored` | — | — | 0.0000 | 0.0000 | — | — | 0.0 ms | 0.0 ms | 40 | 0 |
+| `llamaguard` | 1.0000 (CI 1.0000–1.0000) | 1.0000 | 1.0000 | 0.0000 | — | — | 1630.8 ms | 10759.9 ms | 20 | 0 |
+| `openai_moderation` | 0.8824 (CI 0.7333–0.9744) | 1.0000 | 0.7895 | 0.0000 | — | — | 313.2 ms | 865.9 ms | 20 | 0 |
 
 _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 520:15 imbalance baseline-rate dominating F1 (SPEC v4 D38)._
 
@@ -39,31 +39,36 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mock_scored` | — | — | 0.0000 | 0.0000 | — | — | 0.0 ms | 0.0 ms | 40 | 0 |
+| `llamaguard` | 0.9730 (CI 0.9091–1.0000) | 1.0000 | 0.9474 | 0.0000 | — | — | 1669.3 ms | 10990.2 ms | 20 | 0 |
+| `openai_moderation` | 0.5385 (CI 0.2727–0.7407) | 1.0000 | 0.3684 | 0.0000 | — | — | 218.8 ms | 332.0 ms | 20 | 0 |
 
 ### jailbreakbench
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mock_scored` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.0 ms | 0.0 ms | 40 | 0 |
+| `llamaguard` | 0.8696 (CI 0.6923–1.0000) | 0.7692 | 1.0000 | 0.3000 | 0.7338 (CI 0.4804–1.0000) | 0.8500 (CI 0.6875–1.0000) | 1688.0 ms | 9903.6 ms | 20 | 0 |
+| `openai_moderation` | 0.6667 (CI 0.3333–0.9000) | 1.0000 | 0.5000 | 0.0000 | 0.5774 (CI 0.3333–0.8402) | 0.7500 (CI 0.5909–0.9091) | 153.7 ms | 318.5 ms | 20 | 0 |
 
 ### realtoxicity
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mock_scored` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.0 ms | 0.0 ms | 40 | 0 |
+| `llamaguard` | — | 1.0000 | 0.2000 | 0.0000 | — | 0.6000 (CI 0.5000–0.7500) | 1701.5 ms | 9751.0 ms | 20 | 0 |
+| `openai_moderation` | — | 1.0000 | 0.1000 | 0.0000 | — | 0.5500 (CI 0.5000–0.6667) | 237.4 ms | 312.6 ms | 20 | 0 |
 
 ### toxigen
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mock_scored` | — | — | 0.0000 | — | — | — | 0.0 ms | 0.0 ms | 40 | 0 |
+| `llamaguard` | 0.2609 (CI 0.0952–0.4615) | 1.0000 | 0.1500 | — | — | — | 1928.0 ms | 9181.3 ms | 20 | 0 |
+| `openai_moderation` | — | 1.0000 | 0.1000 | — | — | — | 156.3 ms | 528.0 ms | 20 | 0 |
 
 ### xstest
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mock_scored` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.0 ms | 0.0 ms | 40 | 0 |
+| `llamaguard` | 0.6667 (CI 0.3077–0.9091) | 0.7143 | 0.6250 | 0.1667 | 0.4708 (CI 0.0476–0.8182) | 0.7292 (CI 0.5220–0.9286) | 1677.7 ms | 8508.9 ms | 20 | 0 |
+| `openai_moderation` | 0.6667 (CI 0.2857–0.9231) | 1.0000 | 0.5000 | 0.0000 | 0.6124 (CI 0.3333–0.8921) | 0.7500 (CI 0.5714–0.9286) | 156.6 ms | 609.9 ms | 20 | 0 |
 
 ## Appendices
 
@@ -87,9 +92,12 @@ The applicability rubric (`benchmarks/taxonomy_applicability.py`) declares a (ba
 
 | Baseline | Dataset | Rationale |
 | --- | --- | --- |
-| `perspective` | `advbench` | AdvBench adversarial jailbreaks are not framed as toxic content; out of Perspective's scope. |
-| `perspective` | `harmbench` | Perspective measures toxicity, not harmful-behavior elicitation. Jailbreaks and illicit-behavior requests are typically not toxic in surface form. |
-| `perspective` | `jailbreakbench` | Jailbreak prompts are not inherently toxic; Perspective would systematically under-flag. |
+| `perspective` | `advbench` | Perspective API sunset + taxonomic mismatch with adversarial jailbreaks. |
+| `perspective` | `harmbench` | Perspective API sunset + taxonomic mismatch (toxicity != harmful-behavior elicitation). |
+| `perspective` | `jailbreakbench` | Perspective API sunset + taxonomic mismatch (jailbreak prompts rarely toxic in surface form). |
+| `perspective` | `realtoxicity` | Perspective API sunset (see sibling entries). Historical Perspective/RTP numbers are documented in the original Perspective papers; we did not attempt to replicate them against a dying API. |
+| `perspective` | `toxigen` | Perspective API sunset (see sibling entries). |
+| `perspective` | `xstest` | Perspective API is being sunset by Google/Jigsaw (no new requests after Feb 2026; API EOL 2026-12-31). Excluded from v1 to keep the comparison reproducible beyond the sunset date. |
 
 ### Methodology notes
 
