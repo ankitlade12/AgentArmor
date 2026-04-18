@@ -31,6 +31,7 @@ from .baselines import llamaguard  # noqa: F401
 from .baselines import openai_moderation  # noqa: F401
 from .baselines import perspective_api  # noqa: F401
 from .baselines import mock  # noqa: F401
+from .baselines import agentarmor_modules  # noqa: F401
 
 from .common import HeadToHeadResult, compute_adapter_version
 from .config import (
@@ -91,6 +92,11 @@ MAIN_DATASETS: List[str] = [
 ]
 
 MAIN_BASELINES: List[str] = [
+    # AgentArmor modules (left-hand side of the comparison)
+    "agentarmor_shield",
+    "agentarmor_ml_shield",
+    "agentarmor_toxicity",
+    # External safety/toxicity baselines
     "llamaguard",
     "openai_moderation",
     # Perspective API excluded from v1 — Google/Jigsaw shutdown 2026-12-31.

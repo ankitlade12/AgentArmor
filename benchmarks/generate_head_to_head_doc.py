@@ -99,38 +99,47 @@ def _legend_for(baseline: str) -> str:
         "openai_moderation": "max over per-dataset category projection (see rubric)",
         "perspective": "TOXICITY ≥ 0.5 (our threshold — Perspective ships none)",
         "mock_scored": "scripted scores (CI fixture only)",
+        "agentarmor_shield": "AgentArmor regex shield (bool; no PR curve — regex-by-design)",
+        "agentarmor_ml_shield": "AgentArmor ML shield τ=0.65 (our shipping default)",
+        "agentarmor_toxicity": "AgentArmor toxicity filter at shipping config",
     }.get(baseline, "—")
 
 
 def _delta_strip(cells: List[Dict[str, Any]]) -> str:
-    """Per-dataset strip: best-baseline F1 per row (AgentArmor column reserved)."""
+    """Per-dataset strip: best vendor F1 and best AgentArmor F1 side-by-side."""
     by = _cells_by_dataset(cells)
     lines = [
         "### Per-dataset summary",
         "",
-        "| Dataset | Best baseline F1 | Best baseline | AgentArmor F1 | Δ vs best |",
-        "| --- | --- | --- | --- | --- |",
+        "| Dataset | Vendor best | Vendor F1 | AgentArmor best | AgentArmor F1 | Δ (AgentArmor − vendor) |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for dataset in sorted(by):
-        baseline_cells = [c for c in by[dataset] if c["baseline"] != "mock_scored"]
-        baseline_cells = [c for c in baseline_cells if c.get("f1") is not None]
-        agentarmor_cells = [
-            c for c in by[dataset] if c.get("baseline", "").startswith("agentarmor_")
+        vendor_cells = [
+            c
+            for c in by[dataset]
+            if c["baseline"] != "mock_scored"
+            and not c.get("baseline", "").startswith("agentarmor_")
+            and c.get("f1") is not None
         ]
-        if not baseline_cells:
-            lines.append(f"| `{dataset}` | — | — | — | — |")
-            continue
-        best = max(baseline_cells, key=lambda c: c["f1"])
-        best_f1 = best["f1"]
-        best_name = best["baseline"]
-        agentarmor_f1 = (
-            agentarmor_cells[0]["f1"] if agentarmor_cells and agentarmor_cells[0].get("f1") is not None else None
-        )
+        armor_cells = [
+            c
+            for c in by[dataset]
+            if c.get("baseline", "").startswith("agentarmor_") and c.get("f1") is not None
+        ]
+        best_vendor = max(vendor_cells, key=lambda c: c["f1"]) if vendor_cells else None
+        best_armor = max(armor_cells, key=lambda c: c["f1"]) if armor_cells else None
+        vendor_f1 = best_vendor["f1"] if best_vendor else None
+        armor_f1 = best_armor["f1"] if best_armor else None
+        vendor_name = f"`{best_vendor['baseline']}`" if best_vendor else "—"
+        armor_name = f"`{best_armor['baseline']}`" if best_armor else "—"
         delta = (
-            (agentarmor_f1 - best_f1) if (agentarmor_f1 is not None) else None
+            (armor_f1 - vendor_f1)
+            if (armor_f1 is not None and vendor_f1 is not None)
+            else None
         )
         lines.append(
-            f"| `{dataset}` | {_fmt(best_f1)} | `{best_name}` | {_fmt(agentarmor_f1)} | {_fmt(delta)} |"
+            f"| `{dataset}` | {vendor_name} | {_fmt(vendor_f1)} | {armor_name} | {_fmt(armor_f1)} | {_fmt(delta)} |"
         )
     return "\n".join(lines)
 
@@ -243,18 +252,24 @@ def _draft_banner_if_needed(cells: List[Dict[str, Any]]) -> Optional[str]:
     sees empty tables with no explanation. This renders a one-paragraph
     "DRAFT" notice until real vendor baselines are present.
     """
-    real = {"llamaguard", "openai_moderation", "perspective"}
+    # Banner fires unless we have at least one real vendor baseline AND at
+    # least one AgentArmor wrapper in the summary. A run with only mocks, or
+    # with AgentArmor-only / vendor-only coverage, still reads as a draft.
+    vendor = {"llamaguard", "openai_moderation", "perspective"}
+    armor_prefix = "agentarmor_"
     baselines = {c.get("baseline", "") for c in cells}
-    if baselines & real:
+    has_vendor = bool(baselines & vendor)
+    has_armor = any(b.startswith(armor_prefix) for b in baselines)
+    if has_vendor and has_armor:
         return None
     return (
         "> **DRAFT — infrastructure preview.** This document is regenerated "
-        "automatically from the most recent run. The current run exercised only "
-        "the mock baseline (CI fixture); real LlamaGuard / OpenAI Moderation / "
-        "Perspective numbers land after the first empirical-calibration cycle "
-        "(see [`RUNBOOK.md`](RUNBOOK.md) procedures 0 and 5). Tables below "
-        "show the schema a reader should expect; entries are `—` until "
-        "populated."
+        "automatically from the most recent run. The current summary is "
+        "missing at least one side of the comparison (AgentArmor module or "
+        "vendor baseline). A complete run covers AgentArmor modules "
+        "(`agentarmor_shield`, `agentarmor_ml_shield`, `agentarmor_toxicity`) "
+        "AND at least one vendor baseline (`llamaguard`, `openai_moderation`). "
+        "See [`RUNBOOK.md`](RUNBOOK.md) Procedure 0."
     )
 
 

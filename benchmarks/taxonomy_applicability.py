@@ -151,6 +151,81 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         verdict="does_not_apply",
         rationale="Perspective API sunset + taxonomic mismatch with adversarial jailbreaks.",
     ),
+    # AgentArmor modules — the left-hand side of the head-to-head. All three
+    # are evaluated across all six main datasets at their ship-default config.
+    # Each is applied as `applies` so readers see both wins and losses honestly.
+    ("agentarmor_shield", "xstest"): Applicability(
+        verdict="applies",
+        rationale="Regex shield targets refusal-triggering injection patterns; XSTest's hard cases probe over-refusal.",
+    ),
+    ("agentarmor_shield", "realtoxicity"): Applicability(
+        verdict="applies",
+        rationale="Regex shield runs on text surface; reveals recall floor when toxicity isn't injection-styled.",
+    ),
+    ("agentarmor_shield", "toxigen"): Applicability(
+        verdict="applies",
+        rationale="Regex shield applied to hate-speech surface for cross-construct recall evidence.",
+    ),
+    ("agentarmor_shield", "harmbench"): Applicability(
+        verdict="applies",
+        rationale="Regex shield targets harmful-behavior elicitation prompts.",
+    ),
+    ("agentarmor_shield", "jailbreakbench"): Applicability(
+        verdict="applies",
+        rationale="Regex shield directly targets jailbreak construct.",
+    ),
+    ("agentarmor_shield", "advbench"): Applicability(
+        verdict="applies",
+        rationale="Regex shield targets adversarial jailbreaks.",
+    ),
+    ("agentarmor_ml_shield", "xstest"): Applicability(
+        verdict="applies",
+        rationale="TF-IDF classifier trained on prompt-injection corpus; XSTest tests over-refusal.",
+    ),
+    ("agentarmor_ml_shield", "realtoxicity"): Applicability(
+        verdict="applies",
+        rationale="TF-IDF classifier applied to toxicity surface for cross-construct comparison.",
+    ),
+    ("agentarmor_ml_shield", "toxigen"): Applicability(
+        verdict="applies",
+        rationale="TF-IDF classifier on hate-speech surface.",
+    ),
+    ("agentarmor_ml_shield", "harmbench"): Applicability(
+        verdict="applies",
+        rationale="TF-IDF classifier on harmful-behavior prompts.",
+    ),
+    ("agentarmor_ml_shield", "jailbreakbench"): Applicability(
+        verdict="applies",
+        rationale="TF-IDF classifier on jailbreak prompts — core training construct.",
+    ),
+    ("agentarmor_ml_shield", "advbench"): Applicability(
+        verdict="applies",
+        rationale="TF-IDF classifier on adversarial jailbreaks.",
+    ),
+    ("agentarmor_toxicity", "xstest"): Applicability(
+        verdict="applies",
+        rationale="Toxicity filter applied to XSTest's toxic-trigger subset.",
+    ),
+    ("agentarmor_toxicity", "realtoxicity"): Applicability(
+        verdict="applies",
+        rationale="Toxicity filter on RTP — core domain.",
+    ),
+    ("agentarmor_toxicity", "toxigen"): Applicability(
+        verdict="applies",
+        rationale="Toxicity filter on hate speech — core domain.",
+    ),
+    ("agentarmor_toxicity", "harmbench"): Applicability(
+        verdict="applies",
+        rationale="Toxicity filter applied for cross-construct recall baseline.",
+    ),
+    ("agentarmor_toxicity", "jailbreakbench"): Applicability(
+        verdict="applies",
+        rationale="Toxicity filter applied across jailbreak surface.",
+    ),
+    ("agentarmor_toxicity", "advbench"): Applicability(
+        verdict="applies",
+        rationale="Toxicity filter applied across adversarial jailbreak surface.",
+    ),
     # Mock baseline — present for test coverage of the runner's full matrix.
     ("mock_scored", "xstest"): Applicability(
         verdict="applies",

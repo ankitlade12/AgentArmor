@@ -132,6 +132,38 @@ class TestDeterminism:
         assert "0.8000" in md  # not "0.8" (D45 pin)
 
 
+class TestAgentArmorDeltaStrip:
+    def test_both_sides_rendered_with_delta(self):
+        summary = _summary(
+            [
+                _cell(baseline="llamaguard", f1=0.97),
+                _cell(baseline="openai_moderation", f1=0.54),
+                _cell(baseline="agentarmor_shield", f1=0.82),
+                _cell(baseline="agentarmor_ml_shield", f1=0.91),
+                _cell(baseline="agentarmor_toxicity", f1=0.33),
+            ]
+        )
+        md = generate_markdown(summary)
+        # Best vendor F1 = 0.97 (llamaguard), best AgentArmor F1 = 0.91 (ml_shield).
+        # Δ = 0.91 - 0.97 = -0.06
+        strip = [l for l in md.splitlines() if l.startswith("| `toxigen`")]
+        assert strip, "delta strip row missing"
+        row = strip[0]
+        assert "0.9700" in row
+        assert "0.9100" in row
+        assert "-0.0600" in row or "−0.0600" in row  # allow unicode minus
+
+    def test_agentarmor_only_shows_dash_for_vendor(self):
+        md = generate_markdown(
+            _summary([_cell(baseline="agentarmor_shield", f1=0.82)])
+        )
+        strip = [l for l in md.splitlines() if l.startswith("| `toxigen`")]
+        # Vendor columns should be "—" while AgentArmor shows 0.8200
+        assert strip
+        assert "0.8200" in strip[0]
+        assert "—" in strip[0]
+
+
 class TestMultipleCells:
     def test_delta_strip_picks_highest_f1(self):
         summary = _summary(
@@ -191,12 +223,25 @@ class TestDraftBanner:
         assert "DRAFT" in md
         assert "infrastructure preview" in md
 
-    def test_banner_absent_when_real_baseline_present(self):
+    def test_banner_shown_when_vendor_only(self):
+        """Vendor baselines alone → missing AgentArmor side → still draft."""
         md = generate_markdown(_summary([_cell(baseline="llamaguard")]))
-        assert "DRAFT" not in md
+        assert "DRAFT" in md
 
-    def test_banner_absent_when_perspective_present(self):
-        md = generate_markdown(_summary([_cell(baseline="perspective")]))
+    def test_banner_shown_when_agentarmor_only(self):
+        """AgentArmor alone → missing vendor side → still draft."""
+        md = generate_markdown(_summary([_cell(baseline="agentarmor_shield")]))
+        assert "DRAFT" in md
+
+    def test_banner_absent_when_both_sides_present(self):
+        md = generate_markdown(
+            _summary(
+                [
+                    _cell(baseline="llamaguard"),
+                    _cell(baseline="agentarmor_shield"),
+                ]
+            )
+        )
         assert "DRAFT" not in md
 
     def test_banner_absent_for_empty_summary(self):
