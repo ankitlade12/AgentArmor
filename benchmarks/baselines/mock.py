@@ -9,9 +9,10 @@ D35 "blank cell + note" path tests.
 import json
 from typing import Dict, Literal
 
-from .base import BaselineChecker
+from .base import BaselineChecker, register_baseline
 
 
+@register_baseline
 class MockBaselineScored(BaselineChecker):
     """Returns scripted scores per text; falls back to ``default_score`` when absent."""
 

@@ -6,6 +6,8 @@ environment variables. Also provides a startup key check that fails loudly
 with a structured list of missing env vars + gated baselines.
 """
 
+import hashlib
+import json
 import os
 import re
 from pathlib import Path
@@ -67,6 +69,17 @@ def required_env_vars(config: Dict[str, Any]) -> List[Tuple[str, str]]:
         if env:
             pairs.append((env, name))
     return pairs
+
+
+def compute_config_hash(config: Dict[str, Any], baseline_name: str) -> str:
+    """SHA256 hex (8 chars) of a baseline's config section (SPEC v4 D43).
+
+    Used to populate ``baseline_config_hash`` in sidecars so ``--resume``
+    aborts loudly if the baseline config changes between runs.
+    """
+    section = (config.get("baselines") or {}).get(baseline_name) or {}
+    payload = json.dumps(section, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:8]
 
 
 def check_required_keys(config: Dict[str, Any]) -> None:
