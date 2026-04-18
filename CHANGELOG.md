@@ -4,6 +4,12 @@ All notable changes to the AgentArmor project will be documented in this file.
 
 ## [Unreleased] — head-to-head benchmark comparison infrastructure
 
+### Changed from initial SPEC v4
+
+- **Perspective API dropped from v1.** Google/Jigsaw announced API shutdown: no new access requests after Feb 2026, full EOL 2026-12-31. Any published comparison would be non-reproducible for readers. The rubric retains `does_not_apply` entries for all `(perspective, *)` pairs so the published doc's appendix transparently explains the exclusion. v1 ships with **LlamaGuard 3 + OpenAI Moderation** as the two vendor baselines.
+- **LlamaGuard `Llama(logits_all=True)`** — required by `llama-cpp-python` for `create_completion(..., logprobs=...)`; previous `logits_all=False` silently disabled logprob extraction.
+- **`extract_unsafe_probability`** accepts `numbers.Real` (covers `numpy.float32` returned by `llama-cpp-python`) instead of `(int, float)`.
+
 ### Added
 
 - **Head-to-head runner** (`benchmarks.run_head_to_head`): sequential, resumable comparison of AgentArmor against LlamaGuard 3 (local via `llama-cpp-python`), OpenAI Moderation, and Perspective API across six industry datasets. Per-sample verdicts, bootstrap F1 / MCC / balanced-accuracy with per-metric degenerate guards, adapter + config drift detection on resume, `run.jsonl` structured event log.

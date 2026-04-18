@@ -122,30 +122,34 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         rationale="Jailbreak projection matches AdvBench's adversarial-jailbreak construct.",
         projection=_JAILBREAK_CATS,
     ),
-    # Perspective — toxicity-only scorer; does not apply to harmful-behavior / jailbreak datasets.
+    # Perspective API — excluded from v1 head-to-head. Google/Jigsaw announced
+    # shutdown: no new access requests after Feb 2026, full API EOL Dec 31 2026.
+    # Any published comparison against Perspective would be non-reproducible for
+    # readers by the time the doc is live. Entries kept in the rubric (rather
+    # than deleted) so the `does_not_apply` appendix transparently explains why.
     ("perspective", "xstest"): Applicability(
-        verdict="applies",
-        rationale="Perspective TOXICITY covers XSTest's toxic-trigger subset of over-refusal tests.",
+        verdict="does_not_apply",
+        rationale="Perspective API is being sunset by Google/Jigsaw (no new requests after Feb 2026; API EOL 2026-12-31). Excluded from v1 to keep the comparison reproducible beyond the sunset date.",
     ),
     ("perspective", "realtoxicity"): Applicability(
-        verdict="applies",
-        rationale="RTP is Perspective's home turf — direct toxicity labeling.",
+        verdict="does_not_apply",
+        rationale="Perspective API sunset (see sibling entries). Historical Perspective/RTP numbers are documented in the original Perspective papers; we did not attempt to replicate them against a dying API.",
     ),
     ("perspective", "toxigen"): Applicability(
-        verdict="applies",
-        rationale="Perspective TOXICITY overlaps ToxiGen's hate-as-toxicity construct.",
+        verdict="does_not_apply",
+        rationale="Perspective API sunset (see sibling entries).",
     ),
     ("perspective", "harmbench"): Applicability(
         verdict="does_not_apply",
-        rationale="Perspective measures toxicity, not harmful-behavior elicitation. Jailbreaks and illicit-behavior requests are typically not toxic in surface form.",
+        rationale="Perspective API sunset + taxonomic mismatch (toxicity != harmful-behavior elicitation).",
     ),
     ("perspective", "jailbreakbench"): Applicability(
         verdict="does_not_apply",
-        rationale="Jailbreak prompts are not inherently toxic; Perspective would systematically under-flag.",
+        rationale="Perspective API sunset + taxonomic mismatch (jailbreak prompts rarely toxic in surface form).",
     ),
     ("perspective", "advbench"): Applicability(
         verdict="does_not_apply",
-        rationale="AdvBench adversarial jailbreaks are not framed as toxic content; out of Perspective's scope.",
+        rationale="Perspective API sunset + taxonomic mismatch with adversarial jailbreaks.",
     ),
     # Mock baseline — present for test coverage of the runner's full matrix.
     ("mock_scored", "xstest"): Applicability(

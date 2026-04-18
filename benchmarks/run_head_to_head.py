@@ -93,7 +93,8 @@ MAIN_DATASETS: List[str] = [
 MAIN_BASELINES: List[str] = [
     "llamaguard",
     "openai_moderation",
-    "perspective",
+    # Perspective API excluded from v1 — Google/Jigsaw shutdown 2026-12-31.
+    # Rubric entries remain as does_not_apply for transparency.
 ]
 
 

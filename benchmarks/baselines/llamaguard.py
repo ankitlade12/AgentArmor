@@ -16,6 +16,7 @@ Pre-implementation verification gates are documented in
 """
 
 import math
+import numbers
 import os
 from typing import Any, Dict, Optional
 
@@ -78,11 +79,12 @@ def extract_unsafe_probability(top_logprobs: Any) -> Optional[float]:
         return None
     best_unsafe: Optional[float] = None
     for token, logprob in top_logprobs.items():
-        if not isinstance(token, str) or not isinstance(logprob, (int, float)):
+        if not isinstance(token, str) or not isinstance(logprob, numbers.Real):
             continue
         if token.strip().lower() == "unsafe":
-            if best_unsafe is None or logprob > best_unsafe:
-                best_unsafe = float(logprob)
+            lp = float(logprob)
+            if best_unsafe is None or lp > best_unsafe:
+                best_unsafe = lp
     if best_unsafe is None:
         return 0.0  # "unsafe" not in top-K → very low probability
     return math.exp(best_unsafe)
@@ -114,7 +116,7 @@ class LlamaGuardBaseline(BaselineChecker):
             self._llama = Llama(
                 model_path=self._model_path,
                 n_ctx=self._n_ctx,
-                logits_all=False,
+                logits_all=True,  # llama-cpp-python requires this for logprobs (V1 gate)
                 verbose=False,
             )
         return self._llama

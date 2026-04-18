@@ -105,10 +105,16 @@ def test_rubric_version_present():
     assert isinstance(RUBRIC_VERSION, str)
 
 
-def test_perspective_does_not_apply_on_harmful_behavior_datasets():
-    """Perspective is toxicity-only; not applicable to jailbreak/harmful-behavior datasets."""
-    for d in ("harmbench", "jailbreakbench", "advbench"):
-        assert APPLIES[("perspective", d)].verdict == "does_not_apply"
+def test_perspective_entries_all_does_not_apply_due_to_sunset():
+    """Perspective API is being sunset (EOL 2026-12-31) — all v1 entries marked does_not_apply.
+
+    Rubric entries remain (not deleted) so the `does_not_apply` appendix in the
+    published doc transparently explains the omission.
+    """
+    for d in ("xstest", "realtoxicity", "toxigen", "harmbench", "jailbreakbench", "advbench"):
+        entry = APPLIES[("perspective", d)]
+        assert entry.verdict == "does_not_apply"
+        assert "sunset" in entry.rationale.lower() or "EOL" in entry.rationale
 
 
 def test_llamaguard_applies_across_all_main_datasets():
