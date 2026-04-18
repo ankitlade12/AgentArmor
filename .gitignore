@@ -37,6 +37,8 @@ venv.bak/
 # AgentArmor specifically
 .agentarmor/
 *.jsonl
+# Committed fixtures for head-to-head canary + per-sample reference data
+!benchmarks/fixtures/*.jsonl
 
 # Testing
 .pytest_cache/
