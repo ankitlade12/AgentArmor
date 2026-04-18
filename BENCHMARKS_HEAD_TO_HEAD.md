@@ -8,19 +8,22 @@ This document compares AgentArmor against two established safety classifiers —
 
 ### Per-dataset summary
 
-| Dataset | Best baseline F1 | Best baseline | AgentArmor F1 | Δ vs best |
-| --- | --- | --- | --- | --- |
-| `advbench` | 1.0000 | `llamaguard` | — | — |
-| `harmbench` | 0.9730 | `llamaguard` | — | — |
-| `jailbreakbench` | 0.8696 | `llamaguard` | — | — |
-| `realtoxicity` | — | — | — | — |
-| `toxigen` | 0.2609 | `llamaguard` | — | — |
-| `xstest` | 0.6667 | `llamaguard` | — | — |
+| Dataset | Vendor best | Vendor F1 | AgentArmor best | AgentArmor F1 | Δ (AgentArmor − vendor) |
+| --- | --- | --- | --- | --- | --- |
+| `advbench` | `llamaguard` | 0.9684 | `agentarmor_toxicity` | 0.9574 | -0.0110 |
+| `harmbench` | `llamaguard` | 0.9892 | `agentarmor_toxicity` | 0.8675 | -0.1218 |
+| `jailbreakbench` | `llamaguard` | 0.8929 | `agentarmor_toxicity` | 0.6866 | -0.2063 |
+| `realtoxicity` | `llamaguard` | 0.1379 | `agentarmor_toxicity` | 0.5600 | 0.4221 |
+| `toxigen` | `llamaguard` | 0.2143 | `agentarmor_toxicity` | 0.7952 | 0.5809 |
+| `xstest` | `llamaguard` | 0.8293 | `agentarmor_toxicity` | 0.1600 | -0.6693 |
 
 ### Operating-point legend
 
 | Baseline | Operating point |
 | --- | --- |
+| `agentarmor_ml_shield` | AgentArmor ML shield τ=0.65 (our shipping default) |
+| `agentarmor_shield` | AgentArmor regex shield (bool; no PR curve — regex-by-design) |
+| `agentarmor_toxicity` | AgentArmor toxicity filter at shipping config |
 | `llamaguard` | P("unsafe") from Q4_K_M first-token logprobs (our quantization choice) |
 | `openai_moderation` | max over per-dataset category projection (see rubric) |
 
@@ -30,8 +33,11 @@ This document compares AgentArmor against two established safety classifiers —
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `llamaguard` | 1.0000 (CI 1.0000–1.0000) | 1.0000 | 1.0000 | 0.0000 | — | — | 1630.8 ms | 10759.9 ms | 20 | 0 |
-| `openai_moderation` | 0.8824 (CI 0.7333–0.9744) | 1.0000 | 0.7895 | 0.0000 | — | — | 313.2 ms | 865.9 ms | 20 | 0 |
+| `agentarmor_ml_shield` | 0.8864 (CI 0.8095–0.9474) | 1.0000 | 0.7959 | 0.0000 | — | — | 0.4 ms | 0.8 ms | 50 | 0 |
+| `agentarmor_shield` | 0.3934 (CI 0.2264–0.5373) | 1.0000 | 0.2449 | 0.0000 | — | — | 0.1 ms | 0.1 ms | 50 | 0 |
+| `agentarmor_toxicity` | 0.9574 (CI 0.9111–0.9899) | 1.0000 | 0.9184 | 0.0000 | — | — | 0.6 ms | 0.8 ms | 50 | 0 |
+| `llamaguard` | 0.9684 (CI 0.9247–1.0000) | 1.0000 | 0.9388 | 0.0000 | — | — | 1591.0 ms | 2000.8 ms | 50 | 0 |
+| `openai_moderation` | 0.8333 (CI 0.7368–0.9111) | 1.0000 | 0.7143 | 0.0000 | — | — | 234.0 ms | 939.4 ms | 50 | 0 |
 
 _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 520:15 imbalance baseline-rate dominating F1 (SPEC v4 D38)._
 
@@ -39,36 +45,51 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `llamaguard` | 0.9730 (CI 0.9091–1.0000) | 1.0000 | 0.9474 | 0.0000 | — | — | 1669.3 ms | 10990.2 ms | 20 | 0 |
-| `openai_moderation` | 0.5385 (CI 0.2727–0.7407) | 1.0000 | 0.3684 | 0.0000 | — | — | 218.8 ms | 332.0 ms | 20 | 0 |
+| `agentarmor_ml_shield` | 0.7467 (CI 0.6286–0.8462) | 1.0000 | 0.5957 | 0.0000 | 0.2850 (CI 0.1487–0.4504) | 0.7979 (CI 0.7283–0.8673) | 0.7 ms | 1.1 ms | 50 | 0 |
+| `agentarmor_shield` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.1 ms | 0.1 ms | 50 | 0 |
+| `agentarmor_toxicity` | 0.8675 (CI 0.7792–0.9362) | 1.0000 | 0.7660 | 0.0000 | 0.4051 (CI 0.2182–0.6276) | 0.8830 (CI 0.8191–0.9419) | 0.6 ms | 1.2 ms | 50 | 0 |
+| `llamaguard` | 0.9892 (CI 0.9655–1.0000) | 1.0000 | 0.9787 | 0.0000 | 0.8568 (CI 0.5654–1.0000) | 0.9894 (CI 0.9667–1.0000) | 1804.3 ms | 1986.7 ms | 50 | 0 |
+| `openai_moderation` | 0.5538 (CI 0.4000–0.6933) | 1.0000 | 0.3830 | 0.0000 | 0.1895 (CI 0.0935–0.3026) | 0.6915 (CI 0.6250–0.7660) | 171.0 ms | 616.4 ms | 50 | 0 |
 
 ### jailbreakbench
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `llamaguard` | 0.8696 (CI 0.6923–1.0000) | 0.7692 | 1.0000 | 0.3000 | 0.7338 (CI 0.4804–1.0000) | 0.8500 (CI 0.6875–1.0000) | 1688.0 ms | 9903.6 ms | 20 | 0 |
-| `openai_moderation` | 0.6667 (CI 0.3333–0.9000) | 1.0000 | 0.5000 | 0.0000 | 0.5774 (CI 0.3333–0.8402) | 0.7500 (CI 0.5909–0.9091) | 153.7 ms | 318.5 ms | 20 | 0 |
+| `agentarmor_ml_shield` | 0.6383 (CI 0.4583–0.7805) | 0.6818 | 0.6000 | 0.2800 | 0.3223 (CI 0.0531–0.5733) | 0.6600 (CI 0.5256–0.7841) | 0.5 ms | 0.9 ms | 50 | 0 |
+| `agentarmor_shield` | 0.2759 (CI 0.0769–0.4848) | 1.0000 | 0.1600 | 0.0000 | 0.2949 (CI 0.1429–0.4501) | 0.5800 (CI 0.5185–0.6591) | 0.1 ms | 0.1 ms | 50 | 0 |
+| `agentarmor_toxicity` | 0.6866 (CI 0.5484–0.8000) | 0.5476 | 0.9200 | 0.7600 | 0.2182 (CI -0.0528–0.4552) | 0.5800 (CI 0.4821–0.6842) | 0.6 ms | 0.8 ms | 50 | 0 |
+| `llamaguard` | 0.8929 (CI 0.7907–0.9667) | 0.8065 | 1.0000 | 0.2400 | 0.7829 (CI 0.6340–0.9226) | 0.8800 (CI 0.7917–0.9583) | 1717.6 ms | 1987.9 ms | 50 | 0 |
+| `openai_moderation` | 0.7179 (CI 0.5333–0.8571) | 1.0000 | 0.5600 | 0.0000 | 0.6236 (CI 0.4615–0.7845) | 0.7800 (CI 0.6818–0.8750) | 165.5 ms | 283.7 ms | 50 | 0 |
 
 ### realtoxicity
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `llamaguard` | — | 1.0000 | 0.2000 | 0.0000 | — | 0.6000 (CI 0.5000–0.7500) | 1701.5 ms | 9751.0 ms | 20 | 0 |
-| `openai_moderation` | — | 1.0000 | 0.1000 | 0.0000 | — | 0.5500 (CI 0.5000–0.6667) | 237.4 ms | 312.6 ms | 20 | 0 |
+| `agentarmor_ml_shield` | 0.3226 (CI 0.0952–0.5263) | 0.8333 | 0.2000 | 0.0400 | 0.2462 (CI -0.0140–0.4501) | 0.5800 (CI 0.4959–0.6724) | 0.6 ms | 1.0 ms | 50 | 0 |
+| `agentarmor_shield` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.1 ms | 0.1 ms | 50 | 0 |
+| `agentarmor_toxicity` | 0.5600 (CI 0.3721–0.7097) | 0.5600 | 0.5600 | 0.4400 | 0.1200 (CI -0.1612–0.3984) | 0.5600 (CI 0.4200–0.6997) | 0.6 ms | 0.9 ms | 50 | 0 |
+| `llamaguard` | 0.1379 (CI 0.0000–0.3200) | 0.5000 | 0.0800 | 0.0800 | 0.0000 (CI -0.2722–0.2737) | 0.5000 (CI 0.4231–0.5800) | 1698.9 ms | 2108.3 ms | 50 | 0 |
+| `openai_moderation` | — | 1.0000 | 0.0800 | 0.0000 | — | 0.5400 (CI 0.5000–0.6000) | 222.9 ms | 297.8 ms | 50 | 0 |
 
 ### toxigen
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `llamaguard` | 0.2609 (CI 0.0952–0.4615) | 1.0000 | 0.1500 | — | — | — | 1928.0 ms | 9181.3 ms | 20 | 0 |
-| `openai_moderation` | — | 1.0000 | 0.1000 | — | — | — | 156.3 ms | 528.0 ms | 20 | 0 |
+| `agentarmor_ml_shield` | 0.3333 (CI 0.1818–0.4848) | 1.0000 | 0.2000 | — | — | — | 0.5 ms | 0.9 ms | 50 | 0 |
+| `agentarmor_shield` | — | — | 0.0000 | — | — | — | 0.1 ms | 0.1 ms | 50 | 0 |
+| `agentarmor_toxicity` | 0.7952 (CI 0.6842–0.8764) | 1.0000 | 0.6600 | — | — | — | 0.6 ms | 1.2 ms | 50 | 0 |
+| `llamaguard` | 0.2143 (CI 0.0769–0.3607) | 1.0000 | 0.1200 | — | — | — | 1767.4 ms | 2065.1 ms | 50 | 0 |
+| `openai_moderation` | 0.2143 (CI 0.0769–0.3607) | 1.0000 | 0.1200 | — | — | — | 156.8 ms | 290.7 ms | 50 | 0 |
 
 ### xstest
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `llamaguard` | 0.6667 (CI 0.3077–0.9091) | 0.7143 | 0.6250 | 0.1667 | 0.4708 (CI 0.0476–0.8182) | 0.7292 (CI 0.5220–0.9286) | 1677.7 ms | 8508.9 ms | 20 | 0 |
-| `openai_moderation` | 0.6667 (CI 0.2857–0.9231) | 1.0000 | 0.5000 | 0.0000 | 0.6124 (CI 0.3333–0.8921) | 0.7500 (CI 0.5714–0.9286) | 156.6 ms | 609.9 ms | 20 | 0 |
+| `agentarmor_ml_shield` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.5 ms | 0.8 ms | 50 | 0 |
+| `agentarmor_shield` | — | 0.0000 | 0.0000 | 0.0357 | — | 0.4821 (CI 0.4400–0.5000) | 0.0 ms | 0.1 ms | 50 | 0 |
+| `agentarmor_toxicity` | 0.1600 (CI 0.0000–0.3636) | 0.6667 | 0.0909 | 0.0357 | 0.1154 (CI -0.1737–0.3469) | 0.5276 (CI 0.4618–0.6025) | 0.5 ms | 1.0 ms | 50 | 0 |
+| `llamaguard` | 0.8293 (CI 0.6857–0.9375) | 0.8947 | 0.7727 | 0.0714 | 0.7172 (CI 0.5194–0.8847) | 0.8506 (CI 0.7468–0.9417) | 1544.3 ms | 1672.8 ms | 50 | 0 |
+| `openai_moderation` | 0.6667 (CI 0.4444–0.8293) | 1.0000 | 0.5000 | 0.0000 | 0.5991 (CI 0.4258–0.7693) | 0.7500 (CI 0.6429–0.8542) | 146.1 ms | 313.5 ms | 50 | 0 |
 
 ## Appendices
 
