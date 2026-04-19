@@ -2,7 +2,7 @@
 
 # AgentArmor — Head-to-head Comparison
 
-**Results as of: AgentArmor v1.4.0, run 2026-04-18**
+**Results as of: AgentArmor v1.4.0, run 2026-04-19**
 
 This document compares AgentArmor against two established safety classifiers — LlamaGuard 3 (local, Q4_K_M via llama-cpp-python) and OpenAI Moderation (omni-moderation-latest) — across six industry datasets with per-sample verdicts and bootstrap confidence intervals. Perspective API was considered but excluded from v1: Google/Jigsaw announced sunset with API EOL 2026-12-31, which would leave any published comparison non-reproducible within months. We publish per-dataset numbers only: no overall-winner claim, and we annotate every cell where AgentArmor loses or ties within CI. Reproduction: set `OPENAI_API_KEY` and run `python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>` (see [`RUNBOOK.md`](RUNBOOK.md) Procedure 0).
 
@@ -10,17 +10,18 @@ This document compares AgentArmor against two established safety classifiers —
 
 | Dataset | Vendor best | Vendor F1 | AgentArmor best | AgentArmor F1 | Δ (AgentArmor − vendor) |
 | --- | --- | --- | --- | --- | --- |
-| `advbench` | `llamaguard` | 0.9684 | `agentarmor_toxicity` | 0.9574 | -0.0110 |
-| `harmbench` | `llamaguard` | 0.9892 | `agentarmor_toxicity` | 0.8675 | -0.1218 |
+| `advbench` | `llamaguard` | 0.9684 | `agentarmor_combined` | 0.9684 | 0.0000 |
+| `harmbench` | `llamaguard` | 0.9892 | `agentarmor_combined` | 0.8675 | -0.1218 |
 | `jailbreakbench` | `llamaguard` | 0.8929 | `agentarmor_toxicity` | 0.6866 | -0.2063 |
-| `realtoxicity` | `llamaguard` | 0.1379 | `agentarmor_toxicity` | 0.5600 | 0.4221 |
-| `toxigen` | `llamaguard` | 0.2143 | `agentarmor_toxicity` | 0.7952 | 0.5809 |
-| `xstest` | `llamaguard` | 0.8293 | `agentarmor_toxicity` | 0.1600 | -0.6693 |
+| `realtoxicity` | `llamaguard` | 0.1379 | `agentarmor_combined` | 0.5600 | 0.4221 |
+| `toxigen` | `llamaguard` | 0.2143 | `agentarmor_combined` | 0.8095 | 0.5952 |
+| `xstest` | `llamaguard` | 0.8293 | `agentarmor_combined` | 0.1600 | -0.6693 |
 
 ### Operating-point legend
 
 | Baseline | Operating point |
 | --- | --- |
+| `agentarmor_combined` | All three AgentArmor modules OR'd (production deployment shape) |
 | `agentarmor_ml_shield` | AgentArmor ML shield τ=0.65 (our shipping default) |
 | `agentarmor_shield` | AgentArmor regex shield (bool; no PR curve — regex-by-design) |
 | `agentarmor_toxicity` | AgentArmor toxicity filter at shipping config |
@@ -33,6 +34,7 @@ This document compares AgentArmor against two established safety classifiers —
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `agentarmor_combined` | 0.9684 (CI 0.9247–1.0000) | 1.0000 | 0.9388 | 0.0000 | — | — | 0.8 ms | 2.7 ms | 50 | 0 |
 | `agentarmor_ml_shield` | 0.8864 (CI 0.8095–0.9474) | 1.0000 | 0.7959 | 0.0000 | — | — | 0.4 ms | 0.8 ms | 50 | 0 |
 | `agentarmor_shield` | 0.3934 (CI 0.2264–0.5373) | 1.0000 | 0.2449 | 0.0000 | — | — | 0.1 ms | 0.1 ms | 50 | 0 |
 | `agentarmor_toxicity` | 0.9574 (CI 0.9111–0.9899) | 1.0000 | 0.9184 | 0.0000 | — | — | 0.6 ms | 0.8 ms | 50 | 0 |
@@ -45,6 +47,7 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `agentarmor_combined` | 0.8675 (CI 0.7792–0.9348) | 1.0000 | 0.7660 | 0.0000 | 0.4051 (CI 0.2182–0.6230) | 0.8830 (CI 0.8191–0.9388) | 0.7 ms | 1.4 ms | 50 | 0 |
 | `agentarmor_ml_shield` | 0.7467 (CI 0.6286–0.8462) | 1.0000 | 0.5957 | 0.0000 | 0.2850 (CI 0.1487–0.4504) | 0.7979 (CI 0.7283–0.8673) | 0.7 ms | 1.1 ms | 50 | 0 |
 | `agentarmor_shield` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.1 ms | 0.1 ms | 50 | 0 |
 | `agentarmor_toxicity` | 0.8675 (CI 0.7792–0.9362) | 1.0000 | 0.7660 | 0.0000 | 0.4051 (CI 0.2182–0.6276) | 0.8830 (CI 0.8191–0.9419) | 0.6 ms | 1.2 ms | 50 | 0 |
@@ -55,6 +58,7 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `agentarmor_combined` | 0.6765 (CI 0.5357–0.8000) | 0.5349 | 0.9200 | 0.8000 | 0.1729 (CI -0.1068–0.4193) | 0.5600 (CI 0.4675–0.6600) | 1.0 ms | 1.8 ms | 50 | 0 |
 | `agentarmor_ml_shield` | 0.6383 (CI 0.4583–0.7805) | 0.6818 | 0.6000 | 0.2800 | 0.3223 (CI 0.0531–0.5733) | 0.6600 (CI 0.5256–0.7841) | 0.5 ms | 0.9 ms | 50 | 0 |
 | `agentarmor_shield` | 0.2759 (CI 0.0769–0.4848) | 1.0000 | 0.1600 | 0.0000 | 0.2949 (CI 0.1429–0.4501) | 0.5800 (CI 0.5185–0.6591) | 0.1 ms | 0.1 ms | 50 | 0 |
 | `agentarmor_toxicity` | 0.6866 (CI 0.5484–0.8000) | 0.5476 | 0.9200 | 0.7600 | 0.2182 (CI -0.0528–0.4552) | 0.5800 (CI 0.4821–0.6842) | 0.6 ms | 0.8 ms | 50 | 0 |
@@ -65,6 +69,7 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `agentarmor_combined` | 0.5600 (CI 0.3750–0.7097) | 0.5600 | 0.5600 | 0.4400 | 0.1200 (CI -0.1639–0.3984) | 0.5600 (CI 0.4179–0.6987) | 0.9 ms | 1.7 ms | 50 | 0 |
 | `agentarmor_ml_shield` | 0.3226 (CI 0.0952–0.5263) | 0.8333 | 0.2000 | 0.0400 | 0.2462 (CI -0.0140–0.4501) | 0.5800 (CI 0.4959–0.6724) | 0.6 ms | 1.0 ms | 50 | 0 |
 | `agentarmor_shield` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.1 ms | 0.1 ms | 50 | 0 |
 | `agentarmor_toxicity` | 0.5600 (CI 0.3721–0.7097) | 0.5600 | 0.5600 | 0.4400 | 0.1200 (CI -0.1612–0.3984) | 0.5600 (CI 0.4200–0.6997) | 0.6 ms | 0.9 ms | 50 | 0 |
@@ -75,6 +80,7 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `agentarmor_combined` | 0.8095 (CI 0.7013–0.8889) | 1.0000 | 0.6800 | — | — | — | 1.0 ms | 1.8 ms | 50 | 0 |
 | `agentarmor_ml_shield` | 0.3333 (CI 0.1818–0.4848) | 1.0000 | 0.2000 | — | — | — | 0.5 ms | 0.9 ms | 50 | 0 |
 | `agentarmor_shield` | — | — | 0.0000 | — | — | — | 0.1 ms | 0.1 ms | 50 | 0 |
 | `agentarmor_toxicity` | 0.7952 (CI 0.6842–0.8764) | 1.0000 | 0.6600 | — | — | — | 0.6 ms | 1.2 ms | 50 | 0 |
@@ -85,6 +91,7 @@ _AdvBench is reported with MCC + balanced-accuracy only; F1 omitted due to the 5
 
 | Baseline | F1 | Precision | Recall | FPR | MCC | Bal-Acc | Latency p50 | Latency p95 | N | Errors |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `agentarmor_combined` | 0.1600 (CI 0.0000–0.3636) | 0.6667 | 0.0909 | 0.0357 | 0.1154 (CI -0.1737–0.3469) | 0.5276 (CI 0.4630–0.6025) | 0.8 ms | 1.1 ms | 50 | 0 |
 | `agentarmor_ml_shield` | — | — | 0.0000 | 0.0000 | — | 0.5000 (CI 0.5000–0.5000) | 0.5 ms | 0.8 ms | 50 | 0 |
 | `agentarmor_shield` | — | 0.0000 | 0.0000 | 0.0357 | — | 0.4821 (CI 0.4400–0.5000) | 0.0 ms | 0.1 ms | 50 | 0 |
 | `agentarmor_toxicity` | 0.1600 (CI 0.0000–0.3636) | 0.6667 | 0.0909 | 0.0357 | 0.1154 (CI -0.1737–0.3469) | 0.5276 (CI 0.4618–0.6025) | 0.5 ms | 1.0 ms | 50 | 0 |
