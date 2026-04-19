@@ -96,6 +96,7 @@ MAIN_BASELINES: List[str] = [
     "agentarmor_shield",
     "agentarmor_ml_shield",
     "agentarmor_toxicity",
+    "agentarmor_combined",  # production deployment shape (all three OR'd)
     # External safety/toxicity baselines
     "llamaguard",
     "openai_moderation",

@@ -111,3 +111,42 @@ class AgentArmorToxicityBaseline(BaselineChecker):
     def score(self, text: str) -> float:
         findings = self._load().scan_text(text)
         return 1.0 if findings else 0.0
+
+
+@register_baseline
+class AgentArmorCombinedBaseline(BaselineChecker):
+    """Shipping deployment shape: shield + ml_shield + toxicity run in parallel,
+    any one firing = blocked. This is how AgentArmor is typically configured in
+    production, so it's the most honest comparison against a single-model
+    vendor baseline like LlamaGuard.
+
+    ``score`` returns 1.0 on first-firing module, 0.0 if all pass. Short-circuits
+    for efficiency: on toxicity datasets the toxicity module tends to fire
+    first and the jailbreak modules are never evaluated.
+    """
+
+    name = "agentarmor_combined"
+    description = (
+        "AgentArmor combined shield stack (shield + ml_shield + toxicity; "
+        "any fires → blocked). Matches typical production deployment."
+    )
+    default_threshold = 0.5
+    score_emitting = False
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self._shield = None
+        self._ml_shield = None
+        self._toxicity = None
+
+    def _load(self):
+        if self._shield is None:
+            self._shield = AgentArmorShieldBaseline()
+            self._ml_shield = AgentArmorMLShieldBaseline()
+            self._toxicity = AgentArmorToxicityBaseline()
+
+    def score(self, text: str) -> float:
+        self._load()
+        for module in (self._shield, self._ml_shield, self._toxicity):
+            if module.score(text) >= 0.5:
+                return 1.0
+        return 0.0

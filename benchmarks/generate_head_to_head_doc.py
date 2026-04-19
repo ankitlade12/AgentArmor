@@ -102,6 +102,7 @@ def _legend_for(baseline: str) -> str:
         "agentarmor_shield": "AgentArmor regex shield (bool; no PR curve — regex-by-design)",
         "agentarmor_ml_shield": "AgentArmor ML shield τ=0.65 (our shipping default)",
         "agentarmor_toxicity": "AgentArmor toxicity filter at shipping config",
+        "agentarmor_combined": "All three AgentArmor modules OR'd (production deployment shape)",
     }.get(baseline, "—")
 
 

@@ -226,6 +226,33 @@ APPLIES: Dict[Tuple[str, str], Applicability] = {
         verdict="applies",
         rationale="Toxicity filter applied across adversarial jailbreak surface.",
     ),
+    # Combined AgentArmor — shipping deployment shape (all modules OR'd).
+    # Applies to every dataset: this is THE comparison we actually care about
+    # for "is AgentArmor a credible single-product replacement for LlamaGuard?"
+    ("agentarmor_combined", "xstest"): Applicability(
+        verdict="applies",
+        rationale="Shipping deployment shape (all modules OR'd). XSTest probes over-refusal.",
+    ),
+    ("agentarmor_combined", "realtoxicity"): Applicability(
+        verdict="applies",
+        rationale="Shipping deployment shape. RTP toxicity — toxicity module expected to dominate.",
+    ),
+    ("agentarmor_combined", "toxigen"): Applicability(
+        verdict="applies",
+        rationale="Shipping deployment shape. Hate-speech detection.",
+    ),
+    ("agentarmor_combined", "harmbench"): Applicability(
+        verdict="applies",
+        rationale="Shipping deployment shape. Harmful-behavior prompts — tests jailbreak + toxicity coverage together.",
+    ),
+    ("agentarmor_combined", "jailbreakbench"): Applicability(
+        verdict="applies",
+        rationale="Shipping deployment shape. Jailbreak prompts — primary ml_shield construct.",
+    ),
+    ("agentarmor_combined", "advbench"): Applicability(
+        verdict="applies",
+        rationale="Shipping deployment shape. Adversarial jailbreaks.",
+    ),
     # Mock baseline — present for test coverage of the runner's full matrix.
     ("mock_scored", "xstest"): Applicability(
         verdict="applies",
