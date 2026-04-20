@@ -2,7 +2,7 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
-## [Unreleased] — head-to-head benchmark comparison infrastructure
+## [1.5.0] - 2026-04-20 — Head-to-head benchmark comparison
 
 ### Changed from initial SPEC v4
 
