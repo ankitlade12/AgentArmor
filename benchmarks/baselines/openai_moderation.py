@@ -27,7 +27,7 @@ class OpenAIModerationBaseline(BaselineChecker):
     ):
         cfg = config or {}
         self._projection = projection
-        self._model = cfg.get("model", "text-moderation-latest")
+        self._model = cfg.get("model", "omni-moderation-latest")
         threshold = cfg.get("default_threshold")
         if threshold is not None:
             self.default_threshold = float(threshold)

@@ -106,7 +106,8 @@ class TestConfigOverrides:
 
     def test_default_model(self):
         b = OpenAIModerationBaseline()
-        assert b._model == "text-moderation-latest"
+        # text-moderation-* was deprecated by OpenAI; omni-moderation is current.
+        assert b._model == "omni-moderation-latest"
 
 
 class TestCheck:

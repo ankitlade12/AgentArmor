@@ -120,7 +120,7 @@ python benchmarks/run_e2e_benchmarks.py --dry-run
 
 ## Head-to-head comparison (v1.5+)
 
-`BENCHMARKS_HEAD_TO_HEAD.md` at the repo root compares AgentArmor against LlamaGuard 3 (local, Q4_K_M), OpenAI Moderation, and Perspective API across six datasets: XSTest, RealToxicityPrompts, ToxiGen, HarmBench, JailbreakBench, and AdvBench (raw 520:15 with MCC + balanced-accuracy only — F1 is omitted per SPEC v4 D38 because base-rate dominates).
+`BENCHMARKS_HEAD_TO_HEAD.md` at the repo root compares AgentArmor against LlamaGuard 3 (local, Q4_K_M) and OpenAI Moderation (`omni-moderation-latest`) across six datasets: XSTest, RealToxicityPrompts, ToxiGen, HarmBench, JailbreakBench, and AdvBench (raw 520:15 with MCC + balanced-accuracy only — F1 is omitted per SPEC v4 D38 because base-rate dominates). Perspective API was considered and dropped — Google/Jigsaw announced shutdown (API EOL 2026-12-31).
 
 Runner:
 ```bash

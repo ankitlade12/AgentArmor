@@ -69,8 +69,13 @@ def _headline_block() -> str:
         "from v1: Google/Jigsaw announced sunset with API EOL 2026-12-31, which would "
         "leave any published comparison non-reproducible within months. We publish "
         "per-dataset numbers only: no overall-winner claim, and we annotate every cell "
-        "where AgentArmor loses or ties within CI. Reproduction: set `OPENAI_API_KEY` and "
-        "run `python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>` "
+        "where AgentArmor loses or ties within CI. **One honest weakness surfaces in the "
+        "numbers below: on XSTest (over-refusal probes), AgentArmor's toxicity module is "
+        "heavy-handed (F1=0.16 vs LlamaGuard 0.83) — specialist classifiers flag "
+        "figurative/homonym prompts that general-purpose safety LLMs correctly pass. "
+        "Tracked as a follow-up for threshold tuning or post-filter.** Reproduction: "
+        "set `OPENAI_API_KEY` and run "
+        "`python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<ts>` "
         "(see [`RUNBOOK.md`](RUNBOOK.md) Procedure 0)."
     )
 
