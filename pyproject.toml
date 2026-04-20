@@ -25,7 +25,13 @@ ml = ["scikit-learn>=1.3.0"]
 gemini = ["google-genai>=1.0.0"]
 toxicity = ["detoxify>=0.5.0"]
 semantic_drift = ["sentence-transformers>=2.2.0"]
-benchmarks = ["datasets>=2.14.0"]
+# Head-to-head benchmark extras. numpy pin is load-bearing for D45 —
+# bootstrap determinism requires a frozen major; numpy >=2 changes the
+# default random-number pipeline. PyYAML for config loader.
+benchmarks = ["datasets>=2.14.0", "PyYAML>=6.0,<7.0", "numpy>=1.26,<2.0"]
+# Optional: local LlamaGuard via llama-cpp-python (SPEC v4 D36). Not part
+# of `all` because the wheel requires a C toolchain; install separately.
+head_to_head_llamaguard = ["llama-cpp-python>=0.2.0,<0.4.0"]
 all = ["openai>=1.0.0", "anthropic>=0.25.0", "scikit-learn>=1.3.0", "google-genai>=1.0.0", "detoxify>=0.5.0", "sentence-transformers>=2.2.0"]
 test = [
     "pytest>=7.0.0",

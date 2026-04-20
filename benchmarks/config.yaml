@@ -1,0 +1,59 @@
+# Head-to-head baseline configuration (SPEC v4 D34, D51).
+#
+# This file pins model slugs, HF revisions, Q-levels, API endpoints, and
+# version strings. The code reads from here; no slugs are hardcoded.
+#
+# Policy: NO SECRETS in this file. Fields matching *_API_KEY / *_TOKEN /
+# *_SECRET are rejected by the config loader (D51). Keys live in env vars
+# only. CI lint enforces this.
+
+schema_version: "1.0"
+
+# Bootstrap / determinism (SPEC v4 D44, D45).
+bootstrap:
+  default_iters: 5000
+  seed_namespace: "head_to_head_v1"
+
+# NumPy / Python floor for deterministic replay (SPEC v4 D45).
+# When bumping these, regenerate test fixtures and note in CHANGELOG.
+pins:
+  numpy: ">=1.26,<2.0"
+  python: ">=3.12"
+
+baselines:
+  llamaguard:
+    description: "LlamaGuard 3 via llama-cpp-python (local, CPU, Q4_K_M)"
+    model_repo: "QuantFactory/Llama-Guard-3-8B-GGUF"
+    model_file: "Llama-Guard-3-8B.Q4_K_M.gguf"
+    model_revision: "main"  # bump to a specific commit SHA pre-publish
+    local_model_path: "./models/Llama-Guard-3-8B.Q4_K_M.gguf"
+    quantization: "Q4_K_M"
+    n_ctx: 2048
+    logprobs_topk: 10
+    default_threshold: 0.5
+
+  openai_moderation:
+    description: "OpenAI Moderation API (free endpoint; omni-moderation is the current model — text-moderation-* was deprecated 2024)"
+    model: "omni-moderation-latest"
+    sdk_version: ">=1.0.0,<2.0.0"
+    default_threshold: 0.5
+    requires_api_key_env: "OPENAI_API_KEY"
+
+  perspective:
+    description: "Perspective API (Google Jigsaw toxicity scorer)"
+    endpoint: "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze"
+    attribute: "TOXICITY"
+    default_threshold: 0.5
+    requires_api_key_env: "PERSPECTIVE_API_KEY"
+
+# Calibration protocol (SPEC v4 D39).
+calibration:
+  same_day_runs: 5
+  same_day_window_minutes: 30
+  one_week_later_offset_days: 7
+  drift_red_alert_multiplier: 2.0
+
+# Vendor-drift canary (SPEC v4 D46).
+canary:
+  fixture_path: "benchmarks/fixtures/vendor_canary.jsonl"
+  abort_multiplier: 3.0  # abort publish if cell delta > multiplier * same-day spread

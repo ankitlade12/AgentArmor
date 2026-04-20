@@ -37,6 +37,13 @@ venv.bak/
 # AgentArmor specifically
 .agentarmor/
 *.jsonl
+# Committed fixtures for head-to-head canary + per-sample reference data
+!benchmarks/fixtures/*.jsonl
+
+# Head-to-head runtime artifacts (summaries, sidecars, run logs)
+benchmarks/results/runs/
+# Local model files for LlamaGuard (~5 GB Q4_K_M GGUF)
+models/
 
 # Testing
 .pytest_cache/

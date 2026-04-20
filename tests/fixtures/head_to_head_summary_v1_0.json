@@ -1,0 +1,35 @@
+{
+  "agentarmor_version": "1.4.0",
+  "cells": [
+    {
+      "baseline": "mock_scored",
+      "baseline_config_hash": "abc12345",
+      "dataset": "toxigen",
+      "degenerate_flag": false,
+      "duration_ms": 42.0,
+      "errors_count": 0,
+      "f1": 1.0,
+      "f1_ci_high": 1.0,
+      "f1_ci_low": 1.0,
+      "fpr": 0.0,
+      "latency_p50_ms": 1.0,
+      "latency_p95_ms": 2.0,
+      "n_samples": 40,
+      "operating_point": "mock_scored",
+      "precision": 1.0,
+      "recall": 1.0,
+      "score_emitting": true,
+      "skipped_count": 0
+    }
+  ],
+  "config_echo": {"baselines": {"mock_scored": {}}},
+  "rubric_version": "1.0",
+  "run_date": "2026-04-17",
+  "run_id": "fixture_v1_0",
+  "schema_version": "1.0",
+  "tolerances": {
+    "calibration_run_dates": [],
+    "one_week_drift_max": null,
+    "same_day_spread_95p": null
+  }
+}

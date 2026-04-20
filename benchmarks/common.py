@@ -1,13 +1,19 @@
 """
 Shared benchmark infrastructure: BenchmarkResult, formatters, and exporters.
 Used by all benchmark runners (smoke tests, industry, E2E).
+
+Head-to-head runner types (HeadToHeadResult, SampleVerdict) live at the bottom
+of this module. They do not share state with BenchmarkResult — per SPEC v4 D6
+the existing runners are not modified.
 """
 
+import hashlib
+import inspect
 import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 DATASETS_DIR = Path(__file__).resolve().parent / "datasets"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
@@ -166,3 +172,98 @@ def export_results(results: List[BenchmarkResult], output_path: str,
     with open(output_path, "w") as f:
         json.dump(export, f, indent=2)
     print(f"  Results exported to {output_path}")
+
+
+# ---------------------------------------------------------------------------
+# Head-to-head types (SPEC v4 D6, D7, D42, D49)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SampleVerdict:
+    """One baseline's verdict on one sample in the head-to-head runner.
+
+    ``pred_score`` is None only if the baseline does not emit a score
+    (``score_emitting=False``). When present, it is the raw float the baseline
+    returned pre-thresholding.
+
+    ``raw_response`` is always None in committed artifacts per SPEC v4 D49;
+    ``--keep-raw-responses`` writes to a separate gitignored verdicts_raw.jsonl.
+    """
+
+    sample_id: str
+    adapter_name: str
+    label: str  # "positive" | "negative"
+    pred_bool: bool
+    pred_score: Optional[float]
+    latency_ms: float
+    skipped: bool = False
+    skip_reason: Optional[str] = None
+    error: Optional[str] = None
+    raw_response: None = None
+
+
+@dataclass
+class HeadToHeadResult:
+    """One (baseline, dataset) cell's per-sample verdicts plus derived counts.
+
+    TP/FP/TN/FN are derived properties — the per-sample list is the source of
+    truth (SPEC v4 D7). Skipped and errored samples are excluded from counts.
+    """
+
+    baseline: str
+    dataset: str
+    samples: List[SampleVerdict] = field(default_factory=list)
+    adapter_version: str = ""
+    baseline_config_hash: str = ""
+    score_emitting: bool = True
+    duration_ms: float = 0.0
+    errors: List[str] = field(default_factory=list)
+
+    def _valid(self) -> List[SampleVerdict]:
+        return [s for s in self.samples if not s.skipped and s.error is None]
+
+    @property
+    def total(self) -> int:
+        return len(self._valid())
+
+    @property
+    def true_positives(self) -> int:
+        return sum(1 for s in self._valid() if s.label == "positive" and s.pred_bool)
+
+    @property
+    def false_positives(self) -> int:
+        return sum(1 for s in self._valid() if s.label == "negative" and s.pred_bool)
+
+    @property
+    def true_negatives(self) -> int:
+        return sum(
+            1 for s in self._valid() if s.label == "negative" and not s.pred_bool
+        )
+
+    @property
+    def false_negatives(self) -> int:
+        return sum(
+            1 for s in self._valid() if s.label == "positive" and not s.pred_bool
+        )
+
+
+def compute_sample_id(adapter_name: str, adapter_version: str, text: str) -> str:
+    """SPEC v4 D42: sha256(adapter_name + '|' + adapter_version + '|' + text)[:16]."""
+    payload = f"{adapter_name}|{adapter_version}|{text}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:16]
+
+
+def compute_adapter_version(adapter_module) -> str:
+    """8-char sha256 of the adapter module source plus benchmarks/adapters/base.py.
+
+    Hashing base.py too catches shared-plumbing changes (per TYPE_WALKTHROUGH).
+    """
+    module_src = inspect.getsource(adapter_module)
+    try:
+        from benchmarks.adapters import base as adapter_base  # type: ignore
+        base_src = inspect.getsource(adapter_base)
+    except Exception:
+        base_src = ""
+    combined = (module_src + base_src).encode("utf-8")
+    return hashlib.sha256(combined).hexdigest()[:8]

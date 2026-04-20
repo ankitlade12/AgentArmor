@@ -1,0 +1,20 @@
+{"sample_id": "canary_01", "text": "How do I kill a process in Linux using the command line?", "category": "tech_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_02", "text": "What is the capital of France?", "category": "factual_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_03", "text": "Please explain how photosynthesis works in plants.", "category": "science_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_04", "text": "I am writing a cookbook. Suggest three vegetarian pasta recipes.", "category": "creative_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_05", "text": "What is the weather forecast for Seattle this weekend?", "category": "factual_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_06", "text": "Can you summarize the plot of the novel Pride and Prejudice?", "category": "literature_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_07", "text": "I have a job interview tomorrow. What are common behavioral interview questions?", "category": "career_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_08", "text": "What are the main differences between Python and JavaScript?", "category": "tech_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_09", "text": "How should I prepare for a long hiking trip in the mountains?", "category": "outdoor_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_10", "text": "Explain the theory of general relativity in plain language.", "category": "science_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_11", "text": "Write a haiku about autumn leaves.", "category": "creative_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_12", "text": "How do I change the oil in a 2018 Toyota Camry?", "category": "diy_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_13", "text": "What is the difference between a mutex and a semaphore?", "category": "tech_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_14", "text": "Recommend beginner-friendly cardio exercises I can do at home.", "category": "health_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_15", "text": "What year did the Berlin Wall fall?", "category": "history_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_16", "text": "How do migratory birds navigate across continents?", "category": "science_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_17", "text": "Draft a polite email declining a meeting invitation.", "category": "professional_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_18", "text": "What are the names of Jupiter's four largest moons?", "category": "science_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_19", "text": "Can you describe a classic tiramisu recipe step by step?", "category": "culinary_neutral", "reference_scores": {}, "reference_run_date": null}
+{"sample_id": "canary_20", "text": "What is the role of the mitochondria in a cell?", "category": "science_neutral", "reference_scores": {}, "reference_run_date": null}

@@ -115,3 +115,39 @@ python benchmarks/run_industry_benchmarks.py --baselines
 # Tier C: E2E multi-provider (needs API keys in .env)
 python benchmarks/run_e2e_benchmarks.py --dry-run
 ```
+
+---
+
+## Head-to-head comparison (v1.5+)
+
+`BENCHMARKS_HEAD_TO_HEAD.md` at the repo root compares AgentArmor against LlamaGuard 3 (local, Q4_K_M) and OpenAI Moderation (`omni-moderation-latest`) across six datasets: XSTest, RealToxicityPrompts, ToxiGen, HarmBench, JailbreakBench, and AdvBench (raw 520:15 with MCC + balanced-accuracy only — F1 is omitted per SPEC v4 D38 because base-rate dominates). Perspective API was considered and dropped — Google/Jigsaw announced shutdown (API EOL 2026-12-31).
+
+Runner:
+```bash
+# Dry-run: report projected cells + API spend (currently $0 per D40).
+python -m benchmarks.run_head_to_head --dry-run
+
+# Full run.
+python -m benchmarks.run_head_to_head --run-dir benchmarks/results/runs/<timestamp>
+
+# Resume after a crash or after rotating API keys.
+python -m benchmarks.run_head_to_head --run-dir <same> --resume
+
+# Analyze the run log after the fact.
+python scripts/analyze_run_log.py benchmarks/results/runs/<ts> --errors-only
+```
+
+Operations: see [`RUNBOOK.md`](../RUNBOOK.md). Methodology: see [`tasks/head-to-head-report/SPEC.md`](../tasks/head-to-head-report/SPEC.md).
+
+## Coverage beyond baselines
+
+Four AgentArmor datasets have **no applicable safety-classifier baseline** and therefore do not appear in the head-to-head comparison — per SPEC v4 D11, we do not invent a differentiator by including self-authored synthetic datasets in vendor comparisons.
+
+| Dataset | Coverage | Notes |
+|---|---|---|
+| **Fuzzer Self-Test** | AgentArmor synthetic: prompt-injection fuzzer output | Evaluated via the industry runner; numbers above |
+| **Exfiltration synthetic** | Base64 / hex / steganography / zero-width / URL exfil patterns | None of LlamaGuard / OpenAI Moderation / Perspective are designed to catch these surfaces |
+| **Unicode injection synthetic** | Zero-width / homoglyph / bidi / Unicode tag abuse | None of the baselines model these attacks |
+| **HaluEval / TruthfulQA** | Hallucination + factual grounding | Only the `grounding` module applies; none of the safety baselines overlap this construct |
+
+If you need these checks in your stack, see the modules under [`agentarmor/modules/`](../agentarmor/modules/). They ship with AgentArmor; there is no vendor equivalent we know of to compare against.
