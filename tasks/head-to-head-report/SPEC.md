@@ -54,6 +54,6 @@ over time.
 
 ## Documents
 
-- Operations: [RUNBOOK.md](/Users/ankithemantlade/Desktop/AgentArmor/RUNBOOK.md)
-- Published results: [BENCHMARKS_HEAD_TO_HEAD.md](/Users/ankithemantlade/Desktop/AgentArmor/BENCHMARKS_HEAD_TO_HEAD.md)
-- Type/logprob walkthrough: [TYPE_WALKTHROUGH.md](/Users/ankithemantlade/Desktop/AgentArmor/tasks/head-to-head-report/TYPE_WALKTHROUGH.md)
+- Operations: [RUNBOOK.md](../../RUNBOOK.md)
+- Published results: [BENCHMARKS_HEAD_TO_HEAD.md](../../BENCHMARKS_HEAD_TO_HEAD.md)
+- Type/logprob walkthrough: [TYPE_WALKTHROUGH.md](TYPE_WALKTHROUGH.md)

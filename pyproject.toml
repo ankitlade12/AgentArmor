@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "agentarmor"
 version = "1.5.0"
-description = "The full-stack safety layer for AI agents. 29 shields including prompt injection, toxicity, hallucination detection, data exfiltration, privilege escalation, and more — in 2 lines of code."
+description = "The full-stack safety layer for AI agents, including prompt injection, toxicity, hallucination detection, data exfiltration, privilege escalation, and more — in 2 lines of code."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -43,7 +43,7 @@ test = [
     "google-genai>=1.0.0",
     "PyYAML>=6.0,<7.0",
 ]
-docs = ["sphinx>=7.0", "furo", "sphinx-copybutton"]
+docs = ["sphinx>=7.0", "furo", "sphinx-copybutton", "Pillow>=10.0"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

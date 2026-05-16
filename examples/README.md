@@ -59,7 +59,7 @@ python examples/basic.py
 ```
 
 ### `langchain_example.py`
-Demonstrates that AgentArmor perfectly patches LangChain's `ChatOpenAI` wrapper. It executes a normal query to show cost tracking, and a prompt injection to show LangChain throwing a `InjectionDetected` exception.
+Demonstrates AgentArmor wrapping LangChain's `ChatOpenAI` provider path. It executes a normal query to show cost tracking, and a prompt injection to show LangChain surfacing an `InjectionDetected` exception.
 
 ```bash
 python examples/langchain_example.py

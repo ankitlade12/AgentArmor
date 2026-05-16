@@ -79,4 +79,3 @@ Companion Example
 -----------------
 
 See ``examples/trace_export_example.py`` for a small end-to-end script.
-

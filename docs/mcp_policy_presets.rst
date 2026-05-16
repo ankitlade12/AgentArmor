@@ -71,4 +71,3 @@ Companion APIs
 
 See also ``examples/mcp_policy_example.py`` and
 ``docs/mcp_security_checklist.rst``.
-

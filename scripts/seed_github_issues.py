@@ -29,31 +29,6 @@ ISSUES = [
         "Expand the ADK example into a copy-paste project layout with `.env` notes and `adk web` instructions.",
     ),
     IssueSeed(
-        "Add Agno multi-tool safety demo",
-        ("area:examples", "area:ecosystem"),
-        "Extend the Agno example with one safe tool path and one blocked path.",
-    ),
-    IssueSeed(
-        "Add LangGraph-specific example",
-        ("area:examples", "area:ecosystem"),
-        "Show AgentArmor protecting a small multi-step LangGraph flow.",
-    ),
-    IssueSeed(
-        "Add OpenTelemetry export example",
-        ("area:examples", "area:docs"),
-        "Show how AgentArmor events can be shipped into a tracing pipeline.",
-    ),
-    IssueSeed(
-        "Record a 30-second README demo GIF",
-        ("area:docs", "help wanted"),
-        "Capture one prompt-injection block and one budget stop for the README/demo surface.",
-    ),
-    IssueSeed(
-        "Add framework setup matrix page",
-        ("area:docs",),
-        "Expand framework setup guidance for LiteLLM, LlamaIndex, CrewAI, Pydantic AI, Google ADK, and Agno.",
-    ),
-    IssueSeed(
         "Publish benchmark methodology blog draft",
         ("area:docs", "area:benchmarks"),
         "Turn the benchmark methodology and failure notes into a publishable write-up.",
@@ -72,11 +47,6 @@ ISSUES = [
         "Add compliance metadata regression tests",
         ("area:security", "area:testing"),
         "Assert the reported AgentArmor version matches package metadata and that every compliance mapping references a real module.",
-    ),
-    IssueSeed(
-        "Add tool-risk presets",
-        ("area:security",),
-        "Ship reusable policy presets for shell, browser, filesystem, SQL, and HTTP tools.",
     ),
     IssueSeed(
         "Add MCP result-validation examples",
