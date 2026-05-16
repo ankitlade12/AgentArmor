@@ -1,6 +1,5 @@
 import ast
 import re
-import tomllib
 from pathlib import Path
 
 
@@ -25,9 +24,15 @@ def test_public_docs_do_not_contain_local_absolute_paths():
 
 
 def test_package_description_avoids_stale_shield_count():
-    metadata = tomllib.loads(_read("pyproject.toml"))
+    pyproject = _read("pyproject.toml")
+    description_match = re.search(
+        r'^description = "([^"]+)"$',
+        pyproject,
+        flags=re.MULTILINE,
+    )
 
-    description = metadata["project"]["description"]
+    assert description_match is not None
+    description = description_match.group(1)
 
     assert not re.search(r"\b\d+\s+shields\b", description)
 
@@ -40,11 +45,10 @@ def test_public_examples_avoid_overclaiming_compatibility():
 
 def test_readme_gif_generator_dependency_is_declared():
     generator = _read("scripts/generate_readme_demo_gif.py")
-    metadata = tomllib.loads(_read("pyproject.toml"))
+    pyproject = _read("pyproject.toml")
 
     assert "from PIL import" in generator
-    docs_deps = metadata["project"]["optional-dependencies"]["docs"]
-    assert any(dep.lower().startswith("pillow") for dep in docs_deps)
+    assert re.search(r'^docs = \[.*"Pillow>=10\.0".*\]$', pyproject, re.MULTILINE)
 
 
 def test_issue_seed_script_excludes_already_shipped_launch_tasks():
