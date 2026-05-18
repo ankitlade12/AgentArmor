@@ -35,11 +35,11 @@ Required before the first real run. One-time per machine.
    your layout differs.
 
 4. **Provision API keys** (env vars only — never commit to `config.yaml`
-   per D51):
+   per D51). Current v1 external API baseline coverage only requires OpenAI
+   Moderation; Perspective API is excluded because of the public sunset:
    ```bash
    # .envrc or shell profile
    export OPENAI_API_KEY=sk-...
-   export PERSPECTIVE_API_KEY=AIz...
    ```
 
 5. **Dry-run preflight** — no API spend, confirms everything wires up:
@@ -65,7 +65,8 @@ Symptom: `run.jsonl` shows `phase=error` events concentrated on one
 baseline; CLI logs `Missing required environment variables:` or 401/429.
 
 Response:
-1. Check env vars: `printenv OPENAI_API_KEY PERSPECTIVE_API_KEY`.
+1. Check env vars for the failing baseline, e.g. `printenv OPENAI_API_KEY`
+   for OpenAI Moderation.
 2. If expired → rotate, restart with `--resume --run-dir <same>` (D15).
 3. If quota hit → wait out the window, then `--resume`.
 4. Completed cells stay; only the failing cell redoes. No spend lost.
@@ -204,7 +205,8 @@ Response:
 As of 2026-04-18:
 - **LlamaGuard**: local CPU inference. $0.
 - **OpenAI Moderation API**: free (no token billing).
-- **Perspective API**: free within quota (1 QPS → 60/min → 3600/hour).
+- **Perspective API**: excluded from the current v1 comparison because of the
+  announced sunset / API EOL.
 
 Flagged stale after 3 months — re-verify before publishing. SPEC v4 D40
 dropped `--max-usd` from v1; re-add when the first paid baseline joins.
