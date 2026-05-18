@@ -16,12 +16,7 @@ To install with provider-specific support:
 
    pip install agentarmor[openai]       # OpenAI support
    pip install agentarmor[anthropic]    # Anthropic support
-   pip install agentarmor[gemini]       # Google Gemini support
-   pip install agentarmor[drift]        # Semantic drift detection
    pip install agentarmor[all]          # Everything
-
-See ``SUPPORT_MATRIX.md`` in the repo root for tested SDK surfaces and
-compatibility notes.
 
 Drop-in Mode (Recommended)
 ---------------------------

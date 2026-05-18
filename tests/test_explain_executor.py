@@ -3,8 +3,6 @@
 import warnings
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
-import pytest
-
 from agentarmor._run_in_executor import run_in_executor
 from agentarmor.trace import ExplainModeWarning, _active_trace, _TraceBuilder
 
@@ -40,12 +38,7 @@ def _identity(x):
 
 
 def test_run_in_executor_rejects_process_pool_with_warning():
-    try:
-        executor = ProcessPoolExecutor(max_workers=1)
-    except (NotImplementedError, PermissionError) as exc:
-        pytest.skip(f"ProcessPoolExecutor unavailable in this environment: {exc}")
-
-    with executor as ex:
+    with ProcessPoolExecutor(max_workers=1) as ex:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             future = run_in_executor(ex, _identity, 42)

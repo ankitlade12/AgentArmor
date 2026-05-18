@@ -8,10 +8,6 @@
 
 **One install. Every shield. Zero infrastructure to manage.**
 
-Links: [Support Matrix](SUPPORT_MATRIX.md) | [Security Policy](SECURITY.md) | [Examples](examples/README.md)
-
-![AgentArmor demo showing prompt injection blocking and a budget guard](docs/_static/readme-demo.gif)
-
 ## What is AgentArmor?
 
 AgentArmor is an open-source Python SDK that wraps your LLM integrations with real-time safety controls. It protects your applications from runaway costs, prompt injection attacks, sensitive data leaks, and provides a complete audit trail of every interaction. 
@@ -1048,23 +1044,10 @@ agentarmor.init_from_config()
 
 ## Integrations
 
-AgentArmor works well with many major Python AI frameworks that route through
-supported SDK surfaces.
+AgentArmor works out-of-the-box with **every major AI framework** on the market. 
 
-Because AgentArmor monkey-patches the underlying `openai`, `anthropic`, and
-`google-genai` clients directly at the network level, you often do not need
-framework-specific callbacks or middleware. Just initialize
-`agentarmor.init()` at the top of your script and it will automatically
-protect frameworks and SDK scripts that use those patched clients.
+Because AgentArmor monkey-patches the underlying `openai`, `anthropic`, and `google-genai` clients directly at the network level, you do not need framework-specific callbacks or middleware. Just initialize `agentarmor.init()` at the top of your script and it will automatically protect:
 
-See [`SUPPORT_MATRIX.md`](SUPPORT_MATRIX.md) for the tested provider surfaces
-and evidence level behind each compatibility claim.
-
-Current ecosystem examples and support notes include:
-
-- **LiteLLM**
-- **Pydantic AI**
-- **Google ADK**
 - **LangChain / LangGraph**
 - **LlamaIndex**
 - **CrewAI**

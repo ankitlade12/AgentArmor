@@ -38,7 +38,6 @@ from .trace import (
     clear_last_trace,
 )
 from ._run_in_executor import run_in_executor
-from .mcp_presets import MCP_PRESETS, get_mcp_preset, merge_mcp_presets
 from . import trace as _trace_module
 from . import _audit, _watchdog
 
@@ -308,9 +307,6 @@ __all__ = [
     "validate_mcp_server",
     "validate_mcp_tool",
     "authenticate_mcp_server",
-    "MCP_PRESETS",
-    "get_mcp_preset",
-    "merge_mcp_presets",
     "InsecureCodeDetected",
     "HallucinationDetected",
     "ReasoningViolation",
