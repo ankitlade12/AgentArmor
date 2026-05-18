@@ -65,3 +65,12 @@ docs/_build/
 .claude/worktrees/
 *.pyc
 .claude/
+
+# Internal planning / operator-only docs
+AGENTS.md
+ADOPTION_TRACKING.md
+CONTRIBUTOR_BACKLOG.md
+ISSUE_SEEDS.md
+LAUNCH_CHECKLIST.md
+OUTREACH_TEMPLATES.md
+ROADMAP.md

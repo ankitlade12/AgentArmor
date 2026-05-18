@@ -3,7 +3,7 @@ AgentArmor 🛡️
 
 **The full-stack safety layer for AI agents.**
 
-One install. Four shields. Zero infrastructure to manage.
+One install. Every shield. Zero infrastructure to manage.
 
 AgentArmor is an open-source Python SDK that wraps your LLM integrations with
 real-time safety controls. It protects your applications from runaway costs,
@@ -46,10 +46,21 @@ Key Features
    :maxdepth: 2
    :caption: User Guide
 
+   why_agentarmor
    quickstart
    shields
    hooks
    integrations
+   framework_setup_matrix
+   architecture_overview
+   complementary_tooling
+   benchmark_summary
+   benchmark_methodology_narrative
+   observability_exports
+   mcp_security_checklist
+   mcp_policy_presets
+   launch_week_tracker
+   owasp_mapping
 
 .. toctree::
    :maxdepth: 2
