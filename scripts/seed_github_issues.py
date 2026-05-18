@@ -19,11 +19,6 @@ class IssueSeed:
 
 ISSUES = [
     IssueSeed(
-        "Add Pydantic AI safety smoke test",
-        ("area:examples", "area:testing"),
-        "Exercise `examples/pydantic_ai_example.py` in CI when dependencies and credentials are available.",
-    ),
-    IssueSeed(
         "Add Google ADK project-style walkthrough",
         ("area:examples", "area:docs"),
         "Expand the ADK example into a copy-paste project layout with `.env` notes and `adk web` instructions.",
@@ -32,21 +27,6 @@ ISSUES = [
         "Publish benchmark methodology blog draft",
         ("area:docs", "area:benchmarks"),
         "Turn the benchmark methodology and failure notes into a publishable write-up.",
-    ),
-    IssueSeed(
-        "Add MCP policy cookbook page",
-        ("area:docs", "area:security"),
-        "Expand path restrictions, blocked patterns, and authentication examples for MCP policy usage.",
-    ),
-    IssueSeed(
-        "Add partner-facing architecture overview",
-        ("area:docs", "area:ecosystem"),
-        "Explain local-first runtime interception versus hosted proxy-based controls.",
-    ),
-    IssueSeed(
-        "Add compliance metadata regression tests",
-        ("area:security", "area:testing"),
-        "Assert the reported AgentArmor version matches package metadata and that every compliance mapping references a real module.",
     ),
     IssueSeed(
         "Add MCP result-validation examples",
@@ -67,11 +47,6 @@ ISSUES = [
         "Add optional framework integration job",
         ("area:testing", "area:ecosystem"),
         "Run framework-specific smoke tests in a scheduled or allow-fail CI job.",
-    ),
-    IssueSeed(
-        "Add example import-and-run harness",
-        ("area:testing",),
-        "Move beyond compile-only checks to targeted non-network example execution tests where feasible.",
     ),
     IssueSeed(
         "Add provider compatibility drift checks",
@@ -127,8 +102,9 @@ def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
 
 
 def ensure_label(name: str) -> None:
-    result = run("gh", "label", "view", name, "--repo", REPO, check=False)
-    if result.returncode == 0:
+    result = run("gh", "label", "list", "--repo", REPO, "--limit", "200")
+    existing = {line.split("\t", 1)[0] for line in result.stdout.splitlines()}
+    if name in existing:
         return
     run(
         "gh",
