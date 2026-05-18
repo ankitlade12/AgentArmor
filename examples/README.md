@@ -36,6 +36,13 @@ Demonstrates AgentArmor's MCP policy engine without requiring a live MCP deploym
 python examples/mcp_policy_example.py
 ```
 
+### `mcp_result_validation_example.py`
+Shows how to scan MCP tool results before they are reused by an agent. It simulates a clean result and a poisoned result that tries to inject new instructions.
+
+```bash
+python examples/mcp_result_validation_example.py
+```
+
 ### `trace_export_example.py`
 Shows how to serialize the last Explain Mode trace as JSON and how to attach
 the normalized fields to an OpenTelemetry span.
@@ -49,6 +56,22 @@ Simulates a poisoned retrieval chunk in a LlamaIndex-style RAG flow. The retriev
 
 ```bash
 python examples/llamaindex_rag_poisoning_example.py
+```
+
+### `rag_provenance_example.py`
+Demonstrates a local provenance pattern for retrieved chunks. It tags sources,
+rejects poisoned retrieval text, and builds an answer only from accepted chunks.
+
+```bash
+python examples/rag_provenance_example.py
+```
+
+### `exfiltration_case_study_example.py`
+Simulates a model response that tries to smuggle a secret to an outbound sink
+with base64 encoding. AgentArmor blocks the encoded leak locally.
+
+```bash
+python examples/exfiltration_case_study_example.py
 ```
 
 ### `basic.py`
@@ -107,6 +130,14 @@ Defines a minimal Google ADK `root_agent` with AgentArmor initialized first so u
 
 ```bash
 python examples/google_adk_example.py
+```
+
+### `google_adk_project/`
+Provides a copy-paste Google ADK project layout with `agent.py`, `.env.example`,
+and `adk web` startup notes.
+
+```bash
+cp -R examples/google_adk_project ./agentarmor-adk-demo
 ```
 
 ### `agno_example.py`

@@ -55,9 +55,11 @@ Key Features
    architecture_overview
    complementary_tooling
    benchmark_summary
+   benchmark_methodology_narrative
    observability_exports
    mcp_security_checklist
    mcp_policy_presets
+   launch_week_tracker
    owasp_mapping
 
 .. toctree::

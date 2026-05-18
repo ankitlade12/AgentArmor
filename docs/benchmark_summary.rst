@@ -59,6 +59,9 @@ The benchmark setup in this repo already does a few important things well:
 - separates head-to-head vendor comparisons from AgentArmor-only coverage
 - documents failures and exclusions in ``tasks/head-to-head-report/``
 
+For a blog-style narrative that can be adapted into launch copy, see
+``benchmark_methodology_narrative.rst``.
+
 Reproducibility Flow
 --------------------
 
