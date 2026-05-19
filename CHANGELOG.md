@@ -2,6 +2,24 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.6.0] - 2026-05-18 — Public launch refresh
+
+### Added
+
+- Public launch documentation covering why AgentArmor, architecture, framework setup, MCP security, OWASP mapping, observability exports, benchmark summary, benchmark methodology narrative, and launch-week tracking.
+- README first-screen demo GIF plus reproducible generator script.
+- `SECURITY.md` with supported versions, disclosure process, reporting scope, and response expectations.
+- MCP policy presets via `agentarmor.MCP_PRESETS`, `agentarmor.get_mcp_preset()`, and `agentarmor.merge_mcp_presets()`.
+- Runnable ecosystem examples for LiteLLM, LlamaIndex RAG poisoning, LangGraph, CrewAI cost guard, Pydantic AI, Google ADK, Agno, MCP policy, MCP result validation, trace export, RAG provenance, and exfiltration case study.
+- Provider-surface check script and framework integration workflow for scheduled/manual compatibility checks.
+- Public launch hygiene regression tests for metadata, stale local paths, overclaiming language, and shipped issue seeds.
+
+### Changed
+
+- Support matrix and integration docs now describe tested provider surfaces more precisely instead of broad framework claims.
+- Package metadata and docs release metadata are kept aligned for release builds.
+- Example issue seeding now focuses on remaining launch work instead of tasks already shipped in this release.
+
 ## [1.5.0] - 2026-04-20 — Head-to-head benchmark comparison
 
 ### Changed from initial SPEC v4
