@@ -61,6 +61,8 @@ class ExplainModeWarning(UserWarning):
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class TraceEvent:
+    """A single recorded Explain Mode hook decision."""
+
     schema_version: int
     timestamp_ns: int
     module: str
@@ -72,6 +74,8 @@ class TraceEvent:
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class Trace:
+    """A frozen Explain Mode trace for one provider call."""
+
     schema_version: int
     started_at_ns: int
     ended_at_ns: Optional[int]
@@ -595,10 +599,7 @@ def find_trace(e: BaseException) -> Optional[Trace]:
     """Walk e.__cause__ chain looking for a .trace attribute.
 
     Use this when a framework (FastAPI, Celery, Sentry) wraps your exception
-    and bare e.trace is no longer accessible. Document for users:
-        try: ...
-        except Exception as e:
-            t = agentarmor.find_trace(e) or agentarmor.last_trace()
+    and bare e.trace is no longer accessible.
 
     Walks __cause__ only (not __context__) to avoid picking up unrelated traces
     from shared finally blocks per S-28.
