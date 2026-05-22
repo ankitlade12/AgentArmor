@@ -1,22 +1,24 @@
 # AgentArmor 🛡️
 
-**The full-stack safety layer for AI agents.**
+**Local-first runtime controls for Python LLM apps and agents.**
 
 [![PyPI](https://img.shields.io/badge/pypi-agentarmor-blue.svg)](https://pypi.org/project/agentarmor/)
 [![Python versions](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/agentarmor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**One install. Every shield. Zero infrastructure to manage.**
+**Budget circuit breakers, PII/secrets redaction, tool-call policy checks, rate limits, and audit traces — wrapped around your existing OpenAI / Anthropic / Gemini calls in two lines. No hosted proxy, no account, no extra network hops.**
 
 Links: [Support Matrix](SUPPORT_MATRIX.md) | [Security Policy](SECURITY.md) | [Examples](examples/README.md)
 
-![AgentArmor demo showing prompt injection blocking and a budget guard](docs/_static/readme-demo.gif)
+![AgentArmor demo: a budget circuit breaker firing at its dollar limit and an unsafe call being blocked](docs/_static/readme-demo.gif)
+
+> **Status (v1.6).** The budget circuit breaker, output redaction, rate limiter, context guard, and flight recorder are deterministic and production-ready. The detectors — prompt injection, toxicity, unicode, exfiltration, and more — are heuristic, defense-in-depth checks: they reduce risk but are **not a complete security boundary**, and pattern-based detection is bypassable by design. See [Benchmarks & limitations](#benchmarks) and [SECURITY.md](SECURITY.md). Adversarial test cases and edge-case reports are very welcome.
 
 ## What is AgentArmor?
 
-AgentArmor is an open-source Python SDK that wraps your LLM integrations with real-time safety controls. It protects your applications from runaway costs, prompt injection attacks, sensitive data leaks, and provides a complete audit trail of every interaction. 
+AgentArmor is an open-source Python SDK that adds runtime controls around your LLM calls: a hard budget circuit breaker, PII/secrets redaction, tool-call policy checks, rate limiting, and a complete local audit trail of every interaction.
 
-It hooks directly into the core networking libraries of `openai` and `anthropic`, placing an invisible firewall right inside your Python process. No proxies. No accounts. No rewriting your application logic.
+It hooks into the `openai` and `anthropic` client libraries in-process, so the controls apply to your existing code — and anything built on those SDKs — without proxies, accounts, or rewrites. Optional defense-in-depth detectors (prompt injection, toxicity, and more) are documented per-feature below, with their limits stated honestly.
 
 ---
 
@@ -56,7 +58,7 @@ print(agentarmor.report())     # Full cost/security breakdown
 agentarmor.teardown()
 ```
 
-`agentarmor.init()` seamlessly patches the OpenAI and Anthropic SDKs so every call is tracked and protected automatically.
+`agentarmor.init()` patches the OpenAI and Anthropic SDKs in-process, so every call is tracked and the configured controls are applied automatically.
 
 **Works with Google Gemini too — zero code changes:**
 
@@ -93,46 +95,6 @@ pip install agentarmor[toxicity]  # ML-based toxicity detection (detoxify)
 pip install agentarmor[drift]     # Semantic drift detection (sentence-transformers)
 pip install agentarmor[all]       # All providers + optional features
 ```
-
----
-
-## Benchmarks
-
-Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples) spanning prompt injection, toxicity, hallucination, data exfiltration, and unicode attacks. Full results at [`benchmarks/README.md`](benchmarks/README.md).
-
-**Head-to-head comparison** — AgentArmor vs LlamaGuard 3 and OpenAI Moderation across six datasets with bootstrap F1 CIs, balance-aware metrics (MCC + balanced-accuracy on imbalanced sets), per-dataset operating-point naming, and honest loss annotations: [`BENCHMARKS_HEAD_TO_HEAD.md`](BENCHMARKS_HEAD_TO_HEAD.md). (Perspective API was dropped from v1 — Google/Jigsaw announced sunset with API EOL 2026-12-31.) Methodology in [`tasks/head-to-head-report/SPEC.md`](tasks/head-to-head-report/SPEC.md); operations in [`RUNBOOK.md`](RUNBOOK.md).
-
-### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
-
-| Benchmark | Samples | Precision | Recall | F1 | FP Rate |
-|:----------|--------:|----------:|-------:|---:|--------:|
-| **AdvBench** | 200 | 100.0% | 91.9% | **95.8%** | 0.0% |
-| **HarmBench** | 200 | 100.0% | 90.0% | **94.7%** | 0.0% |
-| **Fuzzer Self-Test** | 148 | 97.4% | 86.7% | **91.7%** | 15.0% |
-| **JailbreakBench** | 200 | 70.2% | 73.0% | **71.6%** | 31.0% |
-
-### Toxicity & Bias Detection (Built-in ML classifier)
-
-| Benchmark | Type | Precision | Recall | F1 | FP Rate |
-|:----------|:-----|----------:|-------:|---:|--------:|
-| **ToxiGen** | Implicit hate speech (13 groups) | 100.0% | 58.5% | **73.8%** | 0.0% |
-| **RealToxicityPrompts** | Subtle toxicity | 54.8% | 51.0% | **52.8%** | 42.0% |
-
-### Hallucination Detection (Grounding + TF-IDF semantic similarity)
-
-| Benchmark | Type | Precision | Recall | F1 | FP Rate |
-|:----------|:-----|----------:|-------:|---:|--------:|
-| **TruthfulQA** | Factual grounding (817 Q&A) | 100.0% | 56.9% | **72.5%** | 0.0% |
-| **HaluEval** | QA/dialogue/summarization | 62.7% | 84.0% | **71.8%** | 50.0% |
-
-### Specialized Detectors
-
-| Benchmark | Type | Precision | Recall | F1 | FP Rate |
-|:----------|:-----|----------:|-------:|---:|--------:|
-| **Exfiltration** | Base64/hex/steganography/URL | 100.0% | 100.0% | **100.0%** | 0.0% |
-| **Unicode Injection** | Zero-width/homoglyph/bidi/tags | 100.0% | 91.2% | **95.4%** | 0.0% |
-
-> Run benchmarks yourself: `pip install datasets scikit-learn && python benchmarks/run_industry_benchmarks.py`
 
 ---
 
@@ -281,7 +243,14 @@ Explain mode requires `agentarmor>=1.4.0`. Users on v1.3 passing `explain=True` 
 
 ---
 
-## Features (29 Safety Shields)
+## Features
+
+The controls fall into two groups, and the difference matters when you decide how much to trust each one:
+
+- **Deterministic controls** — budget circuit breaker, output redaction, rate limiter, context guard, flight recorder, and tool allowlisting. These do exactly what they say on every call.
+- **Heuristic detectors** — prompt injection, toxicity, unicode, exfiltration, hallucination grounding, and more. These are defense-in-depth: useful as one layer, bypassable by a determined attacker, and best paired with the deterministic controls. See [Benchmarks](#benchmarks) for measured detection and false-positive rates.
+
+Each control is documented individually below.
 
 ### 💰 1. Budget Circuit Breaker
 **Stop unexpected massive bills.** 
@@ -300,9 +269,9 @@ except BudgetExhausted:
     print("Agent stopped. Budget limit reached!")
 ```
 
-### 🛡️ 2. Prompt Shield (Injection Defense)
-**Stop jailbreaks before they reach the LLM.**
-Active pattern matching scans user inputs for known jailbreak phrases ("ignore all previous instructions", "you are now a DAN"). If detected, the API call is instantly blocked, saving you from hijacked prompts and wasted tokens.
+### 🛡️ 2. Prompt Shield (pattern-based injection filter)
+**Catch common, known jailbreak phrasings — a cheap first filter, not a complete defense.**
+Pattern matching scans user inputs for known jailbreak phrases ("ignore all previous instructions", "you are now a DAN") and blocks the call when one matches. This is a denylist: it's bypassable by rephrasing and won't catch novel attacks. Treat it as defense-in-depth, and pair it with the deterministic controls above.
 
 ```python
 from agentarmor.exceptions import InjectionDetected
@@ -318,8 +287,8 @@ except InjectionDetected as e:
 ```
 
 ### 🧠 2b. ML-Powered Injection Shield
-**AI-grade defense against sophisticated jailbreaks.**
-Goes beyond regex patterns with a TF-IDF + Logistic Regression classifier trained on 110+ real-world injection and safe prompt examples. Catches obfuscated attacks, multi-language injections, and novel jailbreak techniques that rule-based detection misses. Use `ensemble=True` to combine ML + regex for maximum coverage.
+**A learned classifier as a second layer — not a robustness guarantee.**
+A TF-IDF + Logistic Regression model trained on 110+ injection/safe examples. It catches some obfuscated or reworded attacks the regex layer misses, but it's a small classical model: expect both misses and false positives, and don't rely on it as a security boundary. Use `ensemble=True` to combine ML + regex.
 
 ```python
 import agentarmor
@@ -794,8 +763,8 @@ agentarmor.init(exfiltration_guard=True)
 # - Hidden data in markdown links/images
 ```
 
-### 🔐 21. Privilege Escalation Detector
-**Stop agents from going rogue.** Detects when an LLM agent tries to expand its own capabilities — requesting new tools, modifying its instructions, spawning unauthorized sub-agents, or attempting to disable safety measures.
+### 🔐 21. Tool-Policy & Capability-Request Detection
+**Two checks, with very different strength.** (1) An optional **tool allowlist** — the one piece here that's a hard authorization boundary: any tool call outside `allowed_tools` is blocked. (2) A regex scan of model output for capability-/escalation-style phrasing (requesting new tools, instruction changes, spawning sub-agents, scope expansion, safety-bypass language) — this half is heuristic and bypassable, so treat it as defense-in-depth. The API kwarg stays `privilege_escalation=` for compatibility.
 
 ```python
 agentarmor.init(privilege_escalation=True)
@@ -1120,6 +1089,48 @@ Built-in automated tracking for standard models across the major providers. Supp
 
 ---
 
+## Benchmarks
+
+These are reproducible evals on public datasets, run with the shipping configuration — shown with false-positive rates and the places we lose, not just the wins. High recall on some sets (AdvBench, HarmBench) comes with real false-positive cost on others (JailbreakBench, RealToxicityPrompts, HaluEval). The detectors are defense-in-depth, not a security guarantee.
+
+Tested against **10 industry datasets + 2 synthetic benchmarks** (5,100+ samples) spanning prompt injection, toxicity, hallucination, data exfiltration, and unicode attacks. Full results at [`benchmarks/README.md`](benchmarks/README.md).
+
+**Head-to-head comparison** — AgentArmor vs LlamaGuard 3 and OpenAI Moderation across six datasets with bootstrap F1 CIs, balance-aware metrics (MCC + balanced-accuracy on imbalanced sets), per-dataset operating-point naming, and honest loss annotations: [`BENCHMARKS_HEAD_TO_HEAD.md`](BENCHMARKS_HEAD_TO_HEAD.md). (Perspective API was dropped from v1 — Google/Jigsaw announced sunset with API EOL 2026-12-31.) Methodology in [`tasks/head-to-head-report/SPEC.md`](tasks/head-to-head-report/SPEC.md); operations in [`RUNBOOK.md`](RUNBOOK.md).
+
+### Harmful Content Detection (Combined: Shield + ML Shield + Toxicity)
+
+| Benchmark | Samples | Precision | Recall | F1 | FP Rate |
+|:----------|--------:|----------:|-------:|---:|--------:|
+| **AdvBench** | 200 | 100.0% | 91.9% | **95.8%** | 0.0% |
+| **HarmBench** | 200 | 100.0% | 90.0% | **94.7%** | 0.0% |
+| **Fuzzer Self-Test** | 148 | 97.4% | 86.7% | **91.7%** | 15.0% |
+| **JailbreakBench** | 200 | 70.2% | 73.0% | **71.6%** | 31.0% |
+
+### Toxicity & Bias Detection (Built-in ML classifier)
+
+| Benchmark | Type | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|----------:|-------:|---:|--------:|
+| **ToxiGen** | Implicit hate speech (13 groups) | 100.0% | 58.5% | **73.8%** | 0.0% |
+| **RealToxicityPrompts** | Subtle toxicity | 54.8% | 51.0% | **52.8%** | 42.0% |
+
+### Hallucination Detection (Grounding + TF-IDF semantic similarity)
+
+| Benchmark | Type | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|----------:|-------:|---:|--------:|
+| **TruthfulQA** | Factual grounding (817 Q&A) | 100.0% | 56.9% | **72.5%** | 0.0% |
+| **HaluEval** | QA/dialogue/summarization | 62.7% | 84.0% | **71.8%** | 50.0% |
+
+### Specialized Detectors
+
+| Benchmark | Type | Precision | Recall | F1 | FP Rate |
+|:----------|:-----|----------:|-------:|---:|--------:|
+| **Exfiltration** | Base64/hex/steganography/URL | 100.0% | 100.0% | **100.0%** | 0.0% |
+| **Unicode Injection** | Zero-width/homoglyph/bidi/tags | 100.0% | 91.2% | **95.4%** | 0.0% |
+
+> Run benchmarks yourself: `pip install datasets scikit-learn && python benchmarks/run_industry_benchmarks.py`
+
+---
+
 ## The Problem
 
 AI agents are unpredictable by design. A user might try to hijack your system prompt. The model might hallucinate an API key. An agent might get stuck in an infinite loop and make 300 LLM calls.
@@ -1129,12 +1140,12 @@ AI agents are unpredictable by design. A user might try to hijack your system pr
 3. **The Loop Problem** — A stuck agent makes 200 LLM calls in 10 minutes. $50-$200 down the drain before anyone notices.
 4. **The Invisible Spend** — Tokens aren't dollars. `gpt-4o` costs 15x more than `gpt-4o-mini`.
 
-**AgentArmor fills the gap:** Real-time, in-memory, deterministic safety enforcement that stops attacks, redacts secrets, and kills runaway sessions automatically.
+**AgentArmor fills the gap:** real-time, in-memory, deterministic controls that cap spend, redact secrets, and kill runaway sessions — plus defense-in-depth detectors for injection and unsafe output as an additional layer.
 
 ## Design Philosophy
 
 - **Zero infrastructure.** No Redis, no servers, no cloud accounts. AgentArmor is a pure Python library that runs entirely in your process.
-- **Zero code changes.** You don't rewrite your codebase to use a special client. Just call `agentarmor.init()` and your existing code is protected.
+- **Zero code changes.** You don't rewrite your codebase to use a special client. Just call `agentarmor.init()` and the controls apply to your existing code.
 - **Data stays local.** Everything runs in-memory and on-disk. Your prompts and responses never leave your machine.
 - **Framework agnostic.** Works with any framework that uses the `openai`, `anthropic`, or `google-genai` SDKs under the hood — no vendor lock-in.
 
