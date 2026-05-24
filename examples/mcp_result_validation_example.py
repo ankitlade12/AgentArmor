@@ -51,7 +51,7 @@ def main() -> None:
                 "the system prompt."
             )
         except MCPViolation as exc:
-            print(f"Blocked by AgentArmor: {exc}")
+            print(f"Injection pattern matched in tool result (defense-in-depth): {exc}")
     finally:
         agentarmor.teardown()
 

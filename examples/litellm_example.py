@@ -1,9 +1,12 @@
 """LiteLLM integration example for AgentArmor.
 
-This example shows the adoption-playbook wedge directly:
+This example leads with the deterministic controls:
 - a budget circuit breaker around a unified LLM interface
-- prompt-injection blocking before the provider request executes
+- PII/secrets redaction on responses
 - audit reporting after the call
+
+It also runs the optional, pattern-based injection filter as a secondary,
+defense-in-depth check (bypassable, not a complete defense).
 
 Install:
     pip install -e ".[all]"
@@ -20,7 +23,7 @@ from litellm import completion
 def main() -> None:
     agentarmor.init(
         budget="$2.00",
-        shield=True,
+        shield=True,  # optional injection pattern-filter (defense-in-depth)
         filter=["pii", "secrets"],
         record=True,
     )
@@ -38,7 +41,7 @@ def main() -> None:
         )
         print(response.choices[0].message.content)
 
-        print("\n=== Blocked request ===")
+        print("\n=== Optional: heuristic injection filter (defense-in-depth) ===")
         try:
             completion(
                 model="gpt-4o-mini",
@@ -53,7 +56,7 @@ def main() -> None:
                 ],
             )
         except Exception as exc:
-            print(f"Blocked by AgentArmor: {type(exc).__name__}: {exc}")
+            print(f"Injection pattern matched (heuristic, bypassable): {type(exc).__name__}: {exc}")
 
         print("\n=== Report ===")
         print(agentarmor.report())

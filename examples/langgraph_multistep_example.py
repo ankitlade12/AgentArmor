@@ -20,7 +20,7 @@ from agentarmor.exceptions import InjectionDetected
 
 agentarmor.init(
     budget="$2.00",
-    shield=True,
+    shield=True,  # optional injection pattern-filter (defense-in-depth)
     record=True,
 )
 
@@ -72,7 +72,7 @@ def main() -> None:
     )
     print(safe_result["answer"])
 
-    print("\n=== Blocked graph run ===")
+    print("\n=== Optional: heuristic injection filter (defense-in-depth) ===")
     try:
         graph.invoke(
             {
@@ -83,7 +83,7 @@ def main() -> None:
             }
         )
     except InjectionDetected as exc:
-        print(f"Blocked by AgentArmor: {exc}")
+        print(f"Injection pattern matched (heuristic, bypassable): {exc}")
 
     print("\n=== Report ===")
     print(agentarmor.report())
