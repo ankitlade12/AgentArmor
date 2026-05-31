@@ -246,7 +246,7 @@ def test_pydantic_ai_example_runs_with_stubbed_framework(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "=== Safe request ===" in output
     assert "Runtime safety keeps tools in bounds." in output
-    assert "Blocked by AgentArmor" in output
+    assert "Injection pattern matched (heuristic, bypassable)" in output
 
 
 def test_agno_tool_policy_example_runs_with_stubbed_framework(monkeypatch, capsys):
@@ -281,7 +281,7 @@ def test_langgraph_example_runs_with_stubbed_framework(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "=== Safe graph run ===" in output
     assert "Runtime safeguards keep multi-step agents on policy." in output
-    assert "Blocked by AgentArmor" in output
+    assert "Injection pattern matched (heuristic, bypassable)" in output
 
 
 def test_mcp_policy_example_runs_with_stubbed_firewall(monkeypatch, capsys):
