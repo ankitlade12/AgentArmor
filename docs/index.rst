@@ -1,14 +1,18 @@
 AgentArmor 🛡️
 ==============
 
-**The full-stack safety layer for AI agents.**
+**Local-first runtime controls for Python LLM apps and agents.**
 
-One install. Every shield. Zero infrastructure to manage.
+Budget circuit breakers, PII/secrets redaction, tool-call policy checks, rate
+limits, and audit traces — wrapped around your existing OpenAI / Anthropic /
+Gemini calls in two lines, with no hosted proxy.
 
-AgentArmor is an open-source Python SDK that wraps your LLM integrations with
-real-time safety controls. It protects your applications from runaway costs,
-prompt injection attacks, sensitive data leaks, and provides a complete audit
-trail of every interaction.
+AgentArmor is an open-source Python SDK that adds runtime controls around your
+LLM calls: a hard budget circuit breaker, PII/secrets redaction, tool-call
+policy checks, rate limiting, and a complete local audit trail. Optional
+defense-in-depth detectors (prompt injection, toxicity, and more) are
+documented per-feature, with their limits stated honestly — they reduce risk
+but are not a complete security boundary.
 
 .. code-block:: python
 
@@ -34,7 +38,7 @@ Key Features
 
 💰 **Budget Circuit Breaker** — Stop unexpected massive bills with real-time dollar-denominated tracking.
 
-🛡️ **Prompt Shield** — Block jailbreaks and prompt injection attacks before they reach the LLM.
+🛡️ **Prompt Shield** — Pattern-based filter for common jailbreak phrasings; defense-in-depth, not a complete defense.
 
 🔒 **Output Firewall** — Automatically redact PII, secrets, and API keys from LLM responses.
 

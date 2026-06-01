@@ -40,7 +40,7 @@ def main() -> None:
     try:
         guard.post_filter(make_response(malicious))
     except DataExfiltrationDetected as exc:
-        print(f"Blocked by AgentArmor: {exc}")
+        print(f"Exfiltration pattern matched (defense-in-depth): {exc}")
 
     print("\n=== Report ===")
     print(guard.report())

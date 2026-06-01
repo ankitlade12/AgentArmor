@@ -44,7 +44,7 @@ def main():
             message="Write a python function to print hello world, then say TERMINATE."
         )
     except InjectionDetected as e:
-        print(f"🛡️ Blocked by AgentArmor: {e}")
+        print(f"Injection pattern matched (heuristic, defense-in-depth): {e}")
     except BudgetExhausted as e:
         print(f"💰 Agent loop terminated due to budget limits: {e}")
     except Exception as e:

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "agentarmor"
 version = "1.6.0"
-description = "The full-stack safety layer for AI agents, including prompt injection, toxicity, hallucination detection, data exfiltration, privilege escalation, and more — in 2 lines of code."
+description = "Local-first runtime controls for Python LLM apps and agents: budget circuit breakers, PII/secrets redaction, tool-call policy checks, rate limits, and audit traces — in 2 lines, no hosted proxy."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
