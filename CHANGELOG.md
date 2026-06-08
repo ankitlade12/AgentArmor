@@ -2,6 +2,34 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.6.1] - 2026-06-08 — Conservative launch copy
+
+### Changed
+
+- README, docs site, and PyPI long description now lead with local-first runtime
+  control (budget circuit breaker, PII/secrets redaction, tool-call policy checks,
+  rate limits, audit traces). The "full-stack safety layer" / "protects from prompt
+  injection" framing is replaced with honest, defense-in-depth language for the
+  heuristic detectors.
+- New Status (v1.6) callout on the README separates deterministic controls from
+  heuristic detectors and states "not a complete security boundary" plainly.
+- Prompt Shield, ML Shield, and the privilege-escalation section rewritten to
+  reflect what the code actually does — pattern-based denylist, small classical
+  classifier, and regex output scan plus an optional tool allowlist — with
+  limitations called out.
+- "29 Safety Shields" features section regrouped as deterministic vs. heuristic.
+- "Privilege Escalation Detector" relabeled "Tool-Policy & Capability-Request
+  Detection" in docs only; the `privilege_escalation=` kwarg and
+  `PrivilegeEscalationDetected` exception are unchanged (non-breaking).
+- Benchmark tables moved from the top of the README down to a supporting-evidence
+  position near the end, with honest false-positive framing.
+- Example smoke-test assertions aligned with the new launch copy.
+
+### Notes
+
+- No code or public API changes; this release is a documentation and packaging
+  copy realignment so the PyPI long description matches the in-repo positioning.
+
 ## [1.6.0] - 2026-05-18 — Public launch refresh
 
 ### Added
