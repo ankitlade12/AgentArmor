@@ -2,7 +2,7 @@ import contextvars
 from typing import Optional
 from typing import Any
 
-__version__ = "1.6.0"
+__version__ = "1.6.1"
 
 from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext

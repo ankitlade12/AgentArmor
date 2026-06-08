@@ -3,7 +3,7 @@
 project = "AgentArmor"
 copyright = "2025, AgentArmor Contributors"
 author = "AgentArmor Contributors"
-release = "1.6.0"
+release = "1.6.1"
 
 # -- General configuration ---------------------------------------------------
 
