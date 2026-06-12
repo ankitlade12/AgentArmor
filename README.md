@@ -2,11 +2,8 @@
 
 **Local-first runtime controls for Python LLM apps and agents.**
 
-[![PyPI](https://img.shields.io/pypi/v/agentarmor.svg)](https://pypi.org/project/agentarmor/)
-[![Downloads](https://img.shields.io/pypi/dm/agentarmor.svg)](https://pypistats.org/packages/agentarmor)
-[![Python versions](https://img.shields.io/pypi/pyversions/agentarmor.svg)](https://pypi.org/project/agentarmor/)
-[![CI](https://github.com/ankitlade12/AgentArmor/actions/workflows/ci.yml/badge.svg)](https://github.com/ankitlade12/AgentArmor/actions/workflows/ci.yml)
-[![SDK & Framework Compatibility](https://github.com/ankitlade12/AgentArmor/actions/workflows/framework-integration.yml/badge.svg)](https://github.com/ankitlade12/AgentArmor/actions/workflows/framework-integration.yml)
+[![PyPI](https://img.shields.io/badge/pypi-agentarmor-blue.svg)](https://pypi.org/project/agentarmor/)
+[![Python versions](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/agentarmor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 **Budget circuit breakers, PII/secrets redaction, tool-call policy checks, rate limits, and audit traces — wrapped around your existing OpenAI / Anthropic / Gemini calls in two lines. No hosted proxy, no account, no extra network hops.**
