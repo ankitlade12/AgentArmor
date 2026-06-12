@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use AgentArmor in your research or project, please cite it as below."
+type: software
+title: "AgentArmor: local-first runtime controls for Python LLM apps and agents"
+authors:
+  - family-names: "Lade"
+    given-names: "Ankit Hemant"
+repository-code: "https://github.com/ankitlade12/AgentArmor"
+url: "https://github.com/ankitlade12/AgentArmor"
+license: MIT
+version: 1.6.1
+date-released: "2026-06-08"
+keywords:
+  - llm
+  - ai-agents
+  - runtime-safety
+  - budget-control
+  - pii-redaction
+  - prompt-injection
+  - audit-trail
