@@ -11,6 +11,17 @@ This project and everyone participating in it is governed by the [AgentArmor Cod
 * **Reporting Bugs**: Open an issue using the Bug Report template.
 * **Suggesting Enhancements**: Open an issue using the Feature Request template.
 * **Pull Requests**: Pull Requests are actively welcomed and reviewed!
+* **Breaking a detector**: see the next section — bypasses are contributions here.
+
+## Found a Detector Bypass? That's a Contribution
+
+The heuristic detectors (prompt injection, toxicity, unicode, exfiltration, and friends) are pattern-based and bypassable by design — and every working bypass you find makes the eval suite stronger. We treat confirmed bypasses as first-class contributions:
+
+1. **Reproduce it**: run `agentarmor.demo_attacks()` or the prompt fuzzer (`tools/prompt_fuzzer.py`) to see the current detection surface, then craft the input that should be caught but isn't.
+2. **Contribute it**: open an issue with the payload and which shield missed it — or better, submit it as a failing/`xfail` test case so it becomes a permanent regression target.
+3. **Get credited**: confirmed bypasses are credited in the CHANGELOG.
+
+Detector bypasses are expected, documented behavior — no responsible-disclosure formality needed. See [SECURITY.md](SECURITY.md) for what *does* qualify as a security vulnerability (a deterministic control failing to enforce: a budget breaker not tripping, a tool allowlist not blocking, redaction not redacting).
 
 ## Branching Strategy
 
@@ -62,7 +73,7 @@ To keep the repository clean and manageable, please follow these branch naming c
    ```
 
 ## Adding New Safety Modules
-If you have an idea for a 5th shield (e.g., prompt injection detection via LLM-as-a-judge or PII redaction via Presidio), we highly encourage it! 
+If you have an idea for a new module (e.g., prompt injection detection via LLM-as-a-judge or PII redaction via Presidio), we highly encourage it — though right now, hardening and testing the existing controls is even more valuable than adding new ones.
 1. Create a new file in `agentarmor/modules/new_shield.py`.
 2. Implement your logic as a Module class with an `__init__()`, `scan()` or `pre_check()`, and `report()` method.
 3. Hook it into the monkey-patch pipeline in `agentarmor/core.py`.
