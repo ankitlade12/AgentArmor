@@ -231,8 +231,10 @@ except BudgetExhausted:
 ```
 
 ### 🔒 Output Firewall
-**Stop sensitive data leaks.**
-Automatically scans the LLM's response output before it is returned to your application. Redacts PII (Emails, SSNs, phone numbers) and secrets (API Keys, tokens) on the fly. 
+**Redact sensitive data from model responses.**
+Automatically scans the LLM's response output before it is returned to your application. Redacts PII (Emails, SSNs, phone numbers) and secrets (API Keys, tokens) on the fly.
+
+> **Scope:** this is an *output* control — it redacts what the model sends *back*, before your app or logs see it. It does **not** prevent PII or secrets in your *prompt* from being sent to the provider; if that matters, redact your inputs before the call. Redaction is regex-based (see [limitations](#benchmarks)).
 
 ```python
 agentarmor.init(filter=["pii", "secrets"])
@@ -242,8 +244,10 @@ agentarmor.init(filter=["pii", "secrets"])
 ```
 
 ### 📼 Flight Recorder
-**Total observability and auditability.**
-Silently records the exact inputs, outputs, models, timestamps, and latency of every API call to a local JSONL session file. Perfect for debugging rogue agents or maintaining compliance standards.
+**Local debug & replay log of every call.**
+Silently records the exact inputs, outputs, models, timestamps, and latency of every API call to a local JSONL session file. Ideal for debugging rogue agents and replaying sessions.
+
+> **Scope:** the JSONL holds full, **unredacted** inputs and outputs. Files are written owner-only (`0600`), but this is a local debug log, **not a tamper-evident audit trail** — anything running as your user can still read, modify, or delete it. Don't treat it as forensic evidence or as a compliance control on its own.
 
 ```python
 agentarmor.init(record=True)
