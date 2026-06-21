@@ -7,6 +7,9 @@ PII_PATTERNS = {
     "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
     "credit_card": r"\b(?:\d{4}[- ]?){3}\d{4}\b",
     "phone": r"\b(\+1\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b",
+    "ipv4": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
+    "iban": r"\b[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}\b",
+    "intl_phone": r"\+\d[\d\s().\-]{6,16}\d",
     "api_key": r"(sk-|pk_|rk_)[a-zA-Z0-9]{20,}",
     "generic_secrets": r"(password|secret|token|api_key)\s*[:=]\s*\S+",
     "aws_key": r"AKIA[0-9A-Z]{16}",
@@ -35,7 +38,7 @@ class FilterModule:
         self.active_patterns = {}
         for rule in self.rules:
             if rule == "pii":
-                for name in ["email", "ssn", "credit_card", "phone"]:
+                for name in ["email", "ssn", "credit_card", "phone", "ipv4", "iban", "intl_phone"]:
                     self.active_patterns[name] = re.compile(PII_PATTERNS[name])
             elif rule == "secrets":
                 for name in ["api_key", "generic_secrets", "aws_key", "github_token", "jwt", "base64_secret"]:
