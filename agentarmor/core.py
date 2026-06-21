@@ -33,6 +33,7 @@ from .modules.semantic_drift import SemanticDriftModule
 from .modules.taint_tracker import TaintTrackerModule
 from .modules.honeytools import HoneytoolsModule
 from .modules.echo_chamber import EchoChamberModule
+from . import _http_intercept
 
 class ArmorCore:
     def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, explain=False, explain_redact=True, explain_max_detail_bytes=65536, explain_max_active_traces=10000, explain_max_trace_age_seconds=300, **kwargs):
@@ -261,13 +262,36 @@ class ArmorCore:
         else:
             original = current
         self._originals[key] = original
-        wrapped = wrapper_factory(original)
+        wrapped = self._with_sdk_flag(wrapper_factory(original))
         try:
             wrapped._agentarmor_wrapped = True
             wrapped._agentarmor_original = original
         except (AttributeError, TypeError):
             pass
         setattr(cls, attr, wrapped)
+
+    def _with_sdk_flag(self, fn: Callable) -> Callable:
+        """Wrap a patched SDK method so the httpx layer knows an SDK-level call
+        is in flight (via the ``sdk_layer_active`` contextvar) and skips it —
+        otherwise a normal openai/anthropic call would be counted twice (once by
+        the SDK wrapper, once by the httpx wrapper underneath it)."""
+        import inspect
+        if inspect.iscoroutinefunction(fn):
+            async def awrapper(*args, **kwargs):
+                token = _http_intercept.sdk_layer_active.set(True)
+                try:
+                    return await fn(*args, **kwargs)
+                finally:
+                    _http_intercept.sdk_layer_active.reset(token)
+            return awrapper
+
+        def wrapper(*args, **kwargs):
+            token = _http_intercept.sdk_layer_active.set(True)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                _http_intercept.sdk_layer_active.reset(token)
+        return wrapper
 
     def _restore(self, cls, attr: str, key: str) -> None:
         if key in self._originals:
@@ -343,6 +367,10 @@ class ArmorCore:
         except (ImportError, AttributeError) as e:
             self._warn_if_installed("google.genai", e)
 
+        # Generic httpx-layer catch-all for surfaces that bypass the SDK
+        # methods above (LiteLLM, .parse()/.stream(), custom httpx clients).
+        _http_intercept.install(self)
+
     def unpatch(self) -> None:
         """Restores original SDK methods."""
         try:
@@ -374,6 +402,8 @@ class ArmorCore:
             self._restore(genai_models.AsyncModels, "generate_content_stream", "genai_async_stream")
         except (ImportError, AttributeError):
             pass
+
+        _http_intercept.uninstall()
 
     def _build_request_context(self, provider: str, args: tuple, kwargs: dict) -> RequestContext:
         messages = kwargs.get("messages", [])
