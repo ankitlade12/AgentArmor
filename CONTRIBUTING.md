@@ -23,6 +23,24 @@ The heuristic detectors (prompt injection, toxicity, unicode, exfiltration, and 
 
 Detector bypasses are expected, documented behavior — no responsible-disclosure formality needed. See [SECURITY.md](SECURITY.md) for what *does* qualify as a security vulnerability (a deterministic control failing to enforce: a budget breaker not tripping, a tool allowlist not blocking, redaction not redacting).
 
+## Backlog: Where to Help
+
+Prioritized follow-ups from the runtime-safety audit, tracked as issues. None is
+adoption-critical — pick whatever fits. Full detail (context, scope, why it's
+deferred) lives in each issue.
+
+| Item | Priority | Issue |
+|------|----------|-------|
+| Streaming response redaction is incomplete (a secret split across stream deltas isn't redacted; httpx SSE deferred) — needs per-stream buffer state | Medium | [#85](https://github.com/ankitlade12/AgentArmor/issues/85) |
+| Fail loud on response-extraction failure (no silent unredacted passthrough) | Medium | [#86](https://github.com/ankitlade12/AgentArmor/issues/86) |
+| Test coverage reporting + badge | Low | [#87](https://github.com/ankitlade12/AgentArmor/issues/87) |
+| Docs build in CI to prevent rot | Low | [#88](https://github.com/ankitlade12/AgentArmor/issues/88) |
+| Rename the `privilege_escalation` kwarg with a deprecation path | Low | [#89](https://github.com/ankitlade12/AgentArmor/issues/89) |
+
+Browse [`good first issue`](https://github.com/ankitlade12/AgentArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+and [`help wanted`](https://github.com/ankitlade12/AgentArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+for more.
+
 ## Branching Strategy
 
 To keep the repository clean and manageable, please follow these branch naming conventions:
