@@ -4,3 +4,7 @@
 
 # Default owners for everything in the repo
 * @ankitlade12 @Sai-Krishna99
+
+# The benchmarks taxonomy rubric encodes methodological decisions that drive the
+# published head-to-head numbers; changes require a rubric owner's review.
+benchmarks/taxonomy_applicability.py  @Sai-Krishna99
