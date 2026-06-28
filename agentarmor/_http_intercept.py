@@ -120,6 +120,7 @@ def _run_after(core, request, response, provider):
         data = response.json()
     except Exception:
         return response  # not JSON / unreadable — leave untouched
+
     try:
         text, usage = _parse_response(data, provider)
         req_ctx = _request_context(request) or RequestContext(messages=[], model="unknown")
@@ -131,14 +132,19 @@ def _run_after(core, request, response, provider):
             request=req_ctx,
             usage=usage,
         )
-        resp_ctx = core.registry.execute_after_response(resp_ctx)
-        if resp_ctx.text != text:
+    except Exception:
+        return response  # unsupported JSON shape — leave untouched
+
+    resp_ctx = core.registry.execute_after_response(resp_ctx)
+    if resp_ctx.text != text:
+        try:
             response._content = json.dumps(
                 _write_back(data, resp_ctx.text, provider)
             ).encode("utf-8")
-    except Exception:
-        # Post-processing must never break a real response.
-        pass
+            if "content-length" in response.headers:
+                response.headers["content-length"] = str(len(response._content))
+        except Exception:
+            pass
     return response
 
 

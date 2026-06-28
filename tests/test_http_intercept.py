@@ -9,7 +9,7 @@ must not double-count calls already handled by the SDK layer.
 import pytest
 
 import agentarmor
-from agentarmor.exceptions import BudgetExhausted
+from agentarmor.exceptions import BudgetExhausted, CanaryLeakDetected
 
 httpx = pytest.importorskip("httpx")
 from agentarmor import _http_intercept
@@ -62,6 +62,16 @@ def test_non_streaming_response_is_redacted():
         content = r.json()["choices"][0]["message"]["content"]
         assert "user@example.com" not in content
         assert "REDACTED" in content
+    finally:
+        agentarmor.teardown()
+
+
+def test_response_side_blockers_propagate():
+    agentarmor.init(canary={"canary_word": "SECRETWORD42", "on_leak": "block"})
+    try:
+        client = _client(_openai_response("leaked SECRETWORD42"))
+        with pytest.raises(CanaryLeakDetected):
+            client.post(_OPENAI_URL, json=_OPENAI_BODY)
     finally:
         agentarmor.teardown()
 
