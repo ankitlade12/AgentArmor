@@ -34,6 +34,25 @@ def test_warn_if_installed_is_silent_for_an_absent_sdk():
     assert caught == [], "a genuinely-absent SDK must be skipped silently"
 
 
+def test_patch_warns_when_installed_sdk_patch_method_is_missing(monkeypatch):
+    """If the private class still imports but the method moved, warn instead of
+    raising and leaving users without a clear inactive-guardrails signal."""
+    from openai.resources.chat.completions import Completions
+
+    monkeypatch.delattr(Completions, "create")
+
+    core = ArmorCore()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        core.patch()
+        core.unpatch()
+
+    assert any(
+        "INACTIVE" in str(w.message) and "openai" in str(w.message)
+        for w in caught
+    )
+
+
 def test_patch_does_not_warn_when_sdks_are_patchable():
     """Happy path: with openai/anthropic importable and patchable, patch()
     must not emit the inactive-guardrails warning."""
