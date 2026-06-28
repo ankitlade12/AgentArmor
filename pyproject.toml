@@ -24,6 +24,8 @@ anthropic = ["anthropic>=0.25.0"]
 ml = ["scikit-learn>=1.3.0"]
 gemini = ["google-genai>=1.0.0"]
 toxicity = ["detoxify>=0.5.0"]
+# `drift` and `semantic_drift` are aliases for the same dependency (the README
+# and docs use `drift`); both are kept so neither install form breaks.
 semantic_drift = ["sentence-transformers>=2.2.0"]
 drift = ["sentence-transformers>=2.2.0"]
 # Head-to-head benchmark extras. numpy pin is load-bearing for D45 —
