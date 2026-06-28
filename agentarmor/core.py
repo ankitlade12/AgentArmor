@@ -242,49 +242,75 @@ class ArmorCore:
                 self.registry.register_before_request(self.modules["echo_chamber"].pre_check)
                 self.registry.register_after_response(self.modules["echo_chamber"].post_filter)
 
+    def _install(self, cls, attr: str, key: str, wrapper_factory) -> None:
+        """Patch ``cls.attr``, always capturing the GENUINE original.
+
+        If the current method is already an AgentArmor wrapper (init() called
+        twice, or a previous core that wasn't torn down), recover the true
+        original it recorded instead of capturing the wrapper. Otherwise
+        ``teardown()`` would restore a wrapper and corrupt the SDK method
+        permanently in-process. The ``is True`` check is deliberate: a
+        ``MagicMock`` standing in for the SDK auto-creates any attribute, so a
+        loose truthiness test would misread a mock as "already wrapped".
+        """
+        current = getattr(cls, attr)
+        if getattr(current, "_agentarmor_wrapped", False) is True:
+            original = current._agentarmor_original
+        else:
+            original = current
+        self._originals[key] = original
+        wrapped = wrapper_factory(original)
+        try:
+            wrapped._agentarmor_wrapped = True
+            wrapped._agentarmor_original = original
+        except (AttributeError, TypeError):
+            pass
+        setattr(cls, attr, wrapped)
+
+    def _restore(self, cls, attr: str, key: str) -> None:
+        if key in self._originals:
+            setattr(cls, attr, self._originals[key])
+
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
         try:
             from openai.resources.chat.completions import Completions, AsyncCompletions
-            self._originals["openai_sync"] = Completions.create
-            Completions.create = self._wrap_sync(self._originals["openai_sync"], provider="openai")
-
-            self._originals["openai_async"] = AsyncCompletions.create
-            AsyncCompletions.create = self._wrap_async(self._originals["openai_async"], provider="openai")
+            self._install(Completions, "create", "openai_sync",
+                          lambda o: self._wrap_sync(o, provider="openai"))
+            self._install(AsyncCompletions, "create", "openai_async",
+                          lambda o: self._wrap_async(o, provider="openai"))
         except ImportError:
             pass
 
         # OpenAI Responses API (Agents-era surface)
         try:
             from openai.resources.responses import Responses, AsyncResponses
-            self._originals["openai_responses_sync"] = Responses.create
-            Responses.create = self._wrap_responses_sync(self._originals["openai_responses_sync"])
-
-            self._originals["openai_responses_async"] = AsyncResponses.create
-            AsyncResponses.create = self._wrap_responses_async(self._originals["openai_responses_async"])
+            self._install(Responses, "create", "openai_responses_sync",
+                          self._wrap_responses_sync)
+            self._install(AsyncResponses, "create", "openai_responses_async",
+                          self._wrap_responses_async)
         except ImportError:
             pass
 
         try:
             from anthropic.resources.messages import Messages, AsyncMessages
-            self._originals["anthropic_sync"] = Messages.create
-            Messages.create = self._wrap_sync(self._originals["anthropic_sync"], provider="anthropic")
-
-            self._originals["anthropic_async"] = AsyncMessages.create
-            AsyncMessages.create = self._wrap_async(self._originals["anthropic_async"], provider="anthropic")
+            self._install(Messages, "create", "anthropic_sync",
+                          lambda o: self._wrap_sync(o, provider="anthropic"))
+            self._install(AsyncMessages, "create", "anthropic_async",
+                          lambda o: self._wrap_async(o, provider="anthropic"))
         except ImportError:
             pass
 
         try:
             import google.genai as genai
-            self._originals["genai_sync"] = genai.models.Models.generate_content
-            genai.models.Models.generate_content = self._wrap_genai_sync(self._originals["genai_sync"], is_stream=False)
-            self._originals["genai_stream"] = genai.models.Models.generate_content_stream
-            genai.models.Models.generate_content_stream = self._wrap_genai_sync(self._originals["genai_stream"], is_stream=True)
-            self._originals["genai_async"] = genai.models.AsyncModels.generate_content
-            genai.models.AsyncModels.generate_content = self._wrap_genai_async(self._originals["genai_async"], is_stream=False)
-            self._originals["genai_async_stream"] = genai.models.AsyncModels.generate_content_stream
-            genai.models.AsyncModels.generate_content_stream = self._wrap_genai_async(self._originals["genai_async_stream"], is_stream=True)
+            self._install(genai.models.Models, "generate_content", "genai_sync",
+                          lambda o: self._wrap_genai_sync(o, is_stream=False))
+            self._install(genai.models.Models, "generate_content_stream", "genai_stream",
+                          lambda o: self._wrap_genai_sync(o, is_stream=True))
+            self._install(genai.models.AsyncModels, "generate_content", "genai_async",
+                          lambda o: self._wrap_genai_async(o, is_stream=False))
+            self._install(genai.models.AsyncModels, "generate_content_stream", "genai_async_stream",
+                          lambda o: self._wrap_genai_async(o, is_stream=True))
         except (ImportError, AttributeError):
             pass
 
@@ -292,41 +318,31 @@ class ArmorCore:
         """Restores original SDK methods."""
         try:
             from openai.resources.chat.completions import Completions, AsyncCompletions
-            if "openai_sync" in self._originals:
-                Completions.create = self._originals["openai_sync"]
-            if "openai_async" in self._originals:
-                AsyncCompletions.create = self._originals["openai_async"]
+            self._restore(Completions, "create", "openai_sync")
+            self._restore(AsyncCompletions, "create", "openai_async")
         except ImportError:
             pass
 
         try:
             from openai.resources.responses import Responses, AsyncResponses
-            if "openai_responses_sync" in self._originals:
-                Responses.create = self._originals["openai_responses_sync"]
-            if "openai_responses_async" in self._originals:
-                AsyncResponses.create = self._originals["openai_responses_async"]
+            self._restore(Responses, "create", "openai_responses_sync")
+            self._restore(AsyncResponses, "create", "openai_responses_async")
         except ImportError:
             pass
-            
+
         try:
             from anthropic.resources.messages import Messages, AsyncMessages
-            if "anthropic_sync" in self._originals:
-                Messages.create = self._originals["anthropic_sync"]
-            if "anthropic_async" in self._originals:
-                AsyncMessages.create = self._originals["anthropic_async"]
+            self._restore(Messages, "create", "anthropic_sync")
+            self._restore(AsyncMessages, "create", "anthropic_async")
         except ImportError:
             pass
 
         try:
             import google.genai as genai
-            if "genai_sync" in self._originals:
-                genai.models.Models.generate_content = self._originals["genai_sync"]
-            if "genai_stream" in self._originals:
-                genai.models.Models.generate_content_stream = self._originals["genai_stream"]
-            if "genai_async" in self._originals:
-                genai.models.AsyncModels.generate_content = self._originals["genai_async"]
-            if "genai_async_stream" in self._originals:
-                genai.models.AsyncModels.generate_content_stream = self._originals["genai_async_stream"]
+            self._restore(genai.models.Models, "generate_content", "genai_sync")
+            self._restore(genai.models.Models, "generate_content_stream", "genai_stream")
+            self._restore(genai.models.AsyncModels, "generate_content", "genai_async")
+            self._restore(genai.models.AsyncModels, "generate_content_stream", "genai_async_stream")
         except (ImportError, AttributeError):
             pass
 
