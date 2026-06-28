@@ -100,6 +100,12 @@ def test_issue_seed_script_excludes_already_shipped_launch_tasks():
     assert titles.isdisjoint(shipped_titles)
 
 
+def test_issue_template_config_does_not_link_disabled_discussions():
+    config = _read(".github/ISSUE_TEMPLATE/config.yml")
+
+    assert "/discussions" not in config
+
+
 def test_readme_and_feature_reference_local_anchors_resolve():
     anchors_by_file = {
         "README.md": _github_anchor_ids("README.md"),
