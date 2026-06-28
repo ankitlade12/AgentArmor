@@ -25,13 +25,12 @@ Detector bypasses are expected, documented behavior — no responsible-disclosur
 
 ## Backlog: Where to Help
 
-Prioritized follow-ups from the runtime-safety audit, tracked as issues. None is
-adoption-critical — pick whatever fits. Full detail (context, scope, why it's
-deferred) lives in each issue.
+Prioritized open follow-ups from the runtime-safety audit, tracked as issues.
+None is adoption-critical — pick whatever fits. Full detail (context, scope,
+why it's deferred) lives in each issue.
 
 | Item | Priority | Issue |
 |------|----------|-------|
-| Streaming response redaction is incomplete (a secret split across stream deltas isn't redacted; httpx SSE deferred) — needs per-stream buffer state | Medium | [#85](https://github.com/ankitlade12/AgentArmor/issues/85) |
 | Fail loud on response-extraction failure (no silent unredacted passthrough) | Medium | [#86](https://github.com/ankitlade12/AgentArmor/issues/86) |
 | Test coverage reporting + badge | Low | [#87](https://github.com/ankitlade12/AgentArmor/issues/87) |
 | Docs build in CI to prevent rot | Low | [#88](https://github.com/ankitlade12/AgentArmor/issues/88) |

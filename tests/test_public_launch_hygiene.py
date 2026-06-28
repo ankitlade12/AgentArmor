@@ -106,6 +106,12 @@ def test_issue_template_config_does_not_link_disabled_discussions():
     assert "/discussions" not in config
 
 
+def test_contributing_backlog_does_not_reference_resolved_streaming_redaction_issue():
+    contributing = _read("CONTRIBUTING.md")
+
+    assert "/issues/85" not in contributing
+
+
 def test_readme_and_feature_reference_local_anchors_resolve():
     anchors_by_file = {
         "README.md": _github_anchor_ids("README.md"),
