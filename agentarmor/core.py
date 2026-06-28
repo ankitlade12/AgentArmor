@@ -421,7 +421,7 @@ class ArmorCore:
             extra_kwargs=kwargs
         )
 
-    def _apply_request_context_to_kwargs(self, ctx: RequestContext, kwargs: dict) -> None:
+    def _apply_request_context_to_kwargs(self, ctx: RequestContext, kwargs: dict, provider: str = None) -> None:
         kwargs["messages"] = ctx.messages
         kwargs["model"] = ctx.model
         if ctx.temperature is not None:
@@ -431,13 +431,23 @@ class ArmorCore:
         kwargs["stream"] = ctx.stream
         kwargs.update(ctx.extra_kwargs)
 
+        # OpenAI only emits token usage on a streamed response when the caller
+        # opts in via stream_options={"include_usage": True}. Without it the
+        # budget breaker silently under-meters every stream (input tokens ~0,
+        # output cost a char-count guess), so inject it unless the caller has
+        # already made an explicit choice.
+        if provider == "openai" and ctx.stream:
+            existing = kwargs.get("stream_options") or {}
+            if "include_usage" not in existing:
+                kwargs["stream_options"] = {**existing, "include_usage": True}
+
     def _wrap_sync(self, original_fn: Callable, provider: str):
         def wrapped(*args, **kwargs):
             session = _ExplainSession() if _explain_config.enabled else None
             try:
                 ctx = self._build_request_context(provider, args, kwargs)
                 ctx = self.registry.execute_before_request(ctx)
-                self._apply_request_context_to_kwargs(ctx, kwargs)
+                self._apply_request_context_to_kwargs(ctx, kwargs, provider)
 
                 t0 = time.perf_counter()
                 response = original_fn(*args, **kwargs)
@@ -464,7 +474,7 @@ class ArmorCore:
             try:
                 ctx = self._build_request_context(provider, args, kwargs)
                 ctx = self.registry.execute_before_request(ctx)
-                self._apply_request_context_to_kwargs(ctx, kwargs)
+                self._apply_request_context_to_kwargs(ctx, kwargs, provider)
 
                 t0 = time.perf_counter()
                 response = await original_fn(*args, **kwargs)
