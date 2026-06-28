@@ -1,8 +1,10 @@
 name: E2E Multi-Provider Benchmarks
 
+# Manual-dispatch only: this benchmark makes real (paid) provider calls, so it
+# runs on demand rather than automatically on every release. Trigger it before
+# publishing benchmark numbers with, e.g.:
+#   gh workflow run benchmark-e2e.yml -f provider=anthropic
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       provider:
