@@ -8,8 +8,8 @@ authors:
 repository-code: "https://github.com/ankitlade12/AgentArmor"
 url: "https://github.com/ankitlade12/AgentArmor"
 license: MIT
-version: 1.6.2
-date-released: "2026-06-21"
+version: 1.6.3
+date-released: "2026-06-28"
 keywords:
   - llm
   - ai-agents
