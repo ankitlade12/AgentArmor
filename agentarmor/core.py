@@ -775,23 +775,28 @@ class ArmorCore:
 
         def generator():
             nonlocal accumulated_text, current_safe_text, usage
+            last_content_event = None
             try:
                 for event in stream:
                     delta = self._extract_responses_stream_delta(event)
                     if delta:
                         accumulated_text += delta
-                        new_safe = self.registry.execute_on_stream_chunk(accumulated_text)
-                        # Rewrite the delta in the event before yielding
-                        if len(new_safe) > len(current_safe_text):
-                            safe_delta = new_safe[len(current_safe_text):]
-                            self._inject_responses_stream_delta(event, safe_delta)
-                        else:
-                            self._inject_responses_stream_delta(event, "")
-                        current_safe_text = new_safe
+                        safe_delta, current_safe_text = self._streaming_safe_delta(
+                            accumulated_text, current_safe_text
+                        )
+                        self._inject_responses_stream_delta(event, safe_delta)
+                        last_content_event = event
                     yield event
+
+                safe_delta, current_safe_text = self._streaming_safe_delta(
+                    accumulated_text, current_safe_text, final=True
+                )
+                if safe_delta and last_content_event is not None:
+                    self._inject_responses_stream_delta(last_content_event, safe_delta)
+                    yield last_content_event
             finally:
                 res_ctx = ResponseContext(
-                    text=current_safe_text or accumulated_text,
+                    text=current_safe_text,
                     model=req_ctx.model,
                     provider="openai",
                     request=req_ctx,
@@ -809,22 +814,28 @@ class ArmorCore:
 
         async def async_generator():
             nonlocal accumulated_text, current_safe_text, usage
+            last_content_event = None
             try:
                 async for event in stream:
                     delta = self._extract_responses_stream_delta(event)
                     if delta:
                         accumulated_text += delta
-                        new_safe = self.registry.execute_on_stream_chunk(accumulated_text)
-                        if len(new_safe) > len(current_safe_text):
-                            safe_delta = new_safe[len(current_safe_text):]
-                            self._inject_responses_stream_delta(event, safe_delta)
-                        else:
-                            self._inject_responses_stream_delta(event, "")
-                        current_safe_text = new_safe
+                        safe_delta, current_safe_text = self._streaming_safe_delta(
+                            accumulated_text, current_safe_text
+                        )
+                        self._inject_responses_stream_delta(event, safe_delta)
+                        last_content_event = event
                     yield event
+
+                safe_delta, current_safe_text = self._streaming_safe_delta(
+                    accumulated_text, current_safe_text, final=True
+                )
+                if safe_delta and last_content_event is not None:
+                    self._inject_responses_stream_delta(last_content_event, safe_delta)
+                    yield last_content_event
             finally:
                 res_ctx = ResponseContext(
-                    text=current_safe_text or accumulated_text,
+                    text=current_safe_text,
                     model=req_ctx.model,
                     provider="openai",
                     request=req_ctx,

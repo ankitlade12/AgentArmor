@@ -63,6 +63,89 @@ def test_long_clean_stream_is_not_dropped_or_reordered():
     assert _run_stream(deltas) == "a" * 30 + "b" * 30 + "c" * 30
 
 
+def test_responses_stream_secret_split_across_chunks_is_redacted():
+    try:
+        from openai.resources.responses import Responses
+    except ImportError:
+        pytest.skip("openai SDK does not have responses module")
+
+    events = []
+    for delta in ["my email is ", "user@exa", "mple.com ok"]:
+        event = MagicMock()
+        event.type = "response.output_text.delta"
+        event.delta = delta
+        events.append(event)
+
+    done = MagicMock()
+    done.type = "response.completed"
+    events.append(done)
+
+    def mock_stream():
+        yield from events
+
+    original_create = Responses.create
+    Responses.create = MagicMock(return_value=mock_stream())
+    try:
+        agentarmor.init(filter=["pii"])
+        client = openai.OpenAI(api_key="mock")
+        response = client.responses.create(model="gpt-4o", input="hi", stream=True)
+
+        out = ""
+        for event in response:
+            if getattr(event, "type", "") == "response.output_text.delta":
+                out += event.delta
+
+        assert out == "my email is [REDACTED:EMAIL] ok"
+        assert "user@exa" not in out
+    finally:
+        agentarmor.teardown()
+        Responses.create = original_create
+
+
+@pytest.mark.asyncio
+async def test_responses_stream_secret_split_across_chunks_is_redacted_async():
+    try:
+        from openai.resources.responses import AsyncResponses
+    except ImportError:
+        pytest.skip("openai SDK does not have responses module")
+
+    events = []
+    for delta in ["my email is ", "user@exa", "mple.com ok"]:
+        event = MagicMock()
+        event.type = "response.output_text.delta"
+        event.delta = delta
+        events.append(event)
+
+    done = MagicMock()
+    done.type = "response.completed"
+    events.append(done)
+
+    async def mock_stream():
+        for event in events:
+            yield event
+
+    async def mock_create(*args, **kwargs):
+        return mock_stream()
+
+    original_create = AsyncResponses.create
+    AsyncResponses.create = MagicMock(side_effect=mock_create)
+    try:
+        agentarmor.init(filter=["pii"])
+        client = openai.AsyncOpenAI(api_key="mock")
+        response = await client.responses.create(model="gpt-4o", input="hi", stream=True)
+
+        out = ""
+        async for event in response:
+            if getattr(event, "type", "") == "response.output_text.delta":
+                out += event.delta
+
+        assert out == "my email is [REDACTED:EMAIL] ok"
+        assert "user@exa" not in out
+    finally:
+        agentarmor.teardown()
+        AsyncResponses.create = original_create
+
+
 @pytest.mark.asyncio
 async def test_secret_split_across_chunks_is_redacted_async():
     aclient = openai.AsyncOpenAI(api_key="mock")
