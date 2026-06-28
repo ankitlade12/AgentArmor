@@ -9,7 +9,7 @@ Gemini calls in two lines, with no hosted proxy.
 
 AgentArmor is an open-source Python SDK that adds runtime controls around your
 LLM calls: a hard budget circuit breaker, PII/secrets redaction, tool-call
-policy checks, rate limiting, and a complete local audit trail. Optional
+policy checks, rate limiting, and a local debug/replay log. Optional
 defense-in-depth detectors (prompt injection, toxicity, and more) are
 documented per-feature, with their limits stated honestly — they reduce risk
 but are not a complete security boundary.
@@ -42,7 +42,7 @@ Key Features
 
 🔒 **Output Firewall** — Automatically redact PII, secrets, and API keys from LLM responses.
 
-📼 **Flight Recorder** — Full audit trail of every API call with inputs, outputs, and latency.
+📼 **Flight Recorder** — Local debug/replay log of every API call with inputs, outputs, and latency.
 
 🔌 **Hooks & Middleware** — Inject custom logic before requests and after responses.
 

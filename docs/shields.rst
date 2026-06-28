@@ -101,10 +101,13 @@ on the fly.
 📼 Flight Recorder
 -------------------
 
-**Total observability and auditability.**
+**Local debug & replay log of every call.**
 
 Silently records the exact inputs, outputs, models, timestamps, and latency of
-every API call to a local JSONL session file.
+every API call to a local JSONL session file. The file contains full,
+unredacted inputs and outputs. On POSIX systems, files are written owner-only
+(``0600``), but this is not a tamper-evident audit trail or a compliance
+control on its own.
 
 .. code-block:: python
 
