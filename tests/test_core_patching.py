@@ -140,7 +140,10 @@ def test_stream_sync_patching():
                 output += chunk.choices[0].delta.content
                 
         assert output == "hello stream"
-        assert chunks_hook_called == 2
+        # Redaction holdback (#85): short streams (< holdback window) are
+        # committed/scanned once at the end-of-stream flush rather than once per
+        # content chunk. The stream-chunk hook fires on committed text only.
+        assert chunks_hook_called == 1
         assert after_hook_called is True
         assert final_usage["input_tokens"] == 10
         assert final_usage["output_tokens"] == 2

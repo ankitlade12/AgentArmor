@@ -21,6 +21,11 @@ class RecorderModule:
         self.events = []
         if self.storage == "local":
             os.makedirs(path, exist_ok=True)
+            # The log holds full, unredacted prompts/outputs — keep it owner-only.
+            try:
+                os.chmod(path, 0o700)
+            except OSError:
+                pass
             self.filepath = os.path.join(self.path, f"session_{self.session_id}.jsonl")
         else:
             self.logger = logging.getLogger("agentarmor.recorder")
@@ -46,7 +51,13 @@ class RecorderModule:
         return ctx
 
     def _flush_local(self, event: dict):
-        with open(self.filepath, "a") as f:
+        # Create owner-only (0600) — the file contains unredacted prompt data.
+        fd = os.open(self.filepath, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        except OSError:
+            pass
+        with os.fdopen(fd, "a") as f:
             f.write(json.dumps(event) + "\n")
 
     def report(self) -> dict:

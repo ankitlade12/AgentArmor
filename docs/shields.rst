@@ -72,8 +72,8 @@ Custom patterns can be added via the :class:`~agentarmor.modules.shield.ShieldMo
 **Stop sensitive data leaks.**
 
 Automatically scans LLM response output before it reaches your application.
-Redacts PII (emails, SSNs, phone numbers) and secrets (API keys, tokens)
-on the fly.
+Redacts PII (emails, SSNs, US/international phone numbers, IPv4 addresses, IBANs) and secrets
+(API keys, tokens) on the fly.
 
 .. code-block:: python
 
@@ -93,7 +93,7 @@ on the fly.
      - Detects
    * - ``pii``
      - Personal data
-     - Emails, SSNs, credit cards, phone numbers
+     - Emails, SSNs, credit cards, US/international phone numbers, IPv4 addresses, IBANs
    * - ``secrets``
      - Credentials
      - API keys, AWS keys, GitHub tokens, JWTs, generic secrets
@@ -101,10 +101,13 @@ on the fly.
 📼 Flight Recorder
 -------------------
 
-**Total observability and auditability.**
+**Local debug & replay log of every call.**
 
 Silently records the exact inputs, outputs, models, timestamps, and latency of
-every API call to a local JSONL session file.
+every API call to a local JSONL session file. The file contains full,
+unredacted inputs and outputs. On POSIX systems, files are written owner-only
+(``0600``), but this is not a tamper-evident audit trail or a compliance
+control on its own.
 
 .. code-block:: python
 
