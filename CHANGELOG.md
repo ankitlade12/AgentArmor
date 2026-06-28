@@ -2,6 +2,49 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.6.2] - 2026-06-21 — Runtime-safety audit fixes
+
+A documentation-and-hardening release: ships the fixes from the runtime-safety
+audit (no breaking API changes). The deterministic controls are now meaningfully
+more robust and the docs match what the code actually does.
+
+### Fixed
+
+- **Idempotent `init()`** — a second `init()` (notebook re-run, per-request
+  worker) no longer captures an already-wrapped method as the original, so
+  `teardown()` always restores the genuine SDK method and the previous core's
+  hooks stop running.
+- **Streamed budgets** — `stream_options={"include_usage": True}` is auto-injected
+  for OpenAI streams, so the budget breaker no longer silently under-meters
+  streamed calls.
+- **Streaming redaction** — a redactable secret split across stream chunks is now
+  held back and redacted before emission instead of leaking its prefix (#85).
+- **Fail-loud filtering** — an unknown `filter=[...]` rule raises instead of
+  silently disabling redaction.
+- **Fail-loud patching** — `patch()` warns when an installed provider SDK is
+  present but its patch target can't be resolved (version drift), instead of
+  silently leaving that provider unprotected.
+
+### Added
+
+- **httpx-layer interception** (observe-first) — budget, audit, and
+  non-streaming redaction for calls that bypass the patched SDK methods (LiteLLM,
+  `.parse()`/`.stream()`, custom httpx clients), with an SDK-layer double-count
+  guard.
+- **Async coverage** for the deterministic controls.
+- **Expanded `filter=["pii"]`** — IPv4, IBAN, and international phone.
+- Common exceptions (`BudgetExhausted`, `InjectionDetected`, …) are importable
+  from the top level; `py.typed` shipped; `init()` fully type-annotated.
+
+### Changed
+
+- **Honest framing** — redaction documented as output-only (does not prevent
+  prompt egress); flight recorder documented as a local, unredacted,
+  not-tamper-evident debug log and now written owner-only (`0600`).
+- Actionable `BudgetExhausted` message; repo hygiene (SECURITY supported
+  versions, CODE_OF_CONDUCT enforcement/contact, LICENSE holder, issue-template
+  config, publish-time test gate).
+
 ## [1.6.1] - 2026-06-08 — Conservative launch copy
 
 ### Changed
