@@ -2,6 +2,25 @@
 
 All notable changes to the AgentArmor project will be documented in this file.
 
+## [1.6.3] - 2026-06-28 — Toxicity default precision
+
+### Fixed
+
+- The built-in toxicity ML classifier (TF-IDF + Logistic Regression) is now
+  **opt-in** (`use_builtin_ml=False` by default). On by default it over-fired on
+  benign output — e.g. it scored "Photosynthesis converts sunlight, water, and
+  CO2 into glucose and oxygen" at 0.74 — causing roughly 40% false positives with
+  `toxicity=True` (surfaced by the E2E `safe_passthrough` benchmark). The default
+  now relies on the high-precision regex patterns; enable the classifier with
+  `toxicity={"use_builtin_ml": True}`. Benchmark baselines pin it on so published
+  numbers are unchanged. (#95, #96)
+
+### Fixed (benchmarks)
+
+- Dropped the invalid `claude-opus-4` model id from the E2E benchmark (the
+  Anthropic API 404s on the bare alias); the E2E workflow now also skips cleanly
+  when no provider API keys are configured instead of failing the release. (#93, #94)
+
 ## [1.6.2] - 2026-06-21 — Runtime-safety audit fixes
 
 A documentation-and-hardening release: ships the fixes from the runtime-safety
