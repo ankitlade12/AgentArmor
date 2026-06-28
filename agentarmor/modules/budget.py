@@ -24,7 +24,11 @@ class BudgetModule:
         estimated = self._estimate_input_cost(ctx.model, ctx.messages)
         if self.spent + estimated > self.limit:
             raise BudgetExhausted(
-                f"Budget exhausted. Spent: ${self.spent:.4f} / ${self.limit:.2f}"
+                f"Budget would be exceeded: this call is estimated at "
+                f"${estimated:.4f}, with ${self.spent:.4f} already spent of a "
+                f"${self.limit:.2f} limit (${self.remaining:.4f} remaining). "
+                f"Raise the cap via init(budget=...) or call "
+                f"agentarmor.teardown() to disable the breaker."
             )
         return ctx
 

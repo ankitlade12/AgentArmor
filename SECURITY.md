@@ -6,8 +6,8 @@ We currently support security fixes for the latest release line on `main`.
 
 | Version | Supported |
 | ------- | --------- |
-| `1.5.x` | Yes |
-| `<1.5.0` | No |
+| `1.6.x` | Yes |
+| `<1.6.0` | No |
 
 If you are running an older version, please upgrade before reporting a
 security issue unless the problem prevents upgrade.

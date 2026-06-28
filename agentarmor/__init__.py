@@ -1,6 +1,7 @@
 import contextvars
 from typing import Optional
 from typing import Any
+from typing import List, Union
 
 __version__ = "1.6.1"
 
@@ -8,6 +9,8 @@ from .core import ArmorCore
 from .hooks import before_request, after_response, on_stream_chunk, RequestContext, ResponseContext
 from .config import load_config
 from .exceptions import (
+    BudgetExhausted, InjectionDetected, RateLimitExceeded,
+    FilterViolation, HookError, PatchError,
     ContextOverflow, LatencyThresholdExceeded, CanaryLeakDetected,
     ToolCallBlocked, DuplicateRequest, MLInjectionDetected,
     AgentDepthExceeded, AgentLimitExceeded, AgentBudgetExhausted,
@@ -53,7 +56,43 @@ _active_agent: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
 _explain_startup_warned = False
 
 
-def init(budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, explain=False, explain_redact=True, explain_max_detail_bytes=65536, explain_max_active_traces=10000, explain_max_trace_age_seconds=300, strict=False, **kwargs) -> ArmorCore:
+def init(
+    budget: Optional[str] = None,
+    shield: bool = False,
+    filter: Optional[List[str]] = None,
+    record: bool = False,
+    rate_limit: Optional[str] = None,
+    context_guard: Union[bool, float] = False,
+    latency_breaker: Optional[Union[bool, dict]] = None,
+    canary: Optional[Union[bool, str, dict]] = None,
+    tool_firewall: Optional[Union[dict, list]] = None,
+    cost_tags: Optional[Union[bool, dict]] = None,
+    dedup: Optional[Union[bool, dict]] = None,
+    cascade: Optional[list] = None,
+    ml_shield: Optional[Union[bool, dict]] = None,
+    agent_graph: Optional[Union[bool, dict]] = None,
+    mcp_firewall: Optional[Union[bool, dict]] = None,
+    code_shield: Optional[Union[bool, dict]] = None,
+    grounding: Optional[Union[bool, dict]] = None,
+    cot_auditor: Optional[Union[bool, dict]] = None,
+    toxicity: Optional[Union[bool, dict]] = None,
+    compliance: Optional[Union[bool, dict]] = None,
+    hitl_gate: Optional[Union[bool, dict]] = None,
+    exfiltration_guard: Optional[Union[bool, dict]] = None,
+    privilege_escalation: Optional[Union[bool, dict]] = None,
+    unicode_shield: Optional[Union[bool, dict]] = None,
+    semantic_drift: Optional[Union[bool, dict]] = None,
+    taint_tracker: Optional[Union[bool, dict]] = None,
+    honeytools: Optional[Union[bool, dict]] = None,
+    echo_chamber: Optional[Union[bool, dict]] = None,
+    explain: bool = False,
+    explain_redact: bool = True,
+    explain_max_detail_bytes: int = 65536,
+    explain_max_active_traces: int = 10000,
+    explain_max_trace_age_seconds: int = 300,
+    strict: bool = False,
+    **kwargs,
+) -> ArmorCore:
     """
     Initializes AgentArmor for the current execution context.
     Returns the active ArmorCore instance.
@@ -328,6 +367,12 @@ __all__ = [
     "SafePlanSuggestion",
     "EchoChamberDetected",
     "ConfigurationError",
+    "BudgetExhausted",
+    "InjectionDetected",
+    "RateLimitExceeded",
+    "FilterViolation",
+    "HookError",
+    "PatchError",
     "compliance_report",
     "demo_attacks",
     # Explain mode v2 public surface

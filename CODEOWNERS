@@ -1,7 +1,0 @@
-# GitHub CODEOWNERS — PR review assignment
-#
-# The rubric in benchmarks/taxonomy_applicability.py encodes methodological
-# decisions that drive published head-to-head numbers. Changes require review
-# from a rubric owner; break-glass at >5 business days per FAILURES.md D29.
-
-benchmarks/taxonomy_applicability.py  @Sai-Krishna99

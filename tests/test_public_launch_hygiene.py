@@ -57,6 +57,19 @@ def test_public_examples_avoid_overclaiming_compatibility():
     assert "perfectly patches" not in examples_readme
 
 
+def test_recorder_docs_do_not_overclaim_auditability():
+    docs = "\n".join([
+        _read("README.md"),
+        _read("docs/index.rst"),
+        _read("docs/shields.rst"),
+    ])
+
+    assert "Total observability and auditability" not in docs
+    assert "Full audit trail" not in docs
+    assert "tamper-evident" in docs
+    assert "unredacted" in docs
+
+
 def test_readme_gif_generator_dependency_is_declared():
     generator = _read("scripts/generate_readme_demo_gif.py")
     pyproject = _read("pyproject.toml")
@@ -85,6 +98,12 @@ def test_issue_seed_script_excludes_already_shipped_launch_tasks():
     }
 
     assert titles.isdisjoint(shipped_titles)
+
+
+def test_issue_template_config_does_not_link_disabled_discussions():
+    config = _read(".github/ISSUE_TEMPLATE/config.yml")
+
+    assert "/discussions" not in config
 
 
 def test_readme_and_feature_reference_local_anchors_resolve():
