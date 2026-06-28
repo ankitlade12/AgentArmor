@@ -105,7 +105,12 @@ class AgentArmorToxicityBaseline(BaselineChecker):
         if self._module is None:
             from agentarmor.modules.toxicity import ToxicityModule
 
-            self._module = ToxicityModule(on_detect="block")
+            # Explicitly enable the built-in ML classifier: this baseline measures
+            # AgentArmor's full toxicity capability (regex + ML). The ML is opt-in
+            # for end users (off by default — it over-fires on benign text), so we
+            # pin it on here to keep the benchmark's behaviour and published
+            # numbers stable rather than inheriting the user-facing default.
+            self._module = ToxicityModule(on_detect="block", use_builtin_ml=True)
         return self._module
 
     def score(self, text: str) -> float:

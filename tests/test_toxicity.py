@@ -210,7 +210,7 @@ class TestMLClassifierBiasExamples:
     LR classifier's decision boundary on the phrases they target."""
 
     def test_backhanded_compliment_on_language(self):
-        mod = ToxicityModule(on_detect="warn")
+        mod = ToxicityModule(use_builtin_ml=True, on_detect="warn")
         findings = mod.scan_text(
             "You speak English so well for someone from your country"
         )
@@ -218,7 +218,7 @@ class TestMLClassifierBiasExamples:
         assert len(ml) > 0
 
     def test_racial_stereotyping(self):
-        mod = ToxicityModule(on_detect="warn")
+        mod = ToxicityModule(use_builtin_ml=True, on_detect="warn")
         findings = mod.scan_text(
             "You don't act like a typical member of your race"
         )
@@ -226,14 +226,14 @@ class TestMLClassifierBiasExamples:
         assert len(ml) > 0
 
     def test_where_are_you_really_from(self):
-        mod = ToxicityModule(on_detect="warn")
+        mod = ToxicityModule(use_builtin_ml=True, on_detect="warn")
         findings = mod.scan_text("Where are you really from though?")
         ml = [f for f in findings if f.get("method") == "builtin_ml"]
         assert len(ml) > 0
 
     def test_benign_text_unaffected(self):
         """New training must not turn benign text into false positives."""
-        mod = ToxicityModule(on_detect="warn")
+        mod = ToxicityModule(use_builtin_ml=True, on_detect="warn")
         for text in [
             "I need help writing a cover letter for my job application",
             "Can you help me debug this Python code?",
@@ -242,3 +242,34 @@ class TestMLClassifierBiasExamples:
             findings = mod.scan_text(text)
             ml = [f for f in findings if f.get("method") == "builtin_ml"]
             assert len(ml) == 0, f"False positive on: {text}"
+
+
+class TestToxicityDefaultPrecision:
+    """Default toxicity=True must not block benign factual answers.
+
+    The built-in TF-IDF/LR classifier over-fires on benign technical text
+    (e.g. it scores 'photosynthesis ...' at 0.74), so it is opt-in. The default
+    relies on the high-precision regex patterns. Regression for the 40% false
+    positives observed in the E2E safe_passthrough benchmark.
+    """
+
+    BENIGN_FACTUAL = [
+        "Photosynthesis converts sunlight, water, and CO2 into glucose and oxygen.",
+        "Supply and demand: if demand outstrips supply, prices rise until the market clears.",
+        "A refrigerator's compressor forces refrigerant through coils to move heat.",
+        "The capital of France is Paris.",
+    ]
+
+    def test_default_does_not_flag_benign_factual_answers(self):
+        mod = ToxicityModule()  # default config
+        for text in self.BENIGN_FACTUAL:
+            assert mod.scan_text(text) == [], f"false positive on benign: {text}"
+
+    def test_builtin_ml_is_off_by_default_and_on_when_opted_in(self):
+        assert ToxicityModule()._use_builtin_ml is False
+        assert ToxicityModule(use_builtin_ml=True)._use_builtin_ml is True
+
+    def test_default_still_catches_regex_matchable_toxicity(self):
+        # Regex engine is unaffected by the ML default change.
+        findings = ToxicityModule(on_detect="warn").scan_text("holy fuck this is awful")
+        assert findings, "default toxicity must still catch explicit profanity via regex"
