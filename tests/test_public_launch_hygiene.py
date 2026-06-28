@@ -57,6 +57,19 @@ def test_public_examples_avoid_overclaiming_compatibility():
     assert "perfectly patches" not in examples_readme
 
 
+def test_recorder_docs_do_not_overclaim_auditability():
+    docs = "\n".join([
+        _read("README.md"),
+        _read("docs/index.rst"),
+        _read("docs/shields.rst"),
+    ])
+
+    assert "Total observability and auditability" not in docs
+    assert "Full audit trail" not in docs
+    assert "tamper-evident" in docs
+    assert "unredacted" in docs
+
+
 def test_readme_gif_generator_dependency_is_declared():
     generator = _read("scripts/generate_readme_demo_gif.py")
     pyproject = _read("pyproject.toml")
