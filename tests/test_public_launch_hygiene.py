@@ -10,6 +10,20 @@ def _read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
+def _github_anchor_ids(relative_path: str) -> set[str]:
+    text = _read(relative_path)
+    anchors = set()
+    seen: dict[str, int] = {}
+    for match in re.finditer(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE):
+        slug = match.group(1).strip().lower()
+        slug = re.sub(r"[^\w\- ]", "", slug)
+        slug = slug.replace(" ", "-")
+        count = seen.get(slug, 0)
+        seen[slug] = count + 1
+        anchors.add(slug if count == 0 else f"{slug}-{count}")
+    return anchors
+
+
 def test_public_docs_do_not_contain_local_absolute_paths():
     public_docs = [
         "tasks/head-to-head-report/SPEC.md",
@@ -71,3 +85,25 @@ def test_issue_seed_script_excludes_already_shipped_launch_tasks():
     }
 
     assert titles.isdisjoint(shipped_titles)
+
+
+def test_readme_and_feature_reference_local_anchors_resolve():
+    anchors_by_file = {
+        "README.md": _github_anchor_ids("README.md"),
+        "FEATURES.md": _github_anchor_ids("FEATURES.md"),
+    }
+    local_link_pattern = re.compile(r"\[[^\]]+\]\((?:(README|FEATURES)\.md)?#([^)]+)\)")
+
+    for relative_path in anchors_by_file:
+        text = _read(relative_path)
+        for target_file, anchor in local_link_pattern.findall(text):
+            target_path = f"{target_file}.md" if target_file else relative_path
+            assert anchor in anchors_by_file[target_path], (
+                f"{relative_path} links to missing anchor {target_path}#{anchor}"
+            )
+
+
+def test_feature_docs_do_not_reintroduce_numbered_feature_headings():
+    for relative_path in ("README.md", "FEATURES.md"):
+        text = _read(relative_path)
+        assert not re.search(r"^#{2,4}\s+\d+\.", text, flags=re.MULTILINE)

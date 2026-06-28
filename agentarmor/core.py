@@ -328,7 +328,7 @@ class ArmorCore:
                           lambda o: self._wrap_sync(o, provider="openai"))
             self._install(AsyncCompletions, "create", "openai_async",
                           lambda o: self._wrap_async(o, provider="openai"))
-        except ImportError as e:
+        except (ImportError, AttributeError) as e:
             self._warn_if_installed("openai", e)
 
         # OpenAI Responses API (Agents-era surface). Its absence is expected on
@@ -348,7 +348,7 @@ class ArmorCore:
                           lambda o: self._wrap_sync(o, provider="anthropic"))
             self._install(AsyncMessages, "create", "anthropic_async",
                           lambda o: self._wrap_async(o, provider="anthropic"))
-        except ImportError as e:
+        except (ImportError, AttributeError) as e:
             self._warn_if_installed("anthropic", e)
 
         try:
