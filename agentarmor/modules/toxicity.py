@@ -521,7 +521,7 @@ class ToxicityModule:
                  on_detect: str = "block",
                  use_ml: bool = False,
                  ml_threshold: float = 0.7,
-                 use_builtin_ml: bool = True,
+                 use_builtin_ml: bool = False,
                  builtin_ml_threshold: float = 0.6,
                  custom_patterns: Optional[Dict[str, Dict]] = None,
                  allowlist_words: Optional[List[str]] = None):
@@ -532,7 +532,11 @@ class ToxicityModule:
             on_detect: "block" raises, "warn" logs, "redact" replaces toxic content
             use_ml: Use detoxify ML model (requires pip install agentarmor[toxicity])
             ml_threshold: ML model confidence threshold
-            use_builtin_ml: Use built-in TF-IDF + Logistic Regression classifier (default: True)
+            use_builtin_ml: Opt-in built-in TF-IDF + Logistic Regression classifier
+                (default: False). It boosts recall on implicit/subtle toxicity but
+                over-fires on benign technical text (e.g. flags "photosynthesis ..."),
+                so it is off by default — the default relies on the high-precision
+                regex patterns. Enable with toxicity={"use_builtin_ml": True}.
             builtin_ml_threshold: Built-in ML confidence threshold (default: 0.6)
             custom_patterns: Additional category patterns
             allowlist_words: Words to ignore even if they match patterns
