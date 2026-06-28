@@ -232,7 +232,7 @@ except BudgetExhausted:
 
 ### 🔒 Output Firewall
 **Redact sensitive data from model responses.**
-Automatically scans the LLM's response output before it is returned to your application. Redacts PII (Emails, SSNs, phone numbers) and secrets (API Keys, tokens) on the fly.
+Automatically scans the LLM's response output before it is returned to your application. Redacts PII (emails, SSNs, US/international phone numbers, IPv4 addresses, IBANs) and secrets (API keys, tokens) on the fly.
 
 > **Scope:** this is an *output* control — it redacts what the model sends *back*, before your app or logs see it. It does **not** prevent PII or secrets in your *prompt* from being sent to the provider; if that matters, redact your inputs before the call. Redaction is regex-based (see [limitations](#benchmarks)).
 

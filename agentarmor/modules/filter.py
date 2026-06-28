@@ -2,11 +2,21 @@ import re
 from typing import Dict, Optional
 from ..hooks import ResponseContext
 
+_IBAN_COUNTRY_CODES = (
+    "AD|AE|AL|AT|AZ|BA|BE|BG|BH|BI|BR|BY|CH|CR|CY|CZ|DE|DK|DO|EE|EG|ES|"
+    "FI|FO|FR|GB|GE|GI|GL|GR|GT|HR|HU|IE|IL|IQ|IS|IT|JO|KW|KZ|LB|LC|LI|"
+    "LT|LU|LV|LY|MC|MD|ME|MK|MR|MT|MU|NL|NO|PK|PL|PS|PT|QA|RO|RS|SA|SC|"
+    "SE|SI|SK|SM|ST|SV|TL|TN|TR|UA|VA|VG|XK"
+)
+
 PII_PATTERNS = {
     "email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
     "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
     "credit_card": r"\b(?:\d{4}[- ]?){3}\d{4}\b",
     "phone": r"\b(\+1\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b",
+    "ipv4": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
+    "iban": rf"\b(?i:(?:{_IBAN_COUNTRY_CODES})[0-9]{{2}}(?: ?[A-Z0-9]){{11,30}})\b",
+    "intl_phone": r"\+\d[\d\s().\-]{6,16}\d",
     "api_key": r"(sk-|pk_|rk_)[a-zA-Z0-9]{20,}",
     "generic_secrets": r"(password|secret|token|api_key)\s*[:=]\s*\S+",
     "aws_key": r"AKIA[0-9A-Z]{16}",
@@ -35,7 +45,7 @@ class FilterModule:
         self.active_patterns = {}
         for rule in self.rules:
             if rule == "pii":
-                for name in ["email", "ssn", "credit_card", "phone"]:
+                for name in ["email", "ssn", "iban", "credit_card", "phone", "ipv4", "intl_phone"]:
                     self.active_patterns[name] = re.compile(PII_PATTERNS[name])
             elif rule == "secrets":
                 for name in ["api_key", "generic_secrets", "aws_key", "github_token", "jwt", "base64_secret"]:

@@ -72,8 +72,8 @@ Custom patterns can be added via the :class:`~agentarmor.modules.shield.ShieldMo
 **Stop sensitive data leaks.**
 
 Automatically scans LLM response output before it reaches your application.
-Redacts PII (emails, SSNs, phone numbers) and secrets (API keys, tokens)
-on the fly.
+Redacts PII (emails, SSNs, US/international phone numbers, IPv4 addresses, IBANs) and secrets
+(API keys, tokens) on the fly.
 
 .. code-block:: python
 
@@ -93,7 +93,7 @@ on the fly.
      - Detects
    * - ``pii``
      - Personal data
-     - Emails, SSNs, credit cards, phone numbers
+     - Emails, SSNs, credit cards, US/international phone numbers, IPv4 addresses, IBANs
    * - ``secrets``
      - Credentials
      - API keys, AWS keys, GitHub tokens, JWTs, generic secrets
