@@ -1,4 +1,6 @@
+import importlib.util
 import time
+import warnings
 from typing import Any, Callable, Dict
 
 from .hooks import RequestContext, ResponseContext, global_registry
@@ -31,6 +33,7 @@ from .modules.semantic_drift import SemanticDriftModule
 from .modules.taint_tracker import TaintTrackerModule
 from .modules.honeytools import HoneytoolsModule
 from .modules.echo_chamber import EchoChamberModule
+from . import _http_intercept
 
 class ArmorCore:
     def __init__(self, budget=None, shield=False, filter=None, record=False, rate_limit=None, context_guard=False, latency_breaker=None, canary=None, tool_firewall=None, cost_tags=None, dedup=None, cascade=None, ml_shield=None, agent_graph=None, mcp_firewall=None, code_shield=None, grounding=None, cot_auditor=None, toxicity=None, compliance=None, hitl_gate=None, exfiltration_guard=None, privilege_escalation=None, unicode_shield=None, semantic_drift=None, taint_tracker=None, honeytools=None, echo_chamber=None, explain=False, explain_redact=True, explain_max_detail_bytes=65536, explain_max_active_traces=10000, explain_max_trace_age_seconds=300, **kwargs):
@@ -242,93 +245,165 @@ class ArmorCore:
                 self.registry.register_before_request(self.modules["echo_chamber"].pre_check)
                 self.registry.register_after_response(self.modules["echo_chamber"].post_filter)
 
+    def _install(self, cls, attr: str, key: str, wrapper_factory) -> None:
+        """Patch ``cls.attr``, always capturing the GENUINE original.
+
+        If the current method is already an AgentArmor wrapper (init() called
+        twice, or a previous core that wasn't torn down), recover the true
+        original it recorded instead of capturing the wrapper. Otherwise
+        ``teardown()`` would restore a wrapper and corrupt the SDK method
+        permanently in-process. The ``is True`` check is deliberate: a
+        ``MagicMock`` standing in for the SDK auto-creates any attribute, so a
+        loose truthiness test would misread a mock as "already wrapped".
+        """
+        current = getattr(cls, attr)
+        if getattr(current, "_agentarmor_wrapped", False) is True:
+            original = current._agentarmor_original
+        else:
+            original = current
+        self._originals[key] = original
+        wrapped = self._with_sdk_flag(wrapper_factory(original))
+        try:
+            wrapped._agentarmor_wrapped = True
+            wrapped._agentarmor_original = original
+        except (AttributeError, TypeError):
+            pass
+        setattr(cls, attr, wrapped)
+
+    def _with_sdk_flag(self, fn: Callable) -> Callable:
+        """Wrap a patched SDK method so the httpx layer knows an SDK-level call
+        is in flight (via the ``sdk_layer_active`` contextvar) and skips it —
+        otherwise a normal openai/anthropic call would be counted twice (once by
+        the SDK wrapper, once by the httpx wrapper underneath it)."""
+        import inspect
+        if inspect.iscoroutinefunction(fn):
+            async def awrapper(*args, **kwargs):
+                token = _http_intercept.sdk_layer_active.set(True)
+                try:
+                    return await fn(*args, **kwargs)
+                finally:
+                    _http_intercept.sdk_layer_active.reset(token)
+            return awrapper
+
+        def wrapper(*args, **kwargs):
+            token = _http_intercept.sdk_layer_active.set(True)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                _http_intercept.sdk_layer_active.reset(token)
+        return wrapper
+
+    def _restore(self, cls, attr: str, key: str) -> None:
+        if key in self._originals:
+            setattr(cls, attr, self._originals[key])
+
+    def _warn_if_installed(self, package: str, error: Exception) -> None:
+        """Warn loudly if an *installed* provider SDK could not be patched.
+
+        Distinguishes "SDK not installed" (skip silently — expected) from "SDK
+        installed but the patch target could not be resolved" — usually a
+        renamed/moved private module in an unsupported SDK version, which would
+        otherwise leave that provider's guardrails silently OFF with no signal.
+        """
+        try:
+            installed = importlib.util.find_spec(package) is not None
+        except (ImportError, ValueError, ModuleNotFoundError):
+            installed = False
+        if not installed:
+            return
+        warnings.warn(
+            f"AgentArmor: {package} is installed but its patch target could not "
+            f"be resolved ({error}); guardrails are INACTIVE for {package}. This "
+            f"usually means an unsupported {package} SDK version — please report "
+            f"it at https://github.com/ankitlade12/AgentArmor/issues.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
         try:
             from openai.resources.chat.completions import Completions, AsyncCompletions
-            self._originals["openai_sync"] = Completions.create
-            Completions.create = self._wrap_sync(self._originals["openai_sync"], provider="openai")
+            self._install(Completions, "create", "openai_sync",
+                          lambda o: self._wrap_sync(o, provider="openai"))
+            self._install(AsyncCompletions, "create", "openai_async",
+                          lambda o: self._wrap_async(o, provider="openai"))
+        except (ImportError, AttributeError) as e:
+            self._warn_if_installed("openai", e)
 
-            self._originals["openai_async"] = AsyncCompletions.create
-            AsyncCompletions.create = self._wrap_async(self._originals["openai_async"], provider="openai")
-        except ImportError:
-            pass
-
-        # OpenAI Responses API (Agents-era surface)
+        # OpenAI Responses API (Agents-era surface). Its absence is expected on
+        # openai < 2.0, so a missing module here is NOT drift — stay silent.
         try:
             from openai.resources.responses import Responses, AsyncResponses
-            self._originals["openai_responses_sync"] = Responses.create
-            Responses.create = self._wrap_responses_sync(self._originals["openai_responses_sync"])
-
-            self._originals["openai_responses_async"] = AsyncResponses.create
-            AsyncResponses.create = self._wrap_responses_async(self._originals["openai_responses_async"])
+            self._install(Responses, "create", "openai_responses_sync",
+                          self._wrap_responses_sync)
+            self._install(AsyncResponses, "create", "openai_responses_async",
+                          self._wrap_responses_async)
         except ImportError:
             pass
 
         try:
             from anthropic.resources.messages import Messages, AsyncMessages
-            self._originals["anthropic_sync"] = Messages.create
-            Messages.create = self._wrap_sync(self._originals["anthropic_sync"], provider="anthropic")
-
-            self._originals["anthropic_async"] = AsyncMessages.create
-            AsyncMessages.create = self._wrap_async(self._originals["anthropic_async"], provider="anthropic")
-        except ImportError:
-            pass
+            self._install(Messages, "create", "anthropic_sync",
+                          lambda o: self._wrap_sync(o, provider="anthropic"))
+            self._install(AsyncMessages, "create", "anthropic_async",
+                          lambda o: self._wrap_async(o, provider="anthropic"))
+        except (ImportError, AttributeError) as e:
+            self._warn_if_installed("anthropic", e)
 
         try:
-            import google.genai as genai
-            self._originals["genai_sync"] = genai.models.Models.generate_content
-            genai.models.Models.generate_content = self._wrap_genai_sync(self._originals["genai_sync"], is_stream=False)
-            self._originals["genai_stream"] = genai.models.Models.generate_content_stream
-            genai.models.Models.generate_content_stream = self._wrap_genai_sync(self._originals["genai_stream"], is_stream=True)
-            self._originals["genai_async"] = genai.models.AsyncModels.generate_content
-            genai.models.AsyncModels.generate_content = self._wrap_genai_async(self._originals["genai_async"], is_stream=False)
-            self._originals["genai_async_stream"] = genai.models.AsyncModels.generate_content_stream
-            genai.models.AsyncModels.generate_content_stream = self._wrap_genai_async(self._originals["genai_async_stream"], is_stream=True)
-        except (ImportError, AttributeError):
-            pass
+            # Import the submodule explicitly — `import google.genai` does not
+            # guarantee the `.models` attribute is loaded, so relying on it made
+            # patching depend on import order.
+            from google.genai import models as genai_models
+            self._install(genai_models.Models, "generate_content", "genai_sync",
+                          lambda o: self._wrap_genai_sync(o, is_stream=False))
+            self._install(genai_models.Models, "generate_content_stream", "genai_stream",
+                          lambda o: self._wrap_genai_sync(o, is_stream=True))
+            self._install(genai_models.AsyncModels, "generate_content", "genai_async",
+                          lambda o: self._wrap_genai_async(o, is_stream=False))
+            self._install(genai_models.AsyncModels, "generate_content_stream", "genai_async_stream",
+                          lambda o: self._wrap_genai_async(o, is_stream=True))
+        except (ImportError, AttributeError) as e:
+            self._warn_if_installed("google.genai", e)
+
+        # Generic httpx-layer catch-all for surfaces that bypass the SDK
+        # methods above (LiteLLM, .parse()/.stream(), custom httpx clients).
+        _http_intercept.install(self)
 
     def unpatch(self) -> None:
         """Restores original SDK methods."""
         try:
             from openai.resources.chat.completions import Completions, AsyncCompletions
-            if "openai_sync" in self._originals:
-                Completions.create = self._originals["openai_sync"]
-            if "openai_async" in self._originals:
-                AsyncCompletions.create = self._originals["openai_async"]
+            self._restore(Completions, "create", "openai_sync")
+            self._restore(AsyncCompletions, "create", "openai_async")
         except ImportError:
             pass
 
         try:
             from openai.resources.responses import Responses, AsyncResponses
-            if "openai_responses_sync" in self._originals:
-                Responses.create = self._originals["openai_responses_sync"]
-            if "openai_responses_async" in self._originals:
-                AsyncResponses.create = self._originals["openai_responses_async"]
-        except ImportError:
-            pass
-            
-        try:
-            from anthropic.resources.messages import Messages, AsyncMessages
-            if "anthropic_sync" in self._originals:
-                Messages.create = self._originals["anthropic_sync"]
-            if "anthropic_async" in self._originals:
-                AsyncMessages.create = self._originals["anthropic_async"]
+            self._restore(Responses, "create", "openai_responses_sync")
+            self._restore(AsyncResponses, "create", "openai_responses_async")
         except ImportError:
             pass
 
         try:
-            import google.genai as genai
-            if "genai_sync" in self._originals:
-                genai.models.Models.generate_content = self._originals["genai_sync"]
-            if "genai_stream" in self._originals:
-                genai.models.Models.generate_content_stream = self._originals["genai_stream"]
-            if "genai_async" in self._originals:
-                genai.models.AsyncModels.generate_content = self._originals["genai_async"]
-            if "genai_async_stream" in self._originals:
-                genai.models.AsyncModels.generate_content_stream = self._originals["genai_async_stream"]
+            from anthropic.resources.messages import Messages, AsyncMessages
+            self._restore(Messages, "create", "anthropic_sync")
+            self._restore(AsyncMessages, "create", "anthropic_async")
+        except ImportError:
+            pass
+
+        try:
+            from google.genai import models as genai_models
+            self._restore(genai_models.Models, "generate_content", "genai_sync")
+            self._restore(genai_models.Models, "generate_content_stream", "genai_stream")
+            self._restore(genai_models.AsyncModels, "generate_content", "genai_async")
+            self._restore(genai_models.AsyncModels, "generate_content_stream", "genai_async_stream")
         except (ImportError, AttributeError):
             pass
+
+        _http_intercept.uninstall()
 
     def _build_request_context(self, provider: str, args: tuple, kwargs: dict) -> RequestContext:
         messages = kwargs.get("messages", [])
