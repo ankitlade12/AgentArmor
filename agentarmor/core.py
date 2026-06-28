@@ -1,4 +1,6 @@
+import importlib.util
 import time
+import warnings
 from typing import Any, Callable, Dict
 
 from .hooks import RequestContext, ResponseContext, global_registry
@@ -271,6 +273,29 @@ class ArmorCore:
         if key in self._originals:
             setattr(cls, attr, self._originals[key])
 
+    def _warn_if_installed(self, package: str, error: Exception) -> None:
+        """Warn loudly if an *installed* provider SDK could not be patched.
+
+        Distinguishes "SDK not installed" (skip silently — expected) from "SDK
+        installed but the patch target could not be resolved" — usually a
+        renamed/moved private module in an unsupported SDK version, which would
+        otherwise leave that provider's guardrails silently OFF with no signal.
+        """
+        try:
+            installed = importlib.util.find_spec(package) is not None
+        except (ImportError, ValueError, ModuleNotFoundError):
+            installed = False
+        if not installed:
+            return
+        warnings.warn(
+            f"AgentArmor: {package} is installed but its patch target could not "
+            f"be resolved ({error}); guardrails are INACTIVE for {package}. This "
+            f"usually means an unsupported {package} SDK version — please report "
+            f"it at https://github.com/ankitlade12/AgentArmor/issues.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
     def patch(self) -> None:
         """Monkey-patches the OpenAI, Anthropic, and Gemini SDKs."""
         try:
@@ -279,10 +304,11 @@ class ArmorCore:
                           lambda o: self._wrap_sync(o, provider="openai"))
             self._install(AsyncCompletions, "create", "openai_async",
                           lambda o: self._wrap_async(o, provider="openai"))
-        except ImportError:
-            pass
+        except (ImportError, AttributeError) as e:
+            self._warn_if_installed("openai", e)
 
-        # OpenAI Responses API (Agents-era surface)
+        # OpenAI Responses API (Agents-era surface). Its absence is expected on
+        # openai < 2.0, so a missing module here is NOT drift — stay silent.
         try:
             from openai.resources.responses import Responses, AsyncResponses
             self._install(Responses, "create", "openai_responses_sync",
@@ -298,21 +324,24 @@ class ArmorCore:
                           lambda o: self._wrap_sync(o, provider="anthropic"))
             self._install(AsyncMessages, "create", "anthropic_async",
                           lambda o: self._wrap_async(o, provider="anthropic"))
-        except ImportError:
-            pass
+        except (ImportError, AttributeError) as e:
+            self._warn_if_installed("anthropic", e)
 
         try:
-            import google.genai as genai
-            self._install(genai.models.Models, "generate_content", "genai_sync",
+            # Import the submodule explicitly — `import google.genai` does not
+            # guarantee the `.models` attribute is loaded, so relying on it made
+            # patching depend on import order.
+            from google.genai import models as genai_models
+            self._install(genai_models.Models, "generate_content", "genai_sync",
                           lambda o: self._wrap_genai_sync(o, is_stream=False))
-            self._install(genai.models.Models, "generate_content_stream", "genai_stream",
+            self._install(genai_models.Models, "generate_content_stream", "genai_stream",
                           lambda o: self._wrap_genai_sync(o, is_stream=True))
-            self._install(genai.models.AsyncModels, "generate_content", "genai_async",
+            self._install(genai_models.AsyncModels, "generate_content", "genai_async",
                           lambda o: self._wrap_genai_async(o, is_stream=False))
-            self._install(genai.models.AsyncModels, "generate_content_stream", "genai_async_stream",
+            self._install(genai_models.AsyncModels, "generate_content_stream", "genai_async_stream",
                           lambda o: self._wrap_genai_async(o, is_stream=True))
-        except (ImportError, AttributeError):
-            pass
+        except (ImportError, AttributeError) as e:
+            self._warn_if_installed("google.genai", e)
 
     def unpatch(self) -> None:
         """Restores original SDK methods."""
@@ -338,11 +367,11 @@ class ArmorCore:
             pass
 
         try:
-            import google.genai as genai
-            self._restore(genai.models.Models, "generate_content", "genai_sync")
-            self._restore(genai.models.Models, "generate_content_stream", "genai_stream")
-            self._restore(genai.models.AsyncModels, "generate_content", "genai_async")
-            self._restore(genai.models.AsyncModels, "generate_content_stream", "genai_async_stream")
+            from google.genai import models as genai_models
+            self._restore(genai_models.Models, "generate_content", "genai_sync")
+            self._restore(genai_models.Models, "generate_content_stream", "genai_stream")
+            self._restore(genai_models.AsyncModels, "generate_content", "genai_async")
+            self._restore(genai_models.AsyncModels, "generate_content_stream", "genai_async_stream")
         except (ImportError, AttributeError):
             pass
 
