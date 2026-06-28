@@ -247,7 +247,7 @@ agentarmor.init(filter=["pii", "secrets"])
 **Local debug & replay log of every call.**
 Silently records the exact inputs, outputs, models, timestamps, and latency of every API call to a local JSONL session file. Ideal for debugging rogue agents and replaying sessions.
 
-> **Scope:** the JSONL holds full, **unredacted** inputs and outputs. Files are written owner-only (`0600`), but this is a local debug log, **not a tamper-evident audit trail** — anything running as your user can still read, modify, or delete it. Don't treat it as forensic evidence or as a compliance control on its own.
+> **Scope:** the JSONL holds full, **unredacted** inputs and outputs. On POSIX systems, files are written owner-only (`0600`), but this is a local debug log, **not a tamper-evident audit trail** — anything running as your user can still read, modify, or delete it. Don't treat it as forensic evidence or as a compliance control on its own.
 
 ```python
 agentarmor.init(record=True)

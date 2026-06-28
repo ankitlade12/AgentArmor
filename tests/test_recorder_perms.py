@@ -28,6 +28,21 @@ def test_session_file_is_owner_only(tmp_path):
     assert mode == 0o600, f"session file is {oct(mode)}, expected 0o600 (owner-only)"
 
 
+def test_existing_session_file_is_locked_down_before_append(tmp_path):
+    path = tmp_path / "sessions"
+    rec = RecorderModule(path=str(path))
+    existing = path / f"session_{rec.session_id}.jsonl"
+    existing.write_text("legacy\n", encoding="utf-8")
+    os.chmod(existing, 0o644)
+
+    req = RequestContext(messages=[{"role": "user", "content": "secret"}], model="gpt-4o")
+    res = ResponseContext(text="ok", model="gpt-4o", provider="openai", request=req)
+    rec.post_record(res)
+
+    mode = stat.S_IMODE(os.stat(existing).st_mode)
+    assert mode == 0o600, f"existing session file is {oct(mode)}, expected 0o600"
+
+
 def test_session_dir_is_owner_only(tmp_path):
     rec = _record_once(tmp_path / "sessions")
     mode = stat.S_IMODE(os.stat(rec.path).st_mode)

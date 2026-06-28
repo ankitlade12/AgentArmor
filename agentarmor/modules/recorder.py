@@ -53,6 +53,10 @@ class RecorderModule:
     def _flush_local(self, event: dict):
         # Create owner-only (0600) — the file contains unredacted prompt data.
         fd = os.open(self.filepath, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        except OSError:
+            pass
         with os.fdopen(fd, "a") as f:
             f.write(json.dumps(event) + "\n")
 
