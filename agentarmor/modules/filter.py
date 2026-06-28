@@ -44,6 +44,14 @@ class FilterModule:
                 self.active_patterns[rule] = re.compile(PII_PATTERNS[rule])
             elif rule in self.custom_patterns:
                 self.active_patterns[rule] = re.compile(self.custom_patterns[rule])
+            else:
+                raise ValueError(
+                    f"Unknown filter rule {rule!r} — redaction would be silently "
+                    f"disabled for it. Valid categories are 'pii' and 'secrets'; "
+                    f"valid individual patterns are: "
+                    f"{', '.join(sorted(PII_PATTERNS))}. For anything else, pass it "
+                    f"via custom_patterns={{{rule!r}: <regex>}}."
+                )
 
     def post_filter(self, ctx: ResponseContext) -> ResponseContext:
         if isinstance(ctx.text, str) and self.active_patterns:

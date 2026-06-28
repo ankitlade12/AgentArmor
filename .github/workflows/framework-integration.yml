@@ -1,14 +1,13 @@
-name: Optional Framework Integration
+name: SDK & Framework Compatibility
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 11 * * 1"
+    - cron: "17 11 * * *"
 
 jobs:
   framework-smoke:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

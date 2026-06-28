@@ -1,3 +1,5 @@
+import pytest
+
 from agentarmor.modules.filter import FilterModule
 
 def test_filter_pii():
@@ -96,3 +98,27 @@ def test_redact_no_patterns_active():
 
     assert redacted == text
     assert module.redactions == 0
+
+
+def test_unknown_filter_rule_raises_instead_of_silently_disabling():
+    """A typo'd rule (e.g. filter=["piii"]) must fail loud, not silently
+    leave the user with zero redaction."""
+    with pytest.raises(ValueError, match="piii"):
+        FilterModule(rules=["piii"])
+
+
+def test_unknown_filter_rule_error_lists_valid_categories():
+    with pytest.raises(ValueError) as exc:
+        FilterModule(rules=["PII"])  # right idea, wrong case → unknown
+    msg = str(exc.value)
+    assert "pii" in msg and "secrets" in msg
+
+
+def test_individual_pattern_name_is_a_valid_rule():
+    module = FilterModule(rules=["email"])
+    assert "email" in module.active_patterns
+
+
+def test_custom_pattern_name_is_a_valid_rule():
+    module = FilterModule(rules=["ticket"], custom_patterns={"ticket": r"TICK-\d+"})
+    assert "ticket" in module.active_patterns
