@@ -51,7 +51,9 @@ AGENTARMOR_BLOCK_EXCEPTIONS = (
 # ---------------------------------------------------------------------------
 MODELS: Dict[str, List[str]] = {
     "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "o3-mini"],
-    "anthropic": ["claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4"],
+    # NOTE: bare "claude-opus-4" is not a valid Anthropic API model id (404s);
+    # re-add Opus with a confirmed current id, e.g. "claude-opus-4-1".
+    "anthropic": ["claude-sonnet-4-5", "claude-haiku-4-5"],
     "google": ["gemini-2.0-flash", "gemini-2.5-pro"],
 }
 
@@ -70,7 +72,6 @@ COST_PER_CALL_USD: Dict[str, float] = {
     "o3-mini": 0.002,
     "claude-sonnet-4-5": 0.002,
     "claude-haiku-4-5": 0.0004,
-    "claude-opus-4": 0.01,
     "gemini-2.0-flash": 0.0002,
     "gemini-2.5-pro": 0.003,
 }

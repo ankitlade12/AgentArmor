@@ -21,7 +21,33 @@ on:
         type: string
 
 jobs:
+  # The E2E benchmark makes real (paid) provider calls, so it needs at least one
+  # API key. Without keys (e.g. a release in a repo where the secrets aren't
+  # configured) the benchmark job is SKIPPED rather than failing the pipeline —
+  # secrets can't be referenced in a job-level `if:`, so this guard surfaces
+  # their presence as an output.
+  check-keys:
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - name: Check for provider API keys
+        id: check
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No provider API keys configured (OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY) — skipping E2E benchmarks. Set them as repository secrets to run real multi-provider benchmarks."
+          fi
+
   e2e-benchmark:
+    needs: check-keys
+    if: needs.check-keys.outputs.available == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
